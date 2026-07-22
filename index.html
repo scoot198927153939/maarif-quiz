@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مدرسة المعارف - تسجيل الدخول</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #0284c7; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+        button { background: #0284c7; color: white; border: none; padding: 10px 20px; width: 100%; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0369a1; }
+        .info-section { margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>مدرسة المعارف</h1>
+    <p style="text-align: center;">مرحباً بكم في البوابة الإلكترونية للتمارين والاختبارات</p>
+    
+    <div id="loginForm">
+        <h3>تسجيل الدخول</h3>
+        <div class="form-group">
+            <label>اسم المستخدم:</label>
+            <input type="text" id="username">
+        </div>
+        <div class="form-group">
+            <label>كلمة المرور:</label>
+            <input type="password" id="password">
+        </div>
+        <button onclick="login()">دخول</button>
+        <p id="errorMsg" style="color: red; text-align: center;"></p>
+    </div>
+
+    <div class="info-section">
+        <h3>معلومات عن المدرسة</h3>
+        <p>نعمل على توفير أفضل بيئة تعليمية رقمية لطلابنا في مختلف المواد العلمية.</p>
+        <p><strong>أرقام التواصل:</strong> +222 XX XX XX XX</p>
+        <p><a href="https://maps.google.com" target="_blank">موقعنا على خريطة جوجل</a></p>
+    </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
+
+function login() {
+    let user = document.getElementById('username').value;
+    let pass = document.getElementById('password').value;
+    
+    fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "login", username: user, password: pass })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === "success") {
+            localStorage.setItem("username", user);
+            if(data.role === "admin") {
+                window.location.href = "admin.html";
+            } else {
+                window.location.href = "dashboard.html";
+            }
+        } else {
+            document.getElementById('errorMsg').innerText = data.message;
+        }
+    });
+}
+</script>
+</body>
+</html>

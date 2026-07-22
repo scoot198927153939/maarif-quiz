@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة اختبارات الطلاب - مدرسة المعارف</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #0284c7; text-align: center; }
+        .subjects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+        .subject-card { background: #e0f2fe; padding: 20px; border-radius: 8px; text-align: center; cursor: pointer; transition: 0.3s; }
+        .subject-card:hover { background: #bae6fd; }
+        .subject-card h3 { color: #0369a1; margin: 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>اختر المادة لبدء الاختبار</h1>
+    <div class="subjects-grid">
+        <div class="subject-card" onclick="startExam('الرياضيات الجبر')"><h3>الرياضيات الجبر</h3></div>
+        <div class="subject-card" onclick="startExam('الرياضيات الهندسة')"><h3>الرياضيات الهندسة</h3></div>
+        <div class="subject-card" onclick="startExam('العلوم')"><h3>العلوم</h3></div>
+        <div class="subject-card" onclick="startExam('الفيزياء')"><h3>الفيزياء</h3></div>
+        <div class="subject-card" onclick="startExam('الكيمياء')"><h3>الكيمياء</h3></div>
+    </div>
+</div>
+
+<script>
+function startExam(subject) {
+    localStorage.setItem("selectedSubject", subject);
+    window.location.href = "exam.html";
+}
+</script>
+</body>
+</html>

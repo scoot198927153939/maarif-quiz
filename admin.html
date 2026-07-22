@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة التحكم - الأدمن</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #dc2626; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
+        button { background: #dc2626; color: white; border: none; padding: 10px 20px; width: 100%; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>لوحة تحكم المشرف (إضافة أسئلة مع صور)</h2>
+    <div class="form-group">
+        <label>المادة:</label>
+        <select id="subSubject">
+            <option value="الرياضيات الجبر">الرياضيات الجبر</option>
+            <option value="الرياضيات الهندسة">الرياضيات الهندسة</option>
+            <option value="العلوم">العلوم</option>
+            <option value="الفيزياء">الفيزياء</option>
+            <option value="الكيمياء">الكيمياء</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>السؤال:</label>
+        <textarea id="question"></textarea>
+    </div>
+    <div class="form-group">
+        <label>رابط الصورة (اختياري):</label>
+        <input type="text" id="imageURL" placeholder="https://example.com/image.png">
+    </div>
+    <div class="form-group"><label>الخيار الأول:</label><input type="text" id="opt1"></div>
+    <div class="form-group"><label>الخيار الثاني:</label><input type="text" id="opt2"></div>
+    <div class="form-group"><label>الخيار الثالث:</label><input type="text" id="opt3"></div>
+    <div class="form-group"><label>الخيار الرابع:</label><input type="text" id="opt4"></div>
+    <div class="form-group"><label>الإجابة الصحيحة (يجب أن تطابق أحد الخيارات تماماً):</label><input type="text" id="correct"></div>
+    <button onclick="addExam()">حفظ السؤال في النظام</button>
+    <p id="msg" style="text-align: center; color: green;"></p>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
+
+function addExam() {
+    let data = {
+        action: "saveExam",
+        subject: document.getElementById('subSubject').value,
+        question: document.getElementById('question').value,
+        image: document.getElementById('imageURL').value,
+        opt1: document.getElementById('opt1').value,
+        opt2: document.getElementById('opt2').value,
+        opt3: document.getElementById('opt3').value,
+        opt4: document.getElementById('opt4').value,
+        correct: document.getElementById('correct').value
+    };
+
+    fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(response => {
+        document.getElementById('msg').innerText = "تمت إضافة السؤال مع الصورة بنجاح!";
+        document.getElementById('question').value = "";
+        document.getElementById('imageURL').value = "";
+        document.getElementById('opt1').value = "";
+        document.getElementById('opt2').value = "";
+        document.getElementById('opt3').value = "";
+        document.getElementById('opt4').value = "";
+        document.getElementById('correct').value = "";
+    });
+}
+</script>
+</body>
+</html>
