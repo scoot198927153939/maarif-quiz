@@ -2,74 +2,134 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>الاختبار - مدرسة المعارف</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبارات مدرسة المعارف</title>
     <style>
-        body { font-family: Tahoma, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h2 { color: #0284c7; }
-        .question-box { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-        .question-img { max-width: 100%; height: auto; display: block; margin: 10px 0; border-radius: 5px; }
-        button { background: #10b981; color: white; border: none; padding: 10px 20px; width: 100%; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            direction: rtl;
+        }
+        .container {
+            max-width: 700px;
+            background: #ffffff;
+            padding: 30px;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #0275d8;
+            margin-bottom: 25px;
+        }
+        .question-box {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .question-text {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .question-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            display: block;
+        }
+        .options-list label {
+            display: block;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .no-questions {
+            text-align: center;
+            color: #d9534f;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        button {
+            width: 100%;
+            background-color: #5cb85c;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #4cae4c;
+        }
     </style>
 </head>
 <body>
+
 <div class="container">
-    <h2 id="subjectTitle">جاري تحميل الاختبار...</h2>
-    <div id="quizContainer"></div>
-    <button id="submitBtn" style="display:none;" onclick="submitQuiz()">إرسال الإجابات</button>
-    <h3 id="resultDisplay" style="text-align: center; color: #059669;"></h3>
+    <h2 id="pageTitle">اختبار المادة</h2>
+    <div id="questionsContainer">
+        <p style="text-align: center; color: #666;">جاري تحميل الأسئلة...</p>
+    </div>
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
 
-let subject = localStorage.getItem("selectedSubject");
-document.getElementById("subjectTitle").innerText = "اختبار مادة: " + subject;
-let questions = [];
-
-fetch(`${SCRIPT_URL}?action=getExams&subject=${encodeURIComponent(subject)}`)
-.then(res => res.json())
-.then(data => {
-    questions = data;
-    let html = "";
-    if(questions.length === 0) {
-        document.getElementById("quizContainer").innerHTML = "<p>لا توجد اختبارات متاحة لهذه المادة حالياً.</p>";
-        return;
-    }
-    questions.forEach((q, index) => {
-        let imgTag = q.image ? `<img src="${q.image}" class="question-img" alt="صورة السؤال">` : "";
-        html += `<div class="question-box">
-            <p><strong>${index+1}. ${q.question}</strong></p>
-            ${imgTag}
-            ${q.options.map((opt, i) => `<label><input type="radio" name="q${index}" value="${opt}"> ${opt}</label><br>`).join('')}
-        </div>`;
-    });
-    document.getElementById("quizContainer").innerHTML = html;
-    document.getElementById("submitBtn").style.display = "block";
-});
-
-function submitQuiz() {
-    let score = 0;
-    questions.forEach((q, index) => {
-        let selected = document.querySelector(`input[name="q${index}"]:checked`);
-        if(selected && selected.value.trim() === q.correct.trim()) {
-            score++;
-        }
-    });
-
-    let username = localStorage.getItem("username") || "طالب ضيف";
+    // معرفة المادة المطلوبة من رابط الصفحة (مثلاً: exam.html?subject=العلوم)
+    const urlParams = new URLSearchParams(window.location.search);
+    const selectedSubject = urlParams.get('subject') || "العلوم";
     
-    fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "saveResult", username: username, subject: subject, score: score, total: questions.length })
-    })
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("quizContainer").innerHTML = "";
-        document.getElementById("submitBtn").style.display = "none";
-        document.getElementById("resultDisplay").innerText = `انتهى الاختبار! نتيجتك هي: ${score} من ${questions.length}`;
-    });
-}
+    document.getElementById('pageTitle').innerText = "اختبار مادة: " + selectedSubject;
+
+    // جلب الأسئلة من جوجل شيت عبر الـ Script
+    fetch(SCRIPT_URL)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('questionsContainer');
+            container.innerHTML = "";
+
+            // تصفية الأسئلة الخاصة بالمادة الحالية فقط
+            const filteredQuestions = data.filter(q => q.subject === selectedSubject);
+
+            if (filteredQuestions.length === 0) {
+                container.innerHTML = `<p class="no-questions">لا توجد اختبارات متاحة لهذه المادة حالياً.</p>`;
+                return;
+            }
+
+            filteredQuestions.forEach((q, index) => {
+                let optionsHtml = '';
+                q.options.forEach(opt => {
+                    if (opt) {
+                        optionsHtml += `<label><input type="radio" name="q${index}" value="${opt}"> ${opt}</label>`;
+                    }
+                });
+
+                let imageHtml = q.image ? `<img src="${q.image}" class="question-image" alt="صورة السؤال">` : '';
+
+                container.innerHTML += `
+                    <div class="question-box">
+                        <div class="question-text">${index + 1}. ${q.text}</div>
+                        ${imageHtml}
+                        <div class="options-list">${optionsHtml}</div>
+                    </div>
+                `;
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching questions:', error);
+            document.getElementById('questionsContainer').innerHTML = `<p class="no-questions">حدث خطأ أثناء تحميل الأسئلة من قاعدة البيانات.</p>`;
+        });
 </script>
+
 </body>
 </html>
