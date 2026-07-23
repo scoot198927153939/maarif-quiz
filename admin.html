@@ -69,6 +69,13 @@
             border-radius: 5px;
             border: 1px solid #ddd;
         }
+        #loadingMessage {
+            text-align: center;
+            color: #0275d8;
+            font-weight: bold;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -97,7 +104,6 @@
             <label for="imageFile">صورة السؤال (اختياري من جهازك):</label>
             <input type="file" id="imageFile" accept="image/*" onchange="previewImage(event)">
             <img id="imagePreview" alt="معاينة الصورة">
-            <!-- حقل مخفي لتخزين بيانات الصورة المعالجة -->
             <input type="hidden" id="imageBase64">
         </div>
 
@@ -126,12 +132,14 @@
             <input type="text" id="correctAnswer" required>
         </div>
 
-        <button type="submit">حفظ السؤال في النظام</button>
+        <button type="submit" id="submitBtn">حفظ السؤال في النظام</button>
+        <div id="loadingMessage">جاري حفظ السؤال في قاعدة البيانات...</div>
     </form>
 </div>
 
 <script>
-    // دالة لمعاينة الصورة وتحويلها إلى صيغة نصية (Base64) لحفظها بسهولة
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
+
     function previewImage(event) {
         const file = event.target.files[0];
         if (file) {
@@ -140,7 +148,6 @@
                 const preview = document.getElementById('imagePreview');
                 preview.src = e.target.result;
                 preview.style.display = 'block';
-                // تخزين الكود النصي للصورة في الحقل المخفي
                 document.getElementById('imageBase64').value = e.target.result;
             }
             reader.readAsDataURL(file);
@@ -150,26 +157,46 @@
     document.getElementById('questionForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingMsg = document.getElementById('loadingMessage');
+        
+        submitBtn.disabled = true;
+        loadingMsg.style.display = 'block';
+
         const questionData = {
+            action: "addQuestion", // تأكد من مطابقة هذا الأمر مع ملف Google Apps Script الخاص بك إذا لزم الأمر
             subject: document.getElementById('subject').value,
             text: document.getElementById('questionText').value,
-            image: document.getElementById('imageBase64').value, // الصورة من الجهاز
-            options: [
-                document.getElementById('opt1').value,
-                document.getElementById('opt2').value,
-                document.getElementById('opt3').value,
-                document.getElementById('opt4').value
-            ],
+            image: document.getElementById('imageBase64').value,
+            opt1: document.getElementById('opt1').value,
+            opt2: document.getElementById('opt2').value,
+            opt3: document.getElementById('opt3').value,
+            opt4: document.getElementById('opt4').value,
             correct: document.getElementById('correctAnswer').value
         };
 
-        console.log("تم تجهيز السؤال:", questionData);
-        alert("تم حفظ السؤال مع الصورة بنجاح!");
-        
-        // إعادةตั้งค่า الحقول بعد الحفظ
-        document.getElementById('questionForm').reset();
-        document.getElementById('imagePreview').style.display = 'none';
-        document.getElementById('imageBase64').value = '';
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // لتجنب مشاكل الأمان في متصفحات الويب مع الـ Script
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(questionData)
+        })
+        .then(() => {
+            alert("تم حفظ السؤال وإرساله إلى قاعدة البيانات بنجاح!");
+            document.getElementById('questionForm').reset();
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('imageBase64').value = '';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("حدث خطأ أثناء الاتصال بقاعدة البيانات.");
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            loadingMsg.style.display = 'none';
+        });
     });
 </script>
 
