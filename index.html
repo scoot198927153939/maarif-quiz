@@ -43,7 +43,7 @@
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFoJNP50PW9TXbnBxWpbblTIZ3uXnJJrbUnmJXF3e08qwPzdWrl6IFcdaJbJolEo_OUQ/exec";
 
 function login() {
     let user = document.getElementById('username').value;
@@ -60,11 +60,15 @@ function login() {
             if(data.role === "admin") {
                 window.location.href = "admin.html";
             } else {
-                window.location.href = "dashboard.html";
+                window.location.href = "exam.html";
             }
         } else {
             document.getElementById('errorMsg').innerText = data.message;
         }
+    })
+    .catch(err => {
+        console.error(err);
+        document.getElementById('errorMsg').innerText = "حدث خطأ في الاتصال بالبوابة.";
     });
 }
 </script>

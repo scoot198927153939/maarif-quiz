@@ -138,7 +138,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFoJNP50PW9TXbnBxWpbblTIZ3uXnJJrbUnmJXF3e08qwPzdWrl6IFcdaJbJolEo_OUQ/exec";
 
     function previewImage(event) {
         const file = event.target.files[0];
@@ -164,7 +164,6 @@
         loadingMsg.style.display = 'block';
 
         const questionData = {
-            action: "addQuestion", // تأكد من مطابقة هذا الأمر مع ملف Google Apps Script الخاص بك إذا لزم الأمر
             subject: document.getElementById('subject').value,
             text: document.getElementById('questionText').value,
             image: document.getElementById('imageBase64').value,
@@ -177,13 +176,10 @@
 
         fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // لتجنب مشاكل الأمان في متصفحات الويب مع الـ Script
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify(questionData)
         })
-        .then(() => {
+        .then(res => res.json())
+        .then(data => {
             alert("تم حفظ السؤال وإرساله إلى قاعدة البيانات بنجاح!");
             document.getElementById('questionForm').reset();
             document.getElementById('imagePreview').style.display = 'none';

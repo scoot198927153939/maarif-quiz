@@ -57,20 +57,6 @@
             font-size: 18px;
             font-weight: bold;
         }
-        button {
-            width: 100%;
-            background-color: #5cb85c;
-            color: white;
-            padding: 12px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:hover {
-            background-color: #4cae4c;
-        }
     </style>
 </head>
 <body>
@@ -83,22 +69,19 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsD_wRm0IuzUAh3YaE-9vpaHaf5zrltKGc5YhChIFtoYgfAK5CFErHZrAKNTaN2_RWZg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFoJNP50PW9TXbnBxWpbblTIZ3uXnJJrbUnmJXF3e08qwPzdWrl6IFcdaJbJolEo_OUQ/exec";
 
-    // معرفة المادة المطلوبة من رابط الصفحة (مثلاً: exam.html?subject=العلوم)
     const urlParams = new URLSearchParams(window.location.search);
     const selectedSubject = urlParams.get('subject') || "العلوم";
     
     document.getElementById('pageTitle').innerText = "اختبار مادة: " + selectedSubject;
 
-    // جلب الأسئلة من جوجل شيت عبر الـ Script
     fetch(SCRIPT_URL)
         .then(response => response.json())
         .then(data => {
             const container = document.getElementById('questionsContainer');
             container.innerHTML = "";
 
-            // تصفية الأسئلة الخاصة بالمادة الحالية فقط
             const filteredQuestions = data.filter(q => q.subject === selectedSubject);
 
             if (filteredQuestions.length === 0) {

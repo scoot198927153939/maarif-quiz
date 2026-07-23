@@ -2,34 +2,94 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>لوحة اختبارات الطلاب - مدرسة المعارف</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الطالب - مدرسة المعارف</title>
     <style>
-        body { font-family: Tahoma, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        h1 { color: #0284c7; text-align: center; }
-        .subjects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
-        .subject-card { background: #e0f2fe; padding: 20px; border-radius: 8px; text-align: center; cursor: pointer; transition: 0.3s; }
-        .subject-card:hover { background: #bae6fd; }
-        .subject-card h3 { color: #0369a1; margin: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            direction: rtl;
+        }
+        .container {
+            max-width: 600px;
+            background: #ffffff;
+            padding: 30px;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h2 {
+            color: #0284c7;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .subject-btn {
+            background-color: #0284c7;
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+            transition: background 0.3s;
+        }
+        .subject-btn:hover {
+            background-color: #0369a1;
+        }
+        .logout-btn {
+            background-color: #d9534f;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .logout-btn:hover {
+            background-color: #c9302c;
+        }
     </style>
 </head>
 <body>
+
 <div class="container">
-    <h1>اختر المادة لبدء الاختبار</h1>
+    <h2>أهلاً بك في بوابة الطالب</h2>
+    <p>يرجى اختيار المادة التي تريد إجراء الاختبار أو التمارين الخاصة بها:</p>
+
     <div class="subjects-grid">
-        <div class="subject-card" onclick="startExam('الرياضيات الجبر')"><h3>الرياضيات الجبر</h3></div>
-        <div class="subject-card" onclick="startExam('الرياضيات الهندسة')"><h3>الرياضيات الهندسة</h3></div>
-        <div class="subject-card" onclick="startExam('العلوم')"><h3>العلوم</h3></div>
-        <div class="subject-card" onclick="startExam('الفيزياء')"><h3>الفيزياء</h3></div>
-        <div class="subject-card" onclick="startExam('الكيمياء')"><h3>الكيمياء</h3></div>
+        <a href="exam.html?subject=العلوم" class="subject-btn">مادة العلوم</a>
+        <a href="exam.html?subject=الرياضيات" class="subject-btn">مادة الرياضيات</a>
+        <a href="exam.html?subject=العربية" class="subject-btn">اللغة العربية</a>
+        <a href="exam.html?subject=الفرنسية" class="subject-btn">اللغة الفرنسية</a>
     </div>
+
+    <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
 </div>
 
 <script>
-function startExam(subject) {
-    localStorage.setItem("selectedSubject", subject);
-    window.location.href = "exam.html";
-}
+    function logout() {
+        localStorage.removeItem("username");
+        window.location.href = "index.html";
+    }
 </script>
+
 </body>
 </html>
