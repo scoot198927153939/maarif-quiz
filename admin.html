@@ -83,10 +83,14 @@
 <div class="container">
     <h2>لوحة تحكم المشرف (إضافة أسئلة مع صور)</h2>
     
-    <form id="questionForm">
+    <!-- iframe مخفي لاستقبال الرد بدون إعادة تحميل الصفحة -->
+    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;" onload="if(submitted) { alert('تم حفظ السؤال في النظام بنجاح!'); document.getElementById('questionForm').reset(); document.getElementById('imagePreview').style.display = 'none'; document.getElementById('submitBtn').disabled = false; document.getElementById('loadingMessage').style.display = 'none'; submitted = false; }"></iframe>
+
+    <form id="questionForm" action="https://script.google.com/macros/s/AKfycbwFoJNP50PW9TXbnBxWpbblTIZ3uXnJJrbUnmJXF3e08qwPzdWrl6IFcdaJbJolEo_OUQ/exec" method="POST" target="hidden_iframe">
+        
         <div class="form-group">
             <label for="subject">المادة:</label>
-            <select id="subject" required>
+            <select id="subject" name="subject" required>
                 <option value="">اختر المادة</option>
                 <option value="العلوم">العلوم</option>
                 <option value="الرياضيات">الرياضيات</option>
@@ -97,48 +101,48 @@
 
         <div class="form-group">
             <label for="questionText">السؤال:</label>
-            <textarea id="questionText" rows="3" placeholder="اكتب نص السؤال هنا..." required></textarea>
+            <textarea id="questionText" name="text" rows="3" placeholder="اكتب نص السؤال هنا..." required></textarea>
         </div>
 
         <div class="form-group">
             <label for="imageFile">صورة السؤال (اختياري من جهازك):</label>
             <input type="file" id="imageFile" accept="image/*" onchange="previewImage(event)">
             <img id="imagePreview" alt="معاينة الصورة">
-            <input type="hidden" id="imageBase64">
+            <input type="hidden" id="imageBase64" name="image">
         </div>
 
         <div class="form-group">
             <label for="opt1">الخيار الأول:</label>
-            <input type="text" id="opt1" required>
+            <input type="text" id="opt1" name="opt1" required>
         </div>
 
         <div class="form-group">
             <label for="opt2">الخيار الثاني:</label>
-            <input type="text" id="opt2" required>
+            <input type="text" id="opt2" name="opt2" required>
         </div>
 
         <div class="form-group">
             <label for="opt3">الخيار الثالث:</label>
-            <input type="text" id="opt3" required>
+            <input type="text" id="opt3" name="opt3" required>
         </div>
 
         <div class="form-group">
             <label for="opt4">الخيار الرابع:</label>
-            <input type="text" id="opt4" required>
+            <input type="text" id="opt4" name="opt4" required>
         </div>
 
         <div class="form-group">
             <label for="correctAnswer">الإجابة الصحيحة (يجب أن تطابق أحد الخيارات تماماً):</label>
-            <input type="text" id="correctAnswer" required>
+            <input type="text" id="correctAnswer" name="correct" required>
         </div>
 
-        <button type="submit" id="submitBtn">حفظ السؤال في النظام</button>
+        <button type="submit" id="submitBtn" onclick="startSubmit()">حفظ السؤال في النظام</button>
         <div id="loadingMessage">جاري حفظ السؤال في قاعدة البيانات...</div>
     </form>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFoJNP50PW9TXbnBxWpbblTIZ3uXnJJrbUnmJXF3e08qwPzdWrl6IFcdaJbJolEo_OUQ/exec";
+    var submitted = false;
 
     function previewImage(event) {
         const file = event.target.files[0];
@@ -154,49 +158,11 @@
         }
     }
 
-    document.getElementById('questionForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const submitBtn = document.getElementById('submitBtn');
-        const loadingMsg = document.getElementById('loadingMessage');
-        
-        submitBtn.disabled = true;
-        loadingMsg.style.display = 'block';
-
-        const questionData = {
-            subject: document.getElementById('subject').value,
-            text: document.getElementById('questionText').value,
-            image: document.getElementById('imageBase64').value,
-            opt1: document.getElementById('opt1').value,
-            opt2: document.getElementById('opt2').value,
-            opt3: document.getElementById('opt3').value,
-            opt4: document.getElementById('opt4').value,
-            correct: document.getElementById('correctAnswer').value
-        };
-
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors', // تجاوز قيود المتصفح وإرسال البيانات بنجاح
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify(questionData)
-        })
-        .then(() => {
-            alert("تم إرسال وحفظ السؤال في قاعدة البيانات بنجاح!");
-            document.getElementById('questionForm').reset();
-            document.getElementById('imagePreview').style.display = 'none';
-            document.getElementById('imageBase64').value = '';
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("حدث خطأ أثناء الاتصال بقاعدة البيانات.");
-        })
-        .finally(() => {
-            submitBtn.disabled = false;
-            loadingMsg.style.display = 'none';
-        });
-    });
+    function startSubmit() {
+        submitted = true;
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('loadingMessage').style.display = 'block';
+    }
 </script>
 
 </body>
