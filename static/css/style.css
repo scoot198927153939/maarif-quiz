@@ -184,3 +184,9 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
 .vec::before { content: ""; position: absolute; top: .12em; left: .05em; right: .15em; border-top: 1.5px solid currentColor; }
 .vec::after { content: ""; position: absolute; top: calc(.12em - 3.5px); right: 0; border-left: 7px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
 .choice { min-height: 48px; }
+.matrix { display: inline-grid; align-items: center; gap: .1em .7em; vertical-align: middle; padding: .15em .45em; margin: 0 .2em; text-align: center; line-height: 1.25; border: 1.5px solid currentColor; border-top-color: transparent; border-bottom-color: transparent; unicode-bidi: isolate; }
+.matrix.par { border-radius: .6em / 50%; }
+.matrix.brk { border-width: 1.5px; border-style: solid; border-top-color: transparent; border-bottom-color: transparent; box-shadow: inset .35em 0 0 -.25em transparent; position: relative; }
+.matrix.brk::before, .matrix.brk::after { content: ""; position: absolute; top: 0; bottom: 0; width: .3em; border-top: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; }
+.matrix.brk::before { left: 0; }
+.matrix.brk::after { right: 0; }

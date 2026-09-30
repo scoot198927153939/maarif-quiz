@@ -13,6 +13,9 @@
 
   var VEC = /(?:vec\(([^()]{1,6})\)|([A-Za-z0-9]{1,3}|[A-Za-z]'?)[⃯⃮⃗⃑])/g;
   var SQRT = new RegExp('√\\s*(\\([^()]{1,40}\\)|\\d+(?:[.,]\\d+)?[a-zA-Z]?|[a-zA-Z]|' + P + ')', 'g');
+  var CELL = '-?[\\w.,/√π' + P.slice(1, -1) + ']+';
+  var ROW = CELL + '(?:(?:\\s+|\\s*,\\s*)' + CELL + ')+';
+  var MAT = new RegExp('(?:(det)\\s*\\(|([(\\[|]))\\s*(' + ROW + '(?:\\s*;\\s*' + ROW + ')+)\\s*([)\\]|])', 'g');
   var TOKEN = '(?:\\([^()\\n]{1,40}\\)|-?\\d+(?:[.,]\\d+)?(?:π|[a-zA-Z])?' + P + '?|-?(?:π|[a-zA-Z])' + P + '?|' + P + ')';
   var FRAC = new RegExp('\\\\frac\\{([^{}]{1,40})\\}\\{([^{}]{1,40})\\}|(^|[^\\w/.,)])(' + TOKEN + ')\\s*/\\s*(' + TOKEN + ')(?![\\w/(])', 'g');
   var UNITS = /^(m\/s|g\/[lL]|N\/m|J\/s|V\/m|A\/m|W\/m|C\/s|t\/h|[lL]\/h|m\/h)$/;
@@ -34,6 +37,20 @@
     s = s.replace(SQRT, function (m, r) {
       changed = true;
       return atom('<span class="sqrt" dir="ltr"><span class="rad">√</span><span class="rc">' + strip(r) + '</span></span>');
+    });
+    // المصفوفة: (2 1 ; 3 4) أو [2 1 ; 3 4] ، والمحدِّد: |2 1 ; 3 4| أو det(2 1 ; 3 4)
+    s = s.replace(MAT, function (m, det, open, body, close) {
+      var rows = body.split(';').map(function (r) { return r.trim().split(/\s+|\s*,\s*/); });
+      var n = rows[0].length;
+      if (rows.length < 2 || n < 2 || rows.some(function (r) { return r.length !== n; })) return m;
+      if (!det && ({'(': ')', '[': ']', '|': '|'})[open] !== close) return m;
+      changed = true;
+      var kind = det || open === '|' ? 'det' : open === '[' ? 'brk' : 'par';
+      var cells = rows.map(function (r) {
+        return r.map(function (c) { var f = /^(-?)([^/]+)\/([^/]+)$/.exec(c);
+        return '<span>' + (f ? (f[1] ? '−' : '') + fracHtml(f[2], f[3]) : c.replace(/^-/, '−')) + '</span>'; }).join('');
+      }).join('');
+      return atom('<span class="matrix ' + kind + '" dir="ltr" style="grid-template-columns: repeat(' + n + ', auto)">' + cells + '</span>');
     });
     // الكسور، مع جمع العبارة الرياضية الواحدة في مقطع يُقرأ من اليسار لليمين
     var out = '', last = 0, m, open = false;
