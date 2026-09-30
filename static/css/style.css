@@ -168,4 +168,12 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
 
 /* النصوص المختلطة (عربي/فرنسي/أرقام): يُحدَّد الاتجاه حسب محتوى كل سطر حتى لا تنقلب "5 cm" */
 .q-text, .c-text { unicode-bidi: plaintext; }
-.q-text { text-align: right; }
+.q-text { text-align: start; }
+
+/* الكسور */
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 .15em; line-height: 1.15; font-size: .95em; unicode-bidi: isolate; }
+.frac .num { padding: 0 .2em; border-bottom: 1.5px solid currentColor; }
+.frac .den { padding: 0 .2em; }
+.frac-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.choice { min-height: 48px; }
+.math-run { unicode-bidi: isolate; white-space: nowrap; }
