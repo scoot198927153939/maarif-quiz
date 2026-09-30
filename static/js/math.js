@@ -13,8 +13,9 @@
 
   var VEC = /(?:vec\(([^()]{1,6})\)|([A-Za-z0-9]{1,3}|[A-Za-z]'?)[⃯⃮⃗⃑])/g;
   var SQRT = new RegExp('√\\s*(\\([^()]{1,40}\\)|\\d+(?:[.,]\\d+)?[a-zA-Z]?|[a-zA-Z]|' + P + ')', 'g');
-  var TOKEN = '(?:\\([^()\\n]{1,40}\\)|-?\\d+(?:[.,]\\d+)?(?:π|[a-zA-Z])?' + P + '?|(?:π|[a-zA-Z])' + P + '?|' + P + ')';
+  var TOKEN = '(?:\\([^()\\n]{1,40}\\)|-?\\d+(?:[.,]\\d+)?(?:π|[a-zA-Z])?' + P + '?|-?(?:π|[a-zA-Z])' + P + '?|' + P + ')';
   var FRAC = new RegExp('\\\\frac\\{([^{}]{1,40})\\}\\{([^{}]{1,40})\\}|(^|[^\\w/.,)])(' + TOKEN + ')\\s*/\\s*(' + TOKEN + ')(?![\\w/(])', 'g');
+  var UNITS = /^(m\/s|g\/[lL]|N\/m|J\/s|V\/m|A\/m|W\/m|C\/s|t\/h|[lL]\/h|m\/h)$/;
   var GAP = /^[\s\d+\-−×÷*=.,:<>≤≥]*$/;
   var TAIL = new RegExp('^\\s*(?:[+\\-−×÷*=<>≤≥]\\s*-?\\d*(?:[.,]\\d+)?' + P + '?(?![\\d.,]|\\s*\\/)\\s*)+');
 
@@ -42,7 +43,8 @@
       if (m[1] !== undefined) { num = m[1]; den = m[2]; }
       else {
         pre = m[3]; num = m[4]; den = m[5];
-        if (!/[\d(-]/.test(num + den)) continue;   // km/h ، a/b : وحدات
+        if (!/[\dπ(\uE000-\uF8FF]/.test(num + den) && (!/^-?[a-zA-Z]$/.test(num) || !/^[a-zA-Z]$/.test(den) ||
+            UNITS.test(num.replace('-', '') + '/' + den))) continue;   // km/h ، m/s ، g/L : وحدات
       }
       changed = true;
       var gap = s.slice(last, m.index) + pre, sign = '';
