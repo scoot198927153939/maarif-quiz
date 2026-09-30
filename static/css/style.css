@@ -177,9 +177,9 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
 .frac .num { display: block; padding: 0 .25em .05em; border-bottom: 1.5px solid currentColor; }
 .frac .den { display: block; padding: .05em .25em 0; }
 .frac .den .sqrt { margin-top: .12em; }
-.sqrt { display: inline-flex; align-items: stretch; white-space: nowrap; unicode-bidi: isolate; line-height: 1.25; }
-.sqrt .rad { font-size: 1.2em; line-height: 1; transform: translateY(-.04em); margin-left: .05em; margin-right: -.06em; }
-.sqrt .rc { border-top: 1.5px solid currentColor; padding: .05em .12em 0 .08em; margin-top: .08em; }
+.sqrt { display: inline-flex; margin: 0 .08em; align-items: stretch; vertical-align: middle; white-space: nowrap; unicode-bidi: isolate; line-height: 1.2; }
+.sqrt .rad { display: block; width: .62em; flex-shrink: 0; color: transparent; overflow: hidden; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 20' preserveAspectRatio='none'%3E%3Cpath d='M0.5 11.5 L2.6 10.4 L5.2 19 L9.4 0.6 L10 0.6' fill='none' stroke='%231d2a26' stroke-width='1.5' stroke-linejoin='miter' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%; }
+.sqrt .rc { display: block; border-top: 1.5px solid currentColor; padding: .12em .12em 0 .06em; }
 .vec { position: relative; display: inline-block; min-width: .9em; text-align: center; padding-right: .1em; padding-top: .35em; line-height: 1.1; unicode-bidi: isolate; }
 .vec::before { content: ""; position: absolute; top: .12em; left: .05em; right: .15em; border-top: 1.5px solid currentColor; }
 .vec::after { content: ""; position: absolute; top: calc(.12em - 3.5px); right: 0; border-left: 7px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
