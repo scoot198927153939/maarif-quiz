@@ -45,7 +45,7 @@ class ExamForm(forms.ModelForm):
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
-        fields = ["text", "image", "points", "correct_answer"]
+        fields = ["text", "image", "points", "correct_answer", "level", "topic"]
         widgets = {"text": forms.Textarea(attrs={"rows": 3})}
 
     def __init__(self, *args, **kwargs):

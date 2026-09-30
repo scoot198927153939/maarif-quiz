@@ -9,9 +9,11 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import excel
+from .analysis import analyze
 from .forms import ExamForm, ImportFileForm, QuestionForm, ResultsFilterForm, UserForm
 from .models import Answer, Attempt, Classe, Exam, Question, Subject, User
 
@@ -172,7 +174,13 @@ def save_answer(request, exam_id):
         selected = str(data.get("selected", ""))[:1].upper()
     except (ValueError, KeyError, TypeError, Question.DoesNotExist):
         return JsonResponse({"ok": False}, status=400)
-    Answer.objects.update_or_create(attempt=attempt, question=question, defaults={"selected": selected})
+    answer, created = Answer.objects.get_or_create(attempt=attempt, question=question)
+    if created or answer.selected != selected:
+        if not created and answer.selected:
+            answer.changes += 1
+        answer.selected = selected
+        answer.answered_at = timezone.now()
+        answer.save()
     return JsonResponse({"ok": True})
 
 
@@ -404,6 +412,14 @@ def exam_results(request, exam_id):
     return render(request, "quiz/exam_results.html", {
         "exam": exam, "rows": rows, "avg": avg, "n_submitted": len(submitted),
     })
+
+
+@staff_required
+def attempt_report(request, attempt_id):
+    attempt = get_object_or_404(Attempt.objects.select_related("exam", "student"), pk=attempt_id,
+                                status=Attempt.SUBMITTED)
+    get_managed_exam(request.user, attempt.exam_id)
+    return render(request, "quiz/attempt_report.html", {"r": analyze(attempt)})
 
 
 @staff_required

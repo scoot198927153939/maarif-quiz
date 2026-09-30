@@ -25,6 +25,7 @@ urlpatterns = [
     path("teacher/questions/<int:question_id>/edit/", views.question_edit, name="question_edit"),
     path("teacher/questions/<int:question_id>/delete/", views.question_delete, name="question_delete"),
     path("teacher/attempts/<int:attempt_id>/reset/", views.attempt_reset, name="attempt_reset"),
+    path("teacher/attempts/<int:attempt_id>/report/", views.attempt_report, name="attempt_report"),
     path("teacher/results/", views.class_results, name="class_results"),
     path("teacher/questions-template.xlsx", views.questions_template, name="questions_template"),
     # المشرف

@@ -137,6 +137,10 @@ class Question(models.Model):
         help_text="حرف الخيار الصحيح: A أو B أو C أو D ...",
     )
     order = models.PositiveIntegerField("الترتيب", default=0)
+    LEVEL_CHOICES = [("E", "بسيط"), ("M", "متوسط"), ("H", "صعب")]
+    level = models.CharField("المستوى", max_length=1, choices=LEVEL_CHOICES, blank=True)
+    topic = models.CharField("المحور", max_length=100, blank=True,
+                             help_text="الدرس أو المحور الذي يقيسه السؤال (يُستعمل في تقرير التلميذ).")
 
     class Meta:
         ordering = ["order", "id"]
@@ -145,6 +149,12 @@ class Question(models.Model):
 
     def __str__(self):
         return self.text[:60]
+
+    def save(self, *args, **kwargs):
+        if not self.topic and self.exam_id:
+            from .topics import guess_topic
+            self.topic = guess_topic(self.exam.subject.name, self.text)
+        super().save(*args, **kwargs)
 
 
 class Choice(models.Model):
@@ -221,6 +231,8 @@ class Answer(models.Model):
     attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE, related_name="answers")
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     selected = models.CharField(max_length=1, blank=True)
+    answered_at = models.DateTimeField(null=True, blank=True)
+    changes = models.PositiveIntegerField(default=0)
 
     class Meta:
         unique_together = [("attempt", "question")]

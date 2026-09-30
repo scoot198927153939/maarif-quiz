@@ -149,3 +149,67 @@ class QuizFlowTests(TestCase):
         d = tempfile.mkdtemp()
         self.addCleanup(__import__("shutil").rmtree, d, True)
         return d
+
+
+class AttemptReportTests(TestCase):
+    """تقرير التلميذ: المستوى، مؤشرات العشوائية، المحاور."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import Answer, Attempt, Choice, Classe, Exam, Question, Subject, User
+        self.tz, self.td = timezone, timedelta
+        self.Answer, self.Attempt = Answer, Attempt
+        classe = Classe.objects.get(code="4AS")
+        subject = Subject.objects.get(name="الرياضيات")
+        self.teacher = User.objects.create_user("t_rep", password="x", role=User.TEACHER)
+        self.teacher.teaching_classes.add(classe)
+        self.teacher.teaching_subjects.add(subject)
+        self.exam = Exam.objects.create(title="امتحان القبول في مدارس المعارف الحرة - الرياضيات", classe=classe,
+                                        subject=subject, teacher=self.teacher, is_published=True)
+        self.qs = []
+        for i in range(40):
+            lvl = "E" if i < 18 else ("M" if i < 36 else "H")
+            text = f"Calcule : {i} + 3/4 =" if i % 2 else f"Le triangle ABC numéro {i} est :"
+            q = Question.objects.create(exam=self.exam, text=text, correct_answer="ABCD"[i % 4],
+                                        points={"E": 1, "M": 2, "H": 3}[lvl], level=lvl, order=i)
+            Choice.objects.bulk_create([Choice(question=q, letter=l, text=f"{l}{i}") for l in "ABCD"])
+            self.qs.append(q)
+
+    def _attempt(self, username, pick, seconds=60):
+        from .models import User
+        s = User.objects.create_user(username, password="x", role=User.STUDENT, classe=self.exam.classe)
+        start = self.tz.now() - self.td(minutes=90)
+        a = self.Attempt.objects.create(exam=self.exam, student=s, question_order=[q.id for q in self.qs])
+        self.Attempt.objects.filter(pk=a.pk).update(started_at=start)
+        a.refresh_from_db()
+        for i, q in enumerate(self.qs):
+            self.Answer.objects.create(attempt=a, question=q, selected=pick(i, q),
+                                       answered_at=start + self.td(seconds=seconds * (i + 1)))
+        a.submit()
+        return a
+
+    def test_good_student(self):
+        from .analysis import analyze
+        a = self._attempt("good", lambda i, q: q.correct_answer if i not in (20, 30, 38) else "A")
+        r = analyze(a)
+        self.assertIn(r["grade"], ("جيد جدًا", "جيد"))
+        self.assertEqual(r["verdict_css"], "ok")
+        self.assertTrue(r["by_topic"])
+
+    def test_random_student(self):
+        from .analysis import analyze
+        a = self._attempt("rnd", lambda i, q: "A", seconds=3)
+        r = analyze(a)
+        self.assertEqual(r["verdict_css"], "ko")
+        self.assertTrue(any("الحرف A" in x for x in r["indicators"]))
+        self.assertTrue(any("بسرعة" in x for x in r["indicators"]))
+
+    def test_report_page(self):
+        a = self._attempt("pg", lambda i, q: q.correct_answer if i % 3 else "B")
+        self.client.login(username="t_rep", password="x")
+        res = self.client.get(f"/teacher/attempts/{a.id}/report/")
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "التوصيات")
+        res = self.client.get(f"/teacher/exams/{self.exam.id}/results/")
+        self.assertContains(res, "تقرير")

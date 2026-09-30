@@ -190,3 +190,28 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
 .matrix.brk::before, .matrix.brk::after { content: ""; position: absolute; top: 0; bottom: 0; width: .3em; border-top: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; }
 .matrix.brk::before { left: 0; }
 .matrix.brk::after { right: 0; }
+
+/* تقرير التلميذ */
+.report-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.grade-box { text-align: center; border-radius: 12px; padding: 10px 22px; border: 2px solid var(--border); }
+.grade-box.ok { border-color: var(--ok); background: #e3f4e9; }
+.grade-box.warn { border-color: var(--warn); background: #fdf2e0; }
+.grade-box.ko { border-color: var(--danger); background: #fdecea; }
+.grade-pct { font-size: 2.2rem; font-weight: 700; line-height: 1.1; }
+.grade-name { font-weight: 700; }
+.badge.ko { background: #fdecea; color: var(--danger); }
+.bars { display: grid; gap: 8px; margin: 8px 0 12px; }
+.bar-row { display: grid; grid-template-columns: minmax(140px, 240px) 1fr 130px; gap: 10px; align-items: center; }
+.bar { height: 14px; background: #eef2f1; border-radius: 7px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 7px; background: var(--primary); }
+.bar-fill.ok { background: var(--ok); }
+.bar-fill.warn { background: #e0a526; }
+.bar-fill.ko { background: var(--danger); }
+.bar-val { font-size: .92rem; color: var(--muted); }
+.recs li { margin-bottom: 6px; }
+@media print {
+  .topbar, .no-print, .messages { display: none !important; }
+  body { background: #fff; }
+  .card { border: 0; padding: 0; }
+  .bar, .bar-fill, .grade-box, .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

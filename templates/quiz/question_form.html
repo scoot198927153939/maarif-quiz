@@ -24,6 +24,8 @@
     <div class="grid two">
       <div class="field"><label for="id_correct_answer">{{ form.correct_answer.label }}</label>{{ form.correct_answer }}{{ form.correct_answer.errors }}</div>
       <div class="field"><label for="id_points">{{ form.points.label }}</label>{{ form.points }}{{ form.points.errors }}</div>
+      <div class="field"><label for="id_level">{{ form.level.label }} <small class="muted">(للتقرير)</small></label>{{ form.level }}{{ form.level.errors }}</div>
+      <div class="field"><label for="id_topic">{{ form.topic.label }} <small class="muted">(للتقرير)</small></label>{{ form.topic }}{{ form.topic.errors }}</div>
     </div>
     <button class="btn primary" name="save">حفظ</button>
     {% if not question %}<button class="btn" name="add_another">حفظ وإضافة سؤال آخر</button>{% endif %}
