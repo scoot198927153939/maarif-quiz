@@ -165,3 +165,7 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
   .table { font-size: .9rem; }
   .table th, .table td { padding: 8px; }
 }
+
+/* النصوص المختلطة (عربي/فرنسي/أرقام): يُحدَّد الاتجاه حسب محتوى كل سطر حتى لا تنقلب "5 cm" */
+.q-text, .c-text { unicode-bidi: plaintext; }
+.q-text { text-align: right; }

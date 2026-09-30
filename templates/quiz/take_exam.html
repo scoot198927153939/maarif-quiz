@@ -28,13 +28,13 @@
   {% for q in questions %}
   <div class="card question" id="q{{ q.id }}">
     <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }}</span><span class="tag">{{ q.points|floatformat:"-2" }} ن</span></div>
-    <p class="q-text">{{ q.text|linebreaksbr }}</p>
+    <p class="q-text" dir="auto">{{ q.text|linebreaksbr }}</p>
     {% if q.image %}<img class="q-image" src="{{ q.image.url }}" alt="صورة السؤال" draggable="false">{% endif %}
     <div class="choices">
       {% for c in q.choices.all %}
       <label class="choice">
         <input type="radio" name="q_{{ q.id }}" value="{{ c.letter }}" data-question="{{ q.id }}" {% if q.saved == c.letter %}checked{% endif %}>
-        <span class="letter">{{ c.letter }}</span><span>{{ c.text }}</span>
+        <span class="letter">{{ c.letter }}</span><span class="c-text" dir="auto">{{ c.text }}</span>
       </label>
       {% endfor %}
     </div>

@@ -44,11 +44,11 @@
     <span><span class="tag">{{ q.points|floatformat:"-2" }} ن</span>
       <a href="{% url 'question_edit' q.id %}">تعديل</a> · <a href="{% url 'question_delete' q.id %}" class="danger-link">حذف</a></span>
   </div>
-  <p class="q-text">{{ q.text|linebreaksbr }}</p>
+  <p class="q-text" dir="auto">{{ q.text|linebreaksbr }}</p>
   {% if q.image %}<img class="q-image" src="{{ q.image.url }}" alt="">{% endif %}
   <div class="choices">
   {% for c in q.choices.all %}
-    <div class="choice static {% if c.letter == q.correct_answer %}right{% endif %}"><span class="letter">{{ c.letter }}</span><span>{{ c.text }}</span></div>
+    <div class="choice static {% if c.letter == q.correct_answer %}right{% endif %}"><span class="letter">{{ c.letter }}</span><span class="c-text" dir="auto">{{ c.text }}</span></div>
   {% endfor %}
   </div>
 </div>
