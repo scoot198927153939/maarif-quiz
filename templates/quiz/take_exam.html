@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block body_class %}exam-mode{% endblock %}
+{% block nav %}
+<header class="exam-bar">
+  <div><strong>{{ exam.title }}</strong> <span class="muted-light">· {{ exam.subject }} · {{ user }}</span></div>
+  <div class="timer" id="timer">--:--</div>
+</header>
+{% endblock %}
+{% block content %}
+<div id="lock-overlay" class="lock-overlay hidden">
+  <div class="card">
+    <h2>⚠️ عُد إلى الامتحان</h2>
+    <p id="lock-msg">لقد غادرت صفحة الامتحان. تم تسجيل ذلك.</p>
+    <button class="btn primary big" id="resume-btn">العودة إلى الامتحان (ملء الشاشة)</button>
+  </div>
+</div>
+
+<form method="post" action="{% url 'submit_exam' exam.id %}" id="exam-form"
+      data-save-url="{% url 'save_answer' exam.id %}"
+      data-violation-url="{% url 'report_violation' exam.id %}"
+      data-seconds-left="{{ seconds_left }}"
+      data-violations="{{ attempt.violations }}"
+      data-max-violations="{{ max_violations }}">
+  {% csrf_token %}
+  <input type="hidden" name="auto" value="0" id="auto-field">
+  {% for q in questions %}
+  <div class="card question" id="q{{ q.id }}">
+    <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }}</span><span class="tag">{{ q.points|floatformat:"-2" }} ن</span></div>
+    <p class="q-text">{{ q.text|linebreaksbr }}</p>
+    {% if q.image %}<img class="q-image" src="{{ q.image.url }}" alt="صورة السؤال" draggable="false">{% endif %}
+    <div class="choices">
+      {% for c in q.choices.all %}
+      <label class="choice">
+        <input type="radio" name="q_{{ q.id }}" value="{{ c.letter }}" data-question="{{ q.id }}" {% if q.saved == c.letter %}checked{% endif %}>
+        <span class="letter">{{ c.letter }}</span><span>{{ c.text }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  <div class="submit-row">
+    <span id="progress" class="muted"></span>
+    <button type="button" class="btn primary big" id="submit-btn">تسليم الامتحان</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/exam.js' %}"></script>{% endblock %}

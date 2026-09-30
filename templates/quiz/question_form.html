@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card narrow">
+  <span class="tag">{{ exam }}</span>
+  <h1>{% if question %}تعديل السؤال{% else %}سؤال جديد{% endif %}</h1>
+  <form method="post" enctype="multipart/form-data" class="form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="field"><label for="id_text">{{ form.text.label }}</label>{{ form.text }}{{ form.text.errors }}</div>
+    <div class="field">
+      <label>{{ form.image.label }} <small class="muted">(اختيارية)</small></label>
+      {% if question.image %}
+        <img class="q-image small" src="{{ question.image.url }}" alt="">
+        <label class="check"><input type="checkbox" name="remove_image" value="1"> حذف الصورة الحالية</label>
+      {% endif %}
+      <input type="file" name="image" accept="image/*">
+      {{ form.image.errors }}
+    </div>
+    <div class="choice-inputs">
+      {% for f in form.choice_fields %}
+        <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}</div>
+      {% endfor %}
+    </div>
+    <div class="grid two">
+      <div class="field"><label for="id_correct_answer">{{ form.correct_answer.label }}</label>{{ form.correct_answer }}{{ form.correct_answer.errors }}</div>
+      <div class="field"><label for="id_points">{{ form.points.label }}</label>{{ form.points }}{{ form.points.errors }}</div>
+    </div>
+    <button class="btn primary" name="save">حفظ</button>
+    {% if not question %}<button class="btn" name="add_another">حفظ وإضافة سؤال آخر</button>{% endif %}
+    <a class="btn" href="{% url 'exam_detail' exam.id %}">إلغاء</a>
+  </form>
+</div>
+{% endblock %}

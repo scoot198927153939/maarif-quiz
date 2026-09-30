@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div><span class="tag">{{ exam.classe }} · {{ exam.subject }}</span><h1>نتائج: {{ exam.title }}</h1></div>
+  <a class="btn" href="{% url 'exam_detail' exam.id %}">رجوع للامتحان</a>
+</div>
+<div class="stats">
+  <div class="stat"><b>{{ n_submitted }}</b><span>سلّموا</span></div>
+  <div class="stat"><b>{{ rows|length }}</b><span>تلاميذ القسم</span></div>
+  <div class="stat"><b>{% if avg is not None %}{{ avg|floatformat:2 }}{% else %}—{% endif %}</b><span>المعدل / {{ exam.total_points|floatformat:"-2" }}</span></div>
+</div>
+<table class="table">
+  <thead><tr><th>التلميذ</th><th>الحالة</th><th>النقطة</th><th>محاولات الخروج</th><th>التسليم</th><th></th></tr></thead>
+  <tbody>
+  {% for s, a in rows %}
+  <tr>
+    <td>{{ s }} <small class="muted">{{ s.username }}</small></td>
+    <td>{% if not a %}<span class="badge">لم يبدأ</span>{% elif a.status == 'submitted' %}<span class="badge ok">سلّم{% if a.auto_submitted %} (تلقائي){% endif %}</span>{% else %}<span class="badge warn">جارٍ</span>{% endif %}</td>
+    <td>{% if a.status == 'submitted' %}<strong>{{ a.score|floatformat:"-2" }}</strong> / {{ a.total|floatformat:"-2" }}{% endif %}</td>
+    <td>{% if a %}{% if a.violations %}<span class="badge warn">{{ a.violations }}</span>{% else %}0{% endif %}{% endif %}</td>
+    <td>{{ a.submitted_at|date:"Y-m-d H:i" }}</td>
+    <td>{% if a %}<form method="post" action="{% url 'attempt_reset' a.id %}" class="inline" onsubmit="return confirm('إلغاء محاولة هذا التلميذ والسماح له بإعادة الامتحان؟')">{% csrf_token %}<button class="link danger-link">السماح بالإعادة</button></form>{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6" class="muted center">لا يوجد تلاميذ في هذا القسم.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card narrow center">
+  <span class="tag">{{ exam.subject }}</span>
+  <h1>{{ exam.title }}</h1>
+  <p>تم تسليم امتحانك{% if attempt.auto_submitted %} (تسليم تلقائي){% endif %} بتاريخ {{ attempt.submitted_at|date:"Y-m-d H:i" }}.</p>
+  {% if exam.show_result %}
+    <div class="score" dir="ltr">{{ attempt.score|floatformat:"-2" }} <small>/ {{ attempt.total|floatformat:"-2" }}</small></div>
+  {% else %}
+    <p class="muted">سيعلن الأستاذ النتيجة لاحقاً.</p>
+  {% endif %}
+  <a class="btn" href="{% url 'student_dashboard' %}">العودة إلى امتحاناتي</a>
+</div>
+{% if details %}
+<h2>التصحيح</h2>
+{% for d in details %}
+<div class="card question {% if d.correct %}ok{% else %}ko{% endif %}">
+  <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }} {% if d.correct %}✅{% else %}❌{% endif %}</span><span class="tag">{{ d.q.points|floatformat:"-2" }} ن</span></div>
+  <p class="q-text">{{ d.q.text|linebreaksbr }}</p>
+  {% if d.q.image %}<img class="q-image" src="{{ d.q.image.url }}" alt="">{% endif %}
+  <div class="choices">
+  {% for c in d.q.choices.all %}
+    <div class="choice static {% if c.letter == d.q.correct_answer %}right{% elif c.letter == d.selected %}wrong{% endif %}">
+      <span class="letter">{{ c.letter }}</span><span>{{ c.text }}</span>
+      {% if c.letter == d.selected %}<em class="muted"> (إجابتك)</em>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  {% if not d.selected %}<p class="muted">لم تُجب على هذا السؤال.</p>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
