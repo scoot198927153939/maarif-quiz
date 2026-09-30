@@ -173,9 +173,10 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
 /* الرموز الرياضية (static/js/math.js) */
 .q-text, .c-text { font-family: "Cairo", "Segoe UI", "Cambria Math", "Segoe UI Symbol", "DejaVu Sans", Tahoma, Arial, sans-serif; }
 .math-run { unicode-bidi: isolate; white-space: nowrap; }
-.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 .15em; line-height: 1.2; font-size: .95em; unicode-bidi: isolate; }
-.frac .num { padding: 0 .2em .05em; border-bottom: 1.5px solid currentColor; }
-.frac .den { padding: .05em .2em 0; }
+.frac { display: inline-flex; flex-direction: column; align-items: stretch; text-align: center; vertical-align: middle; margin: 0 .15em; line-height: 1.2; font-size: .95em; unicode-bidi: isolate; }
+.frac .num { display: block; padding: 0 .25em .05em; border-bottom: 1.5px solid currentColor; }
+.frac .den { display: block; padding: .05em .25em 0; }
+.frac .den .sqrt { margin-top: .12em; }
 .sqrt { display: inline-flex; align-items: stretch; white-space: nowrap; unicode-bidi: isolate; line-height: 1.25; }
 .sqrt .rad { font-size: 1.2em; line-height: 1; transform: translateY(-.04em); margin-left: .05em; margin-right: -.06em; }
 .sqrt .rc { border-top: 1.5px solid currentColor; padding: .05em .12em 0 .08em; margin-top: .08em; }
