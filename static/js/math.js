@@ -13,7 +13,7 @@
 
   var VEC = /(?:vec\(([^()]{1,6})\)|([A-Za-z0-9]{1,3}|[A-Za-z]'?)[⃯⃮⃗⃑])/g;
   var SQRT = new RegExp('√\\s*(\\([^()]{1,40}\\)|\\d+(?:[.,]\\d+)?[a-zA-Z]?|[a-zA-Z]|' + P + ')', 'g');
-  var TOKEN = '(?:\\([^()\\n]{1,40}\\)|-?\\d+(?:[.,]\\d+)?[a-zA-Z]?' + P + '?|[a-zA-Z]' + P + '?|' + P + ')';
+  var TOKEN = '(?:\\([^()\\n]{1,40}\\)|-?\\d+(?:[.,]\\d+)?(?:π|[a-zA-Z])?' + P + '?|(?:π|[a-zA-Z])' + P + '?|' + P + ')';
   var FRAC = new RegExp('\\\\frac\\{([^{}]{1,40})\\}\\{([^{}]{1,40})\\}|(^|[^\\w/.,)])(' + TOKEN + ')\\s*/\\s*(' + TOKEN + ')(?![\\w/(])', 'g');
   var GAP = /^[\s\d+\-−×÷*=.,:<>≤≥]*$/;
   var TAIL = new RegExp('^\\s*(?:[+\\-−×÷*=<>≤≥]\\s*-?\\d*(?:[.,]\\d+)?' + P + '?(?![\\d.,]|\\s*\\/)\\s*)+');
@@ -71,14 +71,16 @@
     return s;
   }
 
+  var SKIP = '.frac, .sqrt, .vec, .math-run, .letter, .q-head, .q-num, .badge, .tag, button, a, script, style, textarea, input, select';
   function render(root) {
-    (root || document).querySelectorAll('.q-text, .c-text, .math').forEach(function (el) {
-      if (el.dataset.mathDone) return;
-      el.dataset.mathDone = '1';
+    (root || document).querySelectorAll('.q-text, .c-text, .math, .choice, .question').forEach(function (el) {
       var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null), nodes = [], n;
-      while ((n = walker.nextNode())) nodes.push(n);
+      while ((n = walker.nextNode())) {
+        if (n.parentNode.closest(SKIP)) continue;
+        nodes.push(n);
+      }
       nodes.forEach(function (node) {
-        if (/[-]/.test(node.nodeValue)) return;
+        if (!node.parentNode || /[\uE000-\uF8FF]/.test(node.nodeValue)) return;
         var html = convert(node.nodeValue);
         if (html === null) return;
         var tpl = document.createElement('template');
