@@ -170,10 +170,16 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
 .q-text, .c-text { unicode-bidi: plaintext; }
 .q-text { text-align: start; }
 
-/* الكسور */
-.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 .15em; line-height: 1.15; font-size: .95em; unicode-bidi: isolate; }
-.frac .num { padding: 0 .2em; border-bottom: 1.5px solid currentColor; }
-.frac .den { padding: 0 .2em; }
-.frac-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.choice { min-height: 48px; }
+/* الرموز الرياضية (static/js/math.js) */
+.q-text, .c-text { font-family: "Cairo", "Segoe UI", "Cambria Math", "Segoe UI Symbol", "DejaVu Sans", Tahoma, Arial, sans-serif; }
 .math-run { unicode-bidi: isolate; white-space: nowrap; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 .15em; line-height: 1.2; font-size: .95em; unicode-bidi: isolate; }
+.frac .num { padding: 0 .2em .05em; border-bottom: 1.5px solid currentColor; }
+.frac .den { padding: .05em .2em 0; }
+.sqrt { display: inline-flex; align-items: stretch; white-space: nowrap; unicode-bidi: isolate; line-height: 1.25; }
+.sqrt .rad { font-size: 1.2em; line-height: 1; transform: translateY(-.04em); margin-left: .05em; margin-right: -.06em; }
+.sqrt .rc { border-top: 1.5px solid currentColor; padding: .05em .12em 0 .08em; margin-top: .08em; }
+.vec { position: relative; display: inline-block; min-width: .9em; text-align: center; padding-right: .1em; padding-top: .35em; line-height: 1.1; unicode-bidi: isolate; }
+.vec::before { content: ""; position: absolute; top: .12em; left: .05em; right: .15em; border-top: 1.5px solid currentColor; }
+.vec::after { content: ""; position: absolute; top: calc(.12em - 3.5px); right: 0; border-left: 7px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.choice { min-height: 48px; }
