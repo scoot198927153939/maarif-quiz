@@ -2,7 +2,7 @@
 from collections import Counter, OrderedDict
 from statistics import median
 
-from .topics import ADVICE, DEFAULT_TOPIC, guess_topic
+from .topics import ADVICE, DEFAULT_TOPIC, DEFAULT_TOPIC_FR, guess_topic
 
 LEVELS = OrderedDict([("E", "بسيطة"), ("M", "متوسطة"), ("H", "صعبة")])
 
@@ -86,7 +86,7 @@ def analyze(attempt):
     by_topic = sorted(topics.values(), key=lambda t: (t["correct"] / t["n"], -t["n"]))
     for t in by_topic:
         t["pct"] = _pct(t["correct"], t["n"])
-    weak = [t for t in by_topic if t["pct"] < 50 and (t["n"] >= 2 or t["pct"] == 0) and t["topic"] != DEFAULT_TOPIC]
+    weak = [t for t in by_topic if t["pct"] < 50 and (t["n"] >= 2 or t["pct"] == 0) and t["topic"] not in (DEFAULT_TOPIC, DEFAULT_TOPIC_FR)]
     strong = [t for t in reversed(by_topic) if t["pct"] >= 80 and t["n"] >= 2]
 
     # ---- مؤشرات الإجابة العشوائية ----
