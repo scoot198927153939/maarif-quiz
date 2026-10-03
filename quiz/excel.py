@@ -82,8 +82,15 @@ def students_template():
     return wb
 
 
-def import_questions(exam, file):
-    """يعيد (عدد الأسئلة المضافة، قائمة الأخطاء). لا يُحفظ شيء إذا وُجد خطأ."""
+def _norm(text):
+    return " ".join(text.split())
+
+
+def import_questions(exam, file, replace=False):
+    """يعيد (عدد الأسئلة المضافة، قائمة الأخطاء). لا يُحفظ شيء إذا وُجد خطأ.
+
+    replace=True: تُحذف أسئلة الامتحان الحالية وتحلّ محلها أسئلة الملف كما هي.
+    صورة السؤال القديم تُنقل إلى السؤال الجديد الذي له نفس النص."""
     try:
         wb = load_workbook(file, read_only=True, data_only=True)
     except Exception:
@@ -131,10 +138,18 @@ def import_questions(exam, file):
         return 0, ["لم يتم العثور على أي سؤال في الملف."]
 
     with transaction.atomic():
+        images = {}
+        if replace:
+            for old in exam.questions.all():
+                if old.image:
+                    images.setdefault(_norm(old.text), old.image.name)
+            exam.questions.all().delete()
+            start_order = 0
         for n, (text, choices, correct, points, level, topic) in enumerate(parsed, start=1):
             q = Question.objects.create(
                 exam=exam, text=text, correct_answer=correct, points=points, order=start_order + n, level=level,
                 topic=topic or guess_topic(exam.subject.name, text, [t for _, t in choices]),
+                image=images.get(_norm(text)) or None,
             )
             Choice.objects.bulk_create([Choice(question=q, letter=l, text=t) for l, t in choices])
     return len(parsed), []

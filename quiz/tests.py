@@ -96,6 +96,41 @@ class QuizFlowTests(TestCase):
         last = self.exam.questions.last()
         self.assertEqual(last.correct_answer, "D")  # «د» تحولت إلى D
 
+    def _template_file(self):
+        buf = io.BytesIO()
+        excel.questions_template().save(buf)
+        buf.seek(0)
+        buf.name = "q.xlsx"
+        return buf
+
+    def test_excel_import_replace_keeps_matching_images(self):
+        old = self.exam.questions.first()
+        old.text = "كم يساوي 5 + 7 ؟"
+        old.image = "questions/fig.png"
+        old.save()
+        count, errors = excel.import_questions(self.exam, self._template_file(), replace=True)
+        self.assertEqual((count, errors), (3, []))
+        self.assertEqual(self.exam.questions.count(), 3)  # الأسئلة القديمة حُذفت
+        q = self.exam.questions.get(text="كم يساوي 5 + 7 ؟")
+        self.assertEqual(q.image.name, "questions/fig.png")
+        # استيراد نفس الملف مرة ثانية لا يكرر الأسئلة
+        excel.import_questions(self.exam, self._template_file(), replace=True)
+        self.assertEqual(self.exam.questions.count(), 3)
+
+    def test_import_view_replace_needs_confirmation_when_attempted(self):
+        Attempt.objects.create(exam=self.exam, student=self.s1, status=Attempt.SUBMITTED, score=2, total=5)
+        self.client.login(username="prof", password="x")
+        url = reverse("exam_import", args=[self.exam.id])
+        with self.settings(BASE_DIR=self._tmp()):
+            self.client.post(url, {"file": self._template_file(), "replace": "1"})
+            self.assertEqual(self.exam.questions.count(), 2)  # لم يُستبدل شيء بدون تأكيد
+            self.client.post(url, {"file": self._template_file(), "replace": "1", "confirm_attempts": "1"})
+            self.assertEqual(self.exam.questions.count(), 3)
+        self.assertEqual(Attempt.objects.get(student=self.s1).score, 0)
+        # بدون الاستبدال تُضاف الأسئلة
+        self.client.post(url, {"file": self._template_file()})
+        self.assertEqual(self.exam.questions.count(), 6)
+
     def test_excel_import_rejects_bad_answer(self):
         from openpyxl import Workbook
         wb = Workbook()

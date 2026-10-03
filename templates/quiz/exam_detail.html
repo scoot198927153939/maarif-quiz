@@ -31,7 +31,14 @@
       {% csrf_token %}
       <input type="file" name="file" accept=".xlsx" required>
       <button class="btn primary">استيراد</button>
+      <label class="check"><input type="checkbox" name="replace" value="1" checked> استبدال الأسئلة الحالية بأسئلة الملف</label>
+      {% if n_attempts %}
+      <div class="warning-box">⚠️ {{ n_attempts }} تلميذ أجروا هذا الامتحان. استبدال الأسئلة يحذف إجاباتهم فتصبح نقاطهم 0، ويجب السماح لهم بالإعادة.
+        <label class="check"><input type="checkbox" name="confirm_attempts" value="1"> أفهم ذلك وأريد الاستبدال</label>
+      </div>
+      {% endif %}
     </form>
+    <p class="muted">مع الاستبدال يصبح الامتحان مطابقاً للملف تماماً: ما حذفته من الملف يُحذف من الامتحان، ولا تتكرر الأسئلة إذا استوردت الملف مرة ثانية. صورة كل سؤال تبقى إذا لم يتغير نصه. بدون الاستبدال تُضاف أسئلة الملف بعد الأسئلة الموجودة.</p>
     <a href="{% url 'questions_template' %}">⬇️ تحميل نموذج ملف Excel</a>
   </div>
 </div>

@@ -1,5 +1,7 @@
 import json
+import os
 import random
+import shutil
 from functools import wraps
 
 from django.conf import settings
@@ -321,6 +323,7 @@ def exam_detail(request, exam_id):
         "exam": exam,
         "questions": exam.questions.prefetch_related("choices"),
         "import_form": ImportFileForm(),
+        "n_attempts": exam.attempts.count(),
         "question_form": QuestionForm(),
     })
 
@@ -384,15 +387,41 @@ def exam_import(request, exam_id):
         for e in form.errors.get("file", []):
             messages.error(request, e)
         return redirect("exam_detail", exam_id=exam.id)
-    count, errors = excel.import_questions(exam, form.cleaned_data["file"])
+    replace = request.POST.get("replace") == "1"
+    n_attempts = exam.attempts.count()
+    if replace and n_attempts and request.POST.get("confirm_attempts") != "1":
+        messages.error(
+            request,
+            f"لم يُستورد شيء: {n_attempts} تلميذ أجروا هذا الامتحان، واستبدال الأسئلة يحذف إجاباتهم. "
+            "ضع علامة على خانة التأكيد إن كنت متأكداً، أو أزل علامة «استبدال الأسئلة الحالية» لإضافة الأسئلة فقط.",
+        )
+        return redirect("exam_detail", exam_id=exam.id)
+    if replace and exam.questions.exists():
+        _backup_database("before-import")
+    count, errors = excel.import_questions(exam, form.cleaned_data["file"], replace=replace)
     if errors:
         messages.error(request, "لم يتم استيراد أي سؤال بسبب الأخطاء التالية:")
         for e in errors[:15]:
             messages.error(request, e)
     else:
         _regrade(exam)
-        messages.success(request, f"تم استيراد {count} سؤال بنجاح.")
+        if replace:
+            messages.success(request, f"تم استبدال أسئلة الامتحان بأسئلة الملف ({count} سؤال).")
+        else:
+            messages.success(request, f"تمت إضافة {count} سؤال إلى الامتحان.")
     return redirect("exam_detail", exam_id=exam.id)
+
+
+def _backup_database(label):
+    """نسخة احتياطية من قاعدة SQLite في مجلد backups قبل أي حذف جماعي."""
+    db = settings.DATABASES["default"]
+    if "sqlite3" not in db["ENGINE"] or not os.path.exists(str(db["NAME"])):
+        return None
+    folder = os.path.join(settings.BASE_DIR, "backups")
+    os.makedirs(folder, exist_ok=True)
+    dest = os.path.join(folder, f"db-{label}-{timezone.localtime():%Y%m%d-%H%M%S}.sqlite3")
+    shutil.copy2(str(db["NAME"]), dest)
+    return dest
 
 
 @staff_required

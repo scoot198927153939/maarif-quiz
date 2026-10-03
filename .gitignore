@@ -5,3 +5,4 @@ media/
 staticfiles/
 .venv/
 .secret_key
+backups/
