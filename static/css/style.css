@@ -215,3 +215,4 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
   .card { border: 0; padding: 0; }
   .bar, .bar-fill, .grade-box, .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.report[dir="ltr"] th, .report[dir="ltr"] td { text-align: left; }

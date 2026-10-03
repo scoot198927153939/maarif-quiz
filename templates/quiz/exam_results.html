@@ -19,7 +19,7 @@
     <td>{% if a.status == 'submitted' %}<strong>{{ a.score|floatformat:"-2" }}</strong> / {{ a.total|floatformat:"-2" }}{% endif %}</td>
     <td>{% if a %}{% if a.violations %}<span class="badge warn">{{ a.violations }}</span>{% else %}0{% endif %}{% endif %}</td>
     <td>{{ a.submitted_at|date:"Y-m-d H:i" }}</td>
-    <td class="actions">{% if a.status == 'submitted' %}<a class="btn" href="{% url 'attempt_report' a.id %}">📊 تقرير</a>{% endif %}{% if a %}<form method="post" action="{% url 'attempt_reset' a.id %}" class="inline" onsubmit="return confirm('إلغاء محاولة هذا التلميذ والسماح له بإعادة الامتحان؟')">{% csrf_token %}<button class="link danger-link">السماح بالإعادة</button></form>{% endif %}</td>
+    <td class="actions">{% if a.status == 'submitted' %}<a class="btn" href="{% url 'attempt_report' a.id %}">📊 تقرير</a>{% if exam.subject.name != "العربية" %}<a class="btn" href="{% url 'attempt_report' a.id %}?lang=fr">📊 Rapport</a>{% endif %}{% endif %}{% if a %}<form method="post" action="{% url 'attempt_reset' a.id %}" class="inline" onsubmit="return confirm('إلغاء محاولة هذا التلميذ والسماح له بإعادة الامتحان؟')">{% csrf_token %}<button class="link danger-link">السماح بالإعادة</button></form>{% endif %}</td>
   </tr>
   {% empty %}
   <tr><td colspan="6" class="muted center">لا يوجد تلاميذ في هذا القسم.</td></tr>
