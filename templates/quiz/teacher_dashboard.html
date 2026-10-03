@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if user.is_admin_role %}كل الامتحانات{% else %}امتحاناتي{% endif %}</h1>
+  <a class="btn primary" href="{% url 'exam_create' %}">+ امتحان جديد</a>
+</div>
+{% if no_assignment %}<div class="msg error">لم يحدد لك المشرف الأقسام والمواد التي تدرّسها بعد، لذلك لا يمكنك إنشاء امتحان.</div>{% endif %}
+<div class="filters">
+  <a href="?" class="chip {% if not current_classe %}active{% endif %}">الكل</a>
+  {% for c in classes %}<a href="?classe={{ c.code }}" class="chip {% if current_classe == c.code %}active{% endif %}">{{ c.code }}</a>{% endfor %}
+</div>
+<table class="table">
+  <thead><tr><th>الامتحان</th><th>القسم</th><th>المادة</th>{% if user.is_admin_role %}<th>الأستاذ</th>{% endif %}<th>الأسئلة</th><th>سلّموا</th><th>الحالة</th><th></th></tr></thead>
+  <tbody>
+  {% for e in exams %}
+  <tr>
+    <td><a href="{% url 'exam_detail' e.id %}"><strong>{{ e.title }}</strong></a></td>
+    <td>{{ e.classe }}</td><td>{{ e.subject }}</td>
+    {% if user.is_admin_role %}<td>{{ e.teacher }}</td>{% endif %}
+    <td>{{ e.n_questions }}</td><td>{{ e.n_attempts }}</td>
+    <td>{% if e.is_published %}<span class="badge ok">منشور</span>{% else %}<span class="badge">مسودة</span>{% endif %}</td>
+    <td class="actions"><a href="{% url 'exam_detail' e.id %}">الأسئلة</a> <a href="{% url 'exam_results' e.id %}">النتائج</a></td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="8" class="muted center">لا توجد امتحانات بعد.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
