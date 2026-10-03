@@ -444,7 +444,10 @@ def attempt_report(request, attempt_id):
     attempt = get_object_or_404(Attempt.objects.select_related("exam", "student"), pk=attempt_id,
                                 status=Attempt.SUBMITTED)
     get_managed_exam(request.user, attempt.exam_id)
-    return render(request, "quiz/attempt_report.html", {"r": analyze(attempt)})
+    lang = request.GET.get("lang", "ar")
+    return render(request, "quiz/attempt_report.html", {
+        "r": analyze(attempt, lang=lang), "auto_print": request.GET.get("print") == "1",
+    })
 
 
 @staff_required

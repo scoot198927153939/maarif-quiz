@@ -215,3 +215,5 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
   .card { border: 0; padding: 0; }
   .bar, .bar-fill, .grade-box, .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.report-langs { display: inline-flex; gap: 6px; align-items: center; }
+.report[dir="ltr"] .table th, .report[dir="ltr"] .table td { text-align: left; }

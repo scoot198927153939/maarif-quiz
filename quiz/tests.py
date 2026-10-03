@@ -256,3 +256,15 @@ class AttemptReportTests(TestCase):
         self.assertContains(res, "التوصيات")
         res = self.client.get(f"/teacher/exams/{self.exam.id}/results/")
         self.assertContains(res, "تقرير")
+        res = self.client.get(f"/teacher/attempts/{a.id}/report/?lang=fr")
+        self.assertContains(res, "Recommandations")
+        self.assertContains(res, 'dir="ltr"')
+        self.assertContains(res, "Imprimer en français")
+
+    def test_french_report_texts(self):
+        from .analysis import analyze
+        a = self._attempt("frr", lambda i, q: "A", seconds=3)
+        r = analyze(a, lang="fr")
+        self.assertEqual(r["lang"], "fr")
+        self.assertEqual(r["verdict"], "Réponses probablement données au hasard")
+        self.assertTrue(all("ال" not in x for x in r["recs"]))

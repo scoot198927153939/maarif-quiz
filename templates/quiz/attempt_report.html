@@ -1,20 +1,29 @@
 {% extends "base.html" %}
-{% block title %}تقرير {{ r.attempt.student }}{% endblock %}
+{% block title %}{{ r.L.title }} — {{ r.attempt.student }}{% endblock %}
 {% block content %}
 <div class="page-head no-print">
   <div><span class="tag">{{ r.exam.classe }} · {{ r.exam.subject }}</span><h1>تقرير التلميذ</h1></div>
   <div class="actions">
-    <button class="btn primary" onclick="window.print()">🖨️ طباعة التقرير</button>
+    {% if "fr" in r.languages %}
+    <span class="report-langs">
+      <a class="chip {% if r.lang == 'ar' %}active{% endif %}" href="?lang=ar">العربية</a>
+      <a class="chip {% if r.lang == 'fr' %}active{% endif %}" href="?lang=fr">Français</a>
+    </span>
+    <a class="btn primary" href="?lang=ar&amp;print=1">🖨️ طباعة بالعربية</a>
+    <a class="btn primary" href="?lang=fr&amp;print=1">🖨️ Imprimer en français</a>
+    {% else %}
+    <a class="btn primary" href="?lang=ar&amp;print=1">🖨️ طباعة التقرير</a>
+    {% endif %}
     <a class="btn" href="{% url 'exam_results' r.exam.id %}">رجوع للنتائج</a>
   </div>
 </div>
 
-<div class="card report">
+<div class="card report" dir="{{ r.dir }}" lang="{{ r.lang }}">
   <div class="report-head">
     <div>
-      <h2 style="margin:0">{{ r.attempt.student }} <small class="muted">({{ r.attempt.student.username }})</small></h2>
-      <div class="muted">{{ r.exam.title }} — {{ r.exam.classe }} · {{ r.exam.subject }}</div>
-      <div class="muted">سلّم في {{ r.attempt.submitted_at|date:"Y-m-d H:i" }}{% if r.duration_min is not None %} · المدة: {{ r.duration_min }} دقيقة{% endif %}</div>
+      <h2 style="margin:0">{{ r.L.title }} : {{ r.attempt.student }} <small class="muted">({{ r.attempt.student.username }})</small></h2>
+      <div class="muted"><bdi>{{ r.exam_title }}</bdi> — {{ r.exam.classe }} · <bdi>{{ r.subject }}</bdi></div>
+      <div class="muted">{{ r.L.submitted }} {{ r.attempt.submitted_at|date:"Y-m-d H:i" }}{% if r.duration_min is not None %} · {{ r.L.duration }} : {{ r.duration_min }} {{ r.L.minutes }}{% endif %}</div>
     </div>
     <div class="grade-box {{ r.grade_css }}">
       <div class="grade-pct">{{ r.pct }}%</div>
@@ -23,63 +32,63 @@
   </div>
 
   <div class="stats">
-    <div class="stat"><b dir="ltr">{{ r.score|floatformat:"-2" }} / {{ r.total|floatformat:"-2" }}</b><span>النقطة</span></div>
-    <div class="stat"><b>{{ r.n_correct }} من {{ r.n }}</b><span>إجابات صحيحة</span></div>
-    <div class="stat"><b>{{ r.unanswered }}</b><span>بدون إجابة</span></div>
-    <div class="stat"><b>{{ r.attempt.violations }}</b><span>محاولات الخروج</span></div>
+    <div class="stat"><b dir="ltr">{{ r.score|floatformat:"-2" }} / {{ r.total|floatformat:"-2" }}</b><span>{{ r.L.score }}</span></div>
+    <div class="stat"><b>{{ r.n_correct }} {{ r.L.of }} {{ r.n }}</b><span>{{ r.L.correct }}</span></div>
+    <div class="stat"><b>{{ r.unanswered }}</b><span>{{ r.L.unanswered }}</span></div>
+    <div class="stat"><b>{{ r.attempt.violations }}</b><span>{{ r.L.violations }}</span></div>
   </div>
 
-  <h2>1. التقييم العام</h2>
+  <h2>{{ r.L.s1 }}</h2>
   <p><span class="badge {{ r.grade_css }}">{{ r.grade }}</span> {{ r.summary }}</p>
 
   {% if r.by_level %}
-  <h2>2. النتيجة حسب صعوبة الأسئلة</h2>
+  <h2>{{ r.L.s2 }}</h2>
   <div class="bars">
     {% for b in r.by_level %}
     <div class="bar-row">
-      <span class="bar-label">الأسئلة ال{{ b.name }}</span>
+      <span class="bar-label">{% if r.lang == 'fr' %}{{ r.L.questions }} {{ b.name }}{% else %}{{ r.L.questions }} ال{{ b.name }}{% endif %}</span>
       <span class="bar"><span class="bar-fill {% if b.pct >= 65 %}ok{% elif b.pct >= 50 %}warn{% else %}ko{% endif %}" style="width: {{ b.pct }}%"></span></span>
-      <span class="bar-val">{{ b.correct }} من {{ b.n }} ({{ b.pct }}%)</span>
+      <span class="bar-val">{{ b.correct }} {{ r.L.of }} {{ b.n }} ({{ b.pct }}%)</span>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
-  <h2>3. النتيجة حسب المحاور</h2>
+  <h2>{{ r.L.s3 }}</h2>
   <div class="bars">
     {% for t in r.by_topic %}
     <div class="bar-row">
       <span class="bar-label" dir="auto">{{ t.topic }}</span>
       <span class="bar"><span class="bar-fill {% if t.pct >= 65 %}ok{% elif t.pct >= 50 %}warn{% else %}ko{% endif %}" style="width: {{ t.pct }}%"></span></span>
-      <span class="bar-val">{{ t.correct }} من {{ t.n }} ({{ t.pct }}%)</span>
+      <span class="bar-val">{{ t.correct }} {{ r.L.of }} {{ t.n }} ({{ t.pct }}%)</span>
     </div>
     {% endfor %}
   </div>
-  {% if r.strong %}<p><strong>نقاط القوة:</strong> {% for t in r.strong %}{{ t.topic }}{% if not forloop.last %}، {% endif %}{% endfor %}.</p>{% endif %}
-  {% if r.weak %}<p><strong>مواطن الضعف:</strong> {% for t in r.weak %}{{ t.topic }}{% if not forloop.last %}، {% endif %}{% endfor %}.</p>{% endif %}
+  {% if r.strong %}<p><strong>{{ r.L.strong }} :</strong> {% for t in r.strong %}{{ t.topic }}{% if not forloop.last %}{% if r.lang == 'fr' %}, {% else %}، {% endif %}{% endif %}{% endfor %}.</p>{% endif %}
+  {% if r.weak %}<p><strong>{{ r.L.weak }} :</strong> {% for t in r.weak %}{{ t.topic }}{% if not forloop.last %}{% if r.lang == 'fr' %}, {% else %}، {% endif %}{% endif %}{% endfor %}.</p>{% endif %}
 
-  <h2>4. هل كانت إجاباته عشوائية؟</h2>
+  <h2>{{ r.L.s4 }}</h2>
   <p><span class="badge {{ r.verdict_css }}">{{ r.verdict }}</span></p>
   {% if r.indicators %}
   <ul>{% for i in r.indicators %}<li>{{ i }}</li>{% endfor %}</ul>
   {% else %}
-  <p class="muted">لم يظهر أي مؤشر على الإجابة العشوائية: نتيجته أعلى بوضوح مما يحصل عليه من يجيب بالصدفة (حوالي {{ r.expected }} إجابة صحيحة)، وإجاباته متوازنة.</p>
+  <p class="muted">{{ r.L.no_indicator }}</p>
   {% endif %}
 
-  <h2>5. التوصيات: على ماذا يركز وماذا يفعل</h2>
+  <h2>{{ r.L.s5 }}</h2>
   <ol class="recs">{% for x in r.recs %}<li>{{ x }}</li>{% endfor %}</ol>
 
   {% if r.wrong %}
-  <h2>6. الأسئلة التي أخطأ فيها أو تركها</h2>
+  <h2>{{ r.L.s6 }}</h2>
   <div class="table-wrap">
-  <table class="table">
-    <thead><tr><th>رقم السؤال (عنده)</th><th>المحور</th><th>الصعوبة</th><th>إجابته</th><th>الصحيحة</th></tr></thead>
+  <table class="table report-table">
+    <thead><tr><th>{{ r.L.col_num }}</th><th>{{ r.L.col_topic }}</th><th>{{ r.L.col_level }}</th><th>{{ r.L.col_answer }}</th><th>{{ r.L.col_right }}</th></tr></thead>
     <tbody>
     {% for w in r.wrong %}
     <tr>
       <td>{{ w.pos }}</td><td dir="auto">{{ w.topic }}</td>
-      <td>{% if w.level == 'E' %}بسيط{% elif w.level == 'M' %}متوسط{% elif w.level == 'H' %}صعب{% else %}—{% endif %}</td>
-      <td>{% if w.answered %}{{ w.selected }}{% else %}<span class="muted">بدون إجابة</span>{% endif %}</td>
+      <td>{{ w.level_name }}</td>
+      <td>{% if w.answered %}{{ w.selected }}{% else %}<span class="muted">{{ r.L.no_answer }}</span>{% endif %}</td>
       <td><strong>{{ w.q.correct_answer }}</strong></td>
     </tr>
     {% endfor %}
@@ -88,4 +97,5 @@
   </div>
   {% endif %}
 </div>
+{% if auto_print %}<script>window.addEventListener("load", function () { setTimeout(function () { window.print(); }, 300); });</script>{% endif %}
 {% endblock %}

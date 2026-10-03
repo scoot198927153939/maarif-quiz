@@ -165,3 +165,47 @@ def level_from_points(points):
     except (TypeError, ValueError):
         return ""
     return {1.0: "E", 2.0: "M", 3.0: "H"}.get(p, "")
+
+
+# نصائح المحاور بالفرنسية (للتقرير الفرنسي)
+ADVICE_FR = {
+    "Fractions et nombres décimaux": "revoir l'addition, la multiplication et la simplification des fractions, et le passage fraction ↔ décimal.",
+    "Entiers naturels et opérations": "s'entraîner aux quatre opérations, à la division euclidienne, aux critères de divisibilité et aux priorités de calcul.",
+    "Proportionnalité et pourcentages": "résoudre pas à pas des problèmes de proportionnalité (quatrième proportionnelle, échelle, pourcentage, vitesse).",
+    "Géométrie plane": "revoir les propriétés du triangle, des quadrilatères et du cercle, ainsi que Pythagore et Thalès, en faisant toujours une figure.",
+    "Géométrie dans l'espace": "apprendre les formules de volumes et d'aires (cube, pavé, pyramide, cône) et les appliquer.",
+    "Racines carrées et puissances": "revoir les règles sur les puissances, la simplification des racines carrées et l'écriture scientifique.",
+    "Calcul littéral": "s'entraîner au développement, à la factorisation et aux identités remarquables.",
+    "Équations, inéquations et systèmes": "résoudre de nombreuses équations, inéquations et systèmes en vérifiant la solution.",
+    "Vecteurs, repère et barycentre": "revoir les coordonnées d'un vecteur, du milieu, l'équation d'une droite et le produit scalaire.",
+    "Transformations du plan": "revoir symétries, translation, rotation et homothétie et les appliquer à des points d'un repère.",
+    "Trigonométrie et angles orientés": "apprendre les valeurs remarquables de cos, sin, tan et les formules de base.",
+    "Fonctions et analyse": "revoir le calcul d'images, de dérivées et de limites, et la lecture de courbes.",
+    "Suites numériques": "revoir le terme général et la somme des termes des suites arithmétiques et géométriques.",
+    "Statistiques et probabilités": "revoir moyenne, médiane, effectifs, ainsi que le calcul de probabilités et le dénombrement.",
+    "Nombres réels, ordre et valeur absolue": "revoir les intervalles, la valeur absolue et la comparaison des réels.",
+    "Mécanique": "revoir poids, masse volumique, forces, travail et énergie, en faisant attention aux unités.",
+    "Électricité": "revoir la loi d'Ohm, la puissance et l'énergie électriques et les associations de résistances, avec les bonnes unités.",
+    "Optique": "revoir les lois de la réflexion et de la réfraction, les lentilles et le tracé des rayons.",
+    "Magnétisme": "revoir le champ magnétique, ses lignes de champ et l'effet de l'intensité du courant.",
+    "Transferts thermiques": "revoir la relation Q = m·c·Δθ et les changements d'état.",
+    "Matériaux": "revoir les familles de matériaux, leurs propriétés (conducteur, isolant, origine) et l'intérêt du recyclage.",
+    "Matière et réactions chimiques": "revoir la mole, la masse molaire, l'équilibrage des équations et la structure de l'atome.",
+    "Solutions, acides et bases": "revoir la concentration, la dilution, l'échelle de pH et les tests d'identification des ions.",
+    "Chimie organique": "revoir les formules générales, la nomenclature des composés organiques et leurs réactions caractéristiques.",
+    "Oxydoréduction et piles": "revoir oxydant, réducteur, couples redox et fonctionnement des piles.",
+    "La cellule": "revoir les constituants des cellules animale et végétale et le rôle de chaque organite, avec des schémas.",
+    "Reproduction": "revoir l'appareil reproducteur, le cycle menstruel, la fécondation et les étapes de la grossesse.",
+    "Système nerveux et motricité": "revoir le neurone, l'arc réflexe, la transmission du message nerveux et les muscles antagonistes.",
+    "Géologie": "revoir les types de roches, les séismes, les volcans et la tectonique des plaques.",
+    "Écologie": "revoir les chaînes alimentaires, les constituants d'un écosystème et la lutte contre la désertification.",
+    "Échanges cellulaires": "revoir l'osmose, la diffusion et les échanges à travers la membrane.",
+    "Alimentation et digestion": "revoir les types d'aliments et leur identification, le rôle des enzymes, la digestion et l'absorption.",
+    "Information génétique": "revoir la structure de l'ADN, la complémentarité des bases, la mitose, la transcription et la traduction.",
+    "Énergie musculaire et respiration": "revoir la respiration cellulaire, la fermentation, l'ATP et le mécanisme de la contraction musculaire.",
+    "Compréhension du texte": "lire chaque jour de courts textes et répondre aux questions en revenant au texte avant de répondre.",
+    "Conjugaison": "revoir les tableaux de conjugaison des temps principaux (présent, passé composé, imparfait, futur, conditionnel).",
+    "Grammaire": "revoir les pronoms, les relatifs, les compléments, la voix passive et le discours rapporté avec beaucoup d'exemples.",
+    "Orthographe": "revoir les homophones (a/à, ont/on, leur/leurs, c'est/s'est…) et les règles d'accord.",
+    "Vocabulaire": "enrichir son vocabulaire par la lecture et apprendre synonymes et contraires.",
+}
