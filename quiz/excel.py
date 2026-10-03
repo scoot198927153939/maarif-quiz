@@ -89,7 +89,7 @@ def _norm(text):
 def import_questions(exam, file, replace=False):
     """يعيد (عدد الأسئلة المضافة، قائمة الأخطاء). لا يُحفظ شيء إذا وُجد خطأ.
 
-    replace=True: تُحذف أسئلة الامتحان الحالية وتحلّ محلها أسئلة الملف كما هي.
+    replace=True: تحلّ أسئلة الملف محل أسئلة الامتحان الحالية (تُؤرشف إن كان تلاميذ قد أجابوا عليها).
     صورة السؤال القديم تُنقل إلى السؤال الجديد الذي له نفس النص."""
     try:
         wb = load_workbook(file, read_only=True, data_only=True)
@@ -143,7 +143,11 @@ def import_questions(exam, file, replace=False):
             for old in exam.questions.all():
                 if old.image:
                     images.setdefault(_norm(old.text), old.image.name)
-            exam.questions.all().delete()
+            # إذا أجرى تلاميذ الامتحان تُؤرشف الأسئلة القديمة (لا تُحذف) حتى تبقى نتائجهم وتقاريرهم
+            if exam.attempts.exists():
+                exam.questions.all().update(archived=True)
+            else:
+                exam.questions.all().delete()
             start_order = 0
         for n, (text, choices, correct, points, level, topic) in enumerate(parsed, start=1):
             q = Question.objects.create(

@@ -79,7 +79,7 @@ def student_dashboard(request):
     exams = (
         Exam.objects.filter(classe=student.classe, is_published=True)
         .select_related("subject", "teacher")
-        .annotate(n_questions=Count("questions"))
+        .annotate(n_questions=Count("questions", filter=Q(questions__archived=False)))
     )
     attempts = {a.exam_id: a for a in Attempt.objects.filter(student=student)}
     available, finished, upcoming = [], [], []
@@ -236,7 +236,7 @@ def attempt_result(request, exam_id):
     details = []
     if exam.show_result:
         answers = dict(attempt.answers.values_list("question_id", "selected"))
-        for q in exam.questions.prefetch_related("choices"):
+        for q in attempt.graded_questions().prefetch_related("choices"):
             sel = answers.get(q.id, "")
             details.append({"q": q, "selected": sel, "correct": sel == q.correct_answer})
     return render(request, "quiz/attempt_result.html", {
@@ -250,7 +250,7 @@ def attempt_result(request, exam_id):
 def teacher_dashboard(request):
     u = request.user
     exams = Exam.objects.select_related("classe", "subject", "teacher").annotate(
-        n_questions=Count("questions", distinct=True),
+        n_questions=Count("questions", filter=Q(questions__archived=False), distinct=True),
         n_attempts=Count("attempts", filter=Q(attempts__status=Attempt.SUBMITTED), distinct=True),
     )
     if not u.is_admin_role:
@@ -388,14 +388,6 @@ def exam_import(request, exam_id):
             messages.error(request, e)
         return redirect("exam_detail", exam_id=exam.id)
     replace = request.POST.get("replace") == "1"
-    n_attempts = exam.attempts.count()
-    if replace and n_attempts and request.POST.get("confirm_attempts") != "1":
-        messages.error(
-            request,
-            f"لم يُستورد شيء: {n_attempts} تلميذ أجروا هذا الامتحان، واستبدال الأسئلة يحذف إجاباتهم. "
-            "ضع علامة على خانة التأكيد إن كنت متأكداً، أو أزل علامة «استبدال الأسئلة الحالية» لإضافة الأسئلة فقط.",
-        )
-        return redirect("exam_detail", exam_id=exam.id)
     if replace and exam.questions.exists():
         _backup_database("before-import")
     count, errors = excel.import_questions(exam, form.cleaned_data["file"], replace=replace)
@@ -406,7 +398,11 @@ def exam_import(request, exam_id):
     else:
         _regrade(exam)
         if replace:
-            messages.success(request, f"تم استبدال أسئلة الامتحان بأسئلة الملف ({count} سؤال).")
+            kept = exam.attempts.filter(status=Attempt.SUBMITTED).count()
+            msg = f"تم استبدال أسئلة الامتحان بأسئلة الملف ({count} سؤال)."
+            if kept:
+                msg += f" نتائج {kept} تلميذ أجروا الامتحان سابقًا محفوظة كما هي."
+            messages.success(request, msg)
         else:
             messages.success(request, f"تمت إضافة {count} سؤال إلى الامتحان.")
     return redirect("exam_detail", exam_id=exam.id)

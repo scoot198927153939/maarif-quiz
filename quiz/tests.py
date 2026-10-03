@@ -5,7 +5,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from . import excel
-from .models import Attempt, Choice, Classe, Exam, Question, Subject, User
+from .models import Answer, Attempt, Choice, Classe, Exam, Question, Subject, User
 
 
 class QuizFlowTests(TestCase):
@@ -117,16 +117,24 @@ class QuizFlowTests(TestCase):
         excel.import_questions(self.exam, self._template_file(), replace=True)
         self.assertEqual(self.exam.questions.count(), 3)
 
-    def test_import_view_replace_needs_confirmation_when_attempted(self):
-        Attempt.objects.create(exam=self.exam, student=self.s1, status=Attempt.SUBMITTED, score=2, total=5)
+    def test_import_view_replace_keeps_past_results(self):
+        qs = list(self.exam.questions.all())
+        a = Attempt.objects.create(exam=self.exam, student=self.s1, question_order=[q.id for q in qs])
+        Answer.objects.create(attempt=a, question=qs[0], selected=qs[0].correct_answer)
+        a.submit()
+        old_score, old_total = a.score, a.total
+        self.assertGreater(old_score, 0)
         self.client.login(username="prof", password="x")
         url = reverse("exam_import", args=[self.exam.id])
         with self.settings(BASE_DIR=self._tmp()):
             self.client.post(url, {"file": self._template_file(), "replace": "1"})
-            self.assertEqual(self.exam.questions.count(), 2)  # لم يُستبدل شيء بدون تأكيد
-            self.client.post(url, {"file": self._template_file(), "replace": "1", "confirm_attempts": "1"})
-            self.assertEqual(self.exam.questions.count(), 3)
-        self.assertEqual(Attempt.objects.get(student=self.s1).score, 0)
+        self.assertEqual(self.exam.questions.count(), 3)  # الأسئلة القديمة لا تظهر في الامتحان
+        a.refresh_from_db()
+        self.assertEqual((a.score, a.total), (old_score, old_total))  # النتيجة محفوظة
+        self.assertEqual(a.answers.count(), 1)
+        self.assertEqual({q.id for q in a.graded_questions()}, {q.id for q in qs})
+        r = self.client.get(reverse("attempt_report", args=[a.id]))
+        self.assertEqual(r.status_code, 200)
         # بدون الاستبدال تُضاف الأسئلة
         self.client.post(url, {"file": self._template_file()})
         self.assertEqual(self.exam.questions.count(), 6)

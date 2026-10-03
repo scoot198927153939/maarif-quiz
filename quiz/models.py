@@ -125,6 +125,11 @@ class Exam(models.Model):
         return True
 
 
+class ActiveQuestionManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(archived=False)
+
+
 class Question(models.Model):
     LETTERS = ["A", "B", "C", "D", "E", "F"]
 
@@ -141,9 +146,15 @@ class Question(models.Model):
     level = models.CharField("المستوى", max_length=1, choices=LEVEL_CHOICES, blank=True)
     topic = models.CharField("المحور", max_length=100, blank=True,
                              help_text="الدرس أو المحور الذي يقيسه السؤال (يُستعمل في تقرير التلميذ).")
+    # سؤال قديم استُبدل بملف Excel: يُخفى من الامتحان ويبقى لنتائج من أجابوا عليه
+    archived = models.BooleanField("مؤرشف", default=False)
+
+    objects = ActiveQuestionManager()
+    all_objects = models.Manager()
 
     class Meta:
         ordering = ["order", "id"]
+        base_manager_name = "all_objects"
         verbose_name = "سؤال"
         verbose_name_plural = "الأسئلة"
 
@@ -205,11 +216,23 @@ class Attempt(models.Model):
         # مهلة 15 ثانية لتغطية تأخر الشبكة عند التسليم
         return timezone.now() > self.deadline + timezone.timedelta(seconds=15)
 
+    def graded_questions(self):
+        """أسئلة هذه المحاولة: أسئلة الامتحان الحالية، أو الأسئلة القديمة التي أجاب عليها
+        التلميذ إن كانت قد استُبدلت بعد تسليمه."""
+        active = self.exam.questions.all()
+        if self.status == self.SUBMITTED:
+            ids = self.question_order or list(self.answers.values_list("question_id", flat=True))
+            if ids and not active.filter(id__in=ids).exists():
+                old = Question.all_objects.filter(exam=self.exam, id__in=ids)
+                if old.exists():
+                    return old
+        return active
+
     def grade(self):
         answers = {a.question_id: a.selected for a in self.answers.all()}
         score = 0
         total = 0
-        for q in self.exam.questions.all():
+        for q in self.graded_questions():
             total += q.points
             if answers.get(q.id, "").upper() == q.correct_answer.upper():
                 score += q.points

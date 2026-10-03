@@ -42,7 +42,7 @@ def grade_label(pct):
 def analyze(attempt):
     exam = attempt.exam
     subject = exam.subject.name
-    questions = {q.id: q for q in exam.questions.prefetch_related("choices")}
+    questions = {q.id: q for q in attempt.graded_questions().prefetch_related("choices")}
     order = [qid for qid in (attempt.question_order or []) if qid in questions] or list(questions)
     answers = {a.question_id: a for a in attempt.answers.all()}
 
