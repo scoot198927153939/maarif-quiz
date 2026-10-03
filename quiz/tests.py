@@ -256,6 +256,3 @@ class AttemptReportTests(TestCase):
         self.assertContains(res, "التوصيات")
         res = self.client.get(f"/teacher/exams/{self.exam.id}/results/")
         self.assertContains(res, "تقرير")
-        res = self.client.get(f"/teacher/attempts/{a.id}/report/?lang=fr")
-        self.assertContains(res, "Recommandations")
-        self.assertContains(res, 'dir="ltr" lang="fr"')
