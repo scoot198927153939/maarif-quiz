@@ -92,12 +92,14 @@ PythonAnywhere يستضيف تطبيقات Django مجاناً، وتبقى قا
 3. من تبويب **Web** اضغط **Add a new web app** ثم **Manual configuration** ثم **Python 3.10**.
 4. في نفس الصفحة:
    - **Source code**: `/home/USERNAME/maarif-quiz`
-   - **Virtualenv**: `/home/USERNAME/.virtualenvs/quiz`
+   - **Virtualenv**: `/home/USERNAME/.virtualenvs/quiz` (امسح الخانة كلها أولاً ثم اكتب المسار، حتى لا يتكرر)
    - فعّل **Force HTTPS**.
 5. اضغط رابط **WSGI configuration file**، احذف كل محتواه وضع مكانه:
 
    ```python
-   import os, sys
+   import os, sys, glob
+   # مكتبات البيئة quiz أولاً (وإلا قد يُستعمل Django العام بدون whitenoise)
+   sys.path[:0] = glob.glob("/home/USERNAME/.virtualenvs/quiz/lib/python3*/site-packages")
    sys.path.insert(0, "/home/USERNAME/maarif-quiz")
    os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings"
    os.environ["DJANGO_DEBUG"] = "0"
@@ -132,4 +134,4 @@ export DJANGO_DEBUG=0 && python manage.py migrate && python manage.py collectsta
 
 ثم **Reload** من تبويب Web.
 
-ملاحظات الحساب المجاني: يجب الضغط على زر **Run until 3 months from today** في تبويب Web مرة كل 3 أشهر وإلا يتوقف الموقع، والقوة محدودة (مناسبة لقسم أو قسمين في نفس الوقت؛ لامتحان كل المدرسة معاً يُنصح بالحساب المدفوع أو بتشغيله على حاسوب في شبكة المدرسة).
+ملاحظات الحساب المجاني: يجب الضغط على الزر الأصفر **Run until 1 month from today** في تبويب Web مرة كل شهر وإلا يتوقف الموقع، والقوة محدودة (مناسبة لقسم أو قسمين في نفس الوقت؛ لامتحان كل المدرسة معاً يُنصح بالحساب المدفوع أو بتشغيله على حاسوب في شبكة المدرسة).
