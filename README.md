@@ -79,7 +79,7 @@ PythonAnywhere يستضيف تطبيقات Django مجاناً، وتبقى قا
 2. من تبويب **Consoles** افتح **Bash** ونفّذ:
 
    ```bash
-   git clone https://github.com/scoot198927153939/maarif-quiz.git
+   git clone -b django-app https://github.com/scoot198927153939/maarif-quiz.git
    cd maarif-quiz
    mkvirtualenv --python=python3.10 quiz
    pip install -r requirements.txt
@@ -108,6 +108,20 @@ PythonAnywhere يستضيف تطبيقات Django مجاناً، وتبقى قا
    ```
 
 6. احفظ، ثم ارجع إلى تبويب **Web** واضغط **Reload**. افتح `https://USERNAME.pythonanywhere.com`.
+
+**نقل البيانات الموجودة من الحاسوب** (الامتحانات والأسئلة وصورها والتلاميذ والنتائج) بدل `createsuperuser`:
+
+1. على الحاسوب: أوقف start.bat، ثم ضع `db.sqlite3` ومجلد `media` في ملف مضغوط واحد `maarif-data.zip`.
+2. في PythonAnywhere من تبويب **Files** افتح `/home/USERNAME/maarif-quiz` وارفع `maarif-data.zip` (الحد 100 ميغابايت للملف).
+3. في **Bash**:
+
+   ```bash
+   cd ~/maarif-quiz && workon quiz
+   unzip -o maarif-data.zip && rm maarif-data.zip
+   export DJANGO_DEBUG=0 && python manage.py migrate
+   ```
+
+4. **Reload** من تبويب Web. الدخول بنفس الحسابات وكلمات المرور التي على الحاسوب.
 
 **تحديث التطبيق لاحقاً** (بعد أي تعديل على GitHub):
 
