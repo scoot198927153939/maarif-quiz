@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}حضور الأساتذة{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>حضور الأساتذة اليومي</h1>
+  <div class="actions"><a class="btn" href="{% url 'teacher_monthly' %}?month={{ month }}">📅 الحضور الشهري</a></div>
+</div>
+<form method="get" class="card filters-form day-nav">
+  <a class="btn" href="?date={{ prev_day }}">→ اليوم السابق</a>
+  <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()">
+  <a class="btn" href="?date={{ next_day }}">اليوم التالي ←</a>
+  <b>{{ day_label }}</b>
+  {% if taken %}<span class="badge ok">تم التسجيل</span>{% else %}<span class="badge warn">لم يُسجَّل بعد</span>{% endif %}
+</form>
+{% if rows %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+  <div class="table-wrap">
+  <table class="table roll">
+    <thead><tr><th>#</th><th>الأستاذ</th><th>المادة</th><th>الحالة</th><th>القسم الذي حضر فيه</th><th>ملاحظة</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="st-{{ r.status }}">
+        <td>{{ forloop.counter }}</td>
+        <td><a href="{% url 'teacher_file' r.teacher.id %}?month={{ month }}">{{ r.teacher }}</a></td>
+        <td>{{ r.teacher.subject }}</td>
+        <td><div class="status-pick">
+          {% for v, l in choices %}
+            <label class="st st-{{ v }}"><input type="radio" name="s_{{ r.teacher.id }}" value="{{ v }}" {% if r.status == v %}checked{% endif %}><span>{{ l }}</span></label>
+          {% endfor %}
+        </div></td>
+        <td><details class="sec-pick">
+          <summary data-empty="اختر القسم">اختر القسم</summary>
+          <div class="sec-list">
+            {% for s in all_sections %}<label><input type="checkbox" name="c_{{ r.teacher.id }}" value="{{ s.id }}" data-code="{{ s.code }}" {% if s.id in r.sections %}checked{% endif %}> {{ s.code }}</label>{% endfor %}
+          </div>
+        </details></td>
+        <td><input type="text" name="n_{{ r.teacher.id }}" value="{{ r.note }}" placeholder="اختياري"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if is_future %}<p class="msg error">هذا اليوم لم يأتِ بعد.</p>{% else %}
+  <div class="actions spaced"><button class="btn primary big">💾 حفظ حضور الأساتذة</button></div>{% endif %}
+</form>
+{% else %}
+<div class="card empty"><p>لا يوجد أساتذة في اللائحة بعد. أضفهم أدناه أو استورد لائحة الأساتذة.</p></div>
+{% endif %}
+<div class="card">
+  <h3>+ إضافة أستاذ إلى اللائحة</h3>
+  <form method="post" class="inline-form">
+    {% csrf_token %}<input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+    <input type="text" name="name" placeholder="اسم الأستاذ" required>
+    <input type="text" name="subject" placeholder="المادة">
+    <button class="btn" name="add_teacher" value="1">إضافة</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function syncSec(d) {
+  var codes = Array.prototype.map.call(d.querySelectorAll('input:checked'), function (i) { return i.dataset.code; });
+  var s = d.querySelector('summary');
+  s.textContent = codes.length ? codes.join(' · ') : s.dataset.empty;
+  s.classList.toggle('empty', !codes.length);
+}
+document.querySelectorAll('.sec-pick').forEach(function (d) {
+  syncSec(d);
+  d.addEventListener('change', function () { syncSec(d); });
+});
+document.querySelectorAll('.status-pick input').forEach(function (i) {
+  i.addEventListener('change', function () { i.closest('tr').className = 'st-' + i.value; });
+});
+</script>
+{% endblock %}

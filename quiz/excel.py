@@ -5,13 +5,15 @@ from django.db import transaction
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
-from .models import Choice, Classe, Question, User
+from .models import Choice, Classe, Question, Section, Teacher, User
 from .topics import guess_topic
 
 ARABIC_LETTERS = {"أ": "A", "ا": "A", "ب": "B", "ج": "C", "د": "D", "ه": "E", "هـ": "E", "و": "F"}
 QUESTION_HEADERS = ["السؤال", "A", "B", "C", "D", "الإجابة الصحيحة", "النقاط", "المستوى", "صورة", "المحور"]
 LEVEL_CODES = {"بسيط": "E", "متوسط": "M", "صعب": "H", "E": "E", "M": "M", "H": "H"}
 STUDENT_HEADERS = ["اسم المستخدم", "الاسم الكامل", "كلمة المرور", "القسم"]
+ROSTER_HEADERS = ["رقم قيد الطالب", "القسم", "اسم الطالب", "رقم هاتف الوكيل", "رقم الواتساب", "رقم هاتف الوكيل2"]
+TEACHER_HEADERS = ["اسم الأستاذ", "المادة"]
 
 HEADER_FILL = PatternFill("solid", fgColor="1F6F5C")
 HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -216,3 +218,138 @@ def results_workbook(classe, exams, rows):
         ws.append([str(student), student.username] + [float(s) if s is not None else "" for s in scores])
     _style_header(ws, [28, 18] + [22] * len(exams))
     return wb
+
+
+def roster_template():
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "التلاميذ"
+    ws.append(ROSTER_HEADERS)
+    ws.append(["1001", "1AS1", "أحمد محمد", "22000001", "22000001", ""])
+    ws.append(["1002", "7SN2", "فاطمة سيدي", "33000002", "46000002", "44000002"])
+    _style_header(ws, [16, 10, 30, 18, 18, 18])
+    return wb
+
+
+def teachers_template():
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "الأساتذة"
+    ws.append(TEACHER_HEADERS)
+    ws.append(["محمد الأمين", "الرياضيات"])
+    ws.append(["Mme Aicha", "الفرنسية"])
+    _style_header(ws, [30, 22])
+    return wb
+
+
+def _roster_columns(header):
+    """يحدد ترتيب الأعمدة من عناوين الملف، وإن لم يتعرف عليها يعتمد الترتيب الافتراضي."""
+    cols = {}
+    for i, h in enumerate(_clean(v).replace(" ", "") for v in header):
+        if not h:
+            continue
+        if "قيد" in h or "matricule" in h.lower():
+            cols.setdefault("matricule", i)
+        elif "واتس" in h or "whats" in h.lower():
+            cols.setdefault("whatsapp", i)
+        elif "هاتف" in h or "tel" in h.lower():
+            key = "phone2" if ("2" in h or "٢" in h) else "phone1"
+            cols.setdefault(key, i)
+        elif "قسم" in h or "فصل" in h or "classe" in h.lower():
+            cols.setdefault("section", i)
+        elif "اسم" in h or "nom" in h.lower():
+            cols.setdefault("name", i)
+    if {"matricule", "section", "name"} <= cols.keys():
+        return cols, True
+    return {"matricule": 0, "section": 1, "name": 2, "phone1": 3, "whatsapp": 4, "phone2": 5}, False
+
+
+def import_roster(file):
+    """لائحة التلاميذ للحضور. التلميذ يُعرف برقم قيده: إن وُجد تُحدَّث بياناته وفصله
+    (ويبقى غيابه وملاحظاته ونتائجه)، وإلا يُنشأ له حساب اسم مستخدمه وكلمة مروره رقم القيد.
+    لا يُحذف أي تلميذ غير موجود في الملف. يعيد (المضافون، المحدَّثون، الأخطاء)."""
+    try:
+        wb = load_workbook(file, read_only=True, data_only=True)
+    except Exception:
+        return 0, 0, ["تعذّر قراءة الملف. تأكد أنه ملف Excel بصيغة ‎.xlsx"]
+    rows = list(wb.worksheets[0].iter_rows(values_only=True))
+    if not rows:
+        return 0, 0, ["الملف فارغ."]
+    cols, has_header = _roster_columns(rows[0])
+    body = rows[1:] if has_header or not _clean(rows[0][0]).isdigit() else rows
+    sections = {s.code.upper(): s for s in Section.objects.all()}
+
+    def get(row, key):
+        i = cols.get(key)
+        return _clean(row[i]) if i is not None and i < len(row) else ""
+
+    errors, parsed, seen = [], [], set()
+    for idx, row in enumerate(body, start=len(rows) - len(body) + 1):
+        row = list(row)
+        mat, code, name = get(row, "matricule"), get(row, "section").replace(" ", "").upper(), get(row, "name")
+        if not any([mat, code, name]):
+            continue
+        if not mat:
+            errors.append(f"السطر {idx}: رقم القيد فارغ.")
+            continue
+        if mat in seen:
+            errors.append(f"السطر {idx}: رقم القيد {mat} مكرر في الملف.")
+            continue
+        seen.add(mat)
+        section = sections.get(code)
+        if not section:
+            errors.append(f"السطر {idx}: القسم «{code}» غير موجود.")
+            continue
+        parsed.append((mat, section, name, get(row, "phone1"), get(row, "whatsapp"), get(row, "phone2")))
+    if errors:
+        return 0, 0, errors
+    if not parsed:
+        return 0, 0, ["لم يتم العثور على أي تلميذ في الملف."]
+
+    created = updated = 0
+    with transaction.atomic():
+        for mat, section, name, p1, wa, p2 in parsed:
+            user = User.objects.filter(matricule=mat).first() or User.objects.filter(username=mat).first()
+            if user and not user.is_student:
+                errors.append(f"رقم القيد {mat} مستعمل كاسم مستخدم لحساب غير تلميذ، تم تجاهله.")
+                continue
+            if user is None:
+                user = User(username=mat, role=User.STUDENT)
+                user.set_password(mat)
+                created += 1
+            else:
+                updated += 1
+            user.matricule = mat
+            user.section = section
+            user.full_name = name or user.full_name
+            user.guardian_phone, user.whatsapp, user.guardian_phone2 = p1, wa, p2
+            user.save()
+    return created, updated, errors
+
+
+def import_teachers(file):
+    """لائحة الأساتذة للحضور: الأستاذ يُعرف باسمه، فيُحدَّث أو يُضاف ولا يُحذف أحد."""
+    try:
+        wb = load_workbook(file, read_only=True, data_only=True)
+    except Exception:
+        return 0, 0, ["تعذّر قراءة الملف. تأكد أنه ملف Excel بصيغة ‎.xlsx"]
+    rows = list(wb.worksheets[0].iter_rows(values_only=True))
+    created = updated = 0
+    errors = []
+    with transaction.atomic():
+        for idx, row in enumerate(rows, start=1):
+            row = list(row) + [None, None]
+            name, subject = " ".join(_clean(row[0]).split()), _clean(row[1])
+            if not name or (idx == 1 and "اسم" in name):
+                continue
+            t, new = Teacher.objects.get_or_create(name=name[:150], defaults={"subject": subject[:100]})
+            if new:
+                created += 1
+            else:
+                updated += 1
+                t.subject = subject[:100] or t.subject
+                t.is_active = True
+                t.save()
+    if not created and not updated:
+        errors.append("لم يتم العثور على أي أستاذ في الملف.")
+    return created, updated, errors

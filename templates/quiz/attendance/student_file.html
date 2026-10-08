@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ student }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ student }}</h1>
+    <p class="muted">القسم: <b>{{ student.section|default:student.classe }}</b> · رقم القيد: <b>{{ student.matricule|default:"—" }}</b></p>
+  </div>
+  <div class="actions">
+    {% if student.section %}<a class="btn" href="{% url 'section_roll' student.section.id %}">غياب القسم {{ student.section }}</a>{% endif %}
+    {% if user.is_admin_role %}<a class="btn" href="{% url 'user_edit' student.id %}">تعديل البيانات</a>{% endif %}
+  </div>
+</div>
+
+<div class="card contact">
+  <div>📞 هاتف الوكيل: {% if student.guardian_phone %}<a href="tel:{{ student.guardian_phone }}" dir="ltr">{{ student.guardian_phone }}</a>{% else %}<span class="muted">—</span>{% endif %}</div>
+  <div>💬 واتساب: {% if whatsapp_link %}<a href="{{ whatsapp_link }}" target="_blank" rel="noopener" dir="ltr">{{ student.whatsapp }}</a>{% else %}<span class="muted">—</span>{% endif %}</div>
+  {% if student.guardian_phone2 %}<div>📞 هاتف الوكيل 2: <a href="tel:{{ student.guardian_phone2 }}" dir="ltr">{{ student.guardian_phone2 }}</a></div>{% endif %}
+</div>
+
+<div class="stats">
+  <div class="stat"><b>{{ totals.present }}</b><span>يوم حضور</span></div>
+  <div class="stat"><b class="ko-text">{{ totals.absent }}</b><span>يوم غياب</span></div>
+  <div class="stat"><b class="warn-text">{{ totals.late }}</b><span>مرة تأخر</span></div>
+  <div class="stat"><b>{{ n_notes }}</b><span>ملاحظة</span></div>
+</div>
+<p class="muted">شهر {{ month_label }}: حضور {{ month_totals.present }} · غياب {{ month_totals.absent }} · تأخر {{ month_totals.late }}</p>
+
+<div class="card">
+  <h3>📝 إضافة ملاحظة</h3>
+  <form method="post" class="form">
+    {% csrf_token %}
+    <div class="field"><label>التاريخ</label><input type="date" name="date" value="{{ today|date:'Y-m-d' }}"></div>
+    <div class="field"><label>الملاحظة</label><textarea name="text" rows="2" required></textarea></div>
+    <button class="btn primary">إضافة</button>
+  </form>
+</div>
+
+<h2>السجل اليومي (الغياب والتأخر والملاحظات)</h2>
+{% if days %}
+<table class="table">
+  <thead><tr><th>اليوم</th><th>الحالة</th><th>الملاحظات</th></tr></thead>
+  <tbody>
+  {% for d in days %}
+    <tr>
+      <td>{{ d.label }}</td>
+      <td>{% if d.code %}<span class="badge {% if d.code == 'A' %}ko{% else %}warn{% endif %}">{{ d.status }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td>{% for n in d.notes %}<div class="note-line">{{ n.text|linebreaksbr }} <small class="muted">· {{ n.author|default:"" }}</small>
+        {% if user.is_admin_role or n.author_id == user.id %}<form method="post" action="{% url 'note_delete' n.id %}" class="inline" onsubmit="return confirm('حذف هذه الملاحظة؟')">{% csrf_token %}<button class="link danger-link">حذف</button></form>{% endif %}</div>{% endfor %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<small class="muted">الأيام التي حضر فيها التلميذ دون ملاحظة لا تظهر في السجل.</small>
+{% else %}<p class="muted">لا غياب ولا تأخر ولا ملاحظات مسجلة لهذا التلميذ.</p>{% endif %}
+{% endblock %}

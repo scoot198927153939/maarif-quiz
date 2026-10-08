@@ -27,7 +27,10 @@
     var role = document.getElementById('id_role');
     function sync() {
       var r = role.value;
-      document.querySelector('.field-classe').style.display = r === 'student' ? '' : 'none';
+      ['section', 'classe', 'matricule', 'guardian_phone', 'whatsapp', 'guardian_phone2'].forEach(function (f) {
+        document.querySelector('.field-' + f).style.display = r === 'student' ? '' : 'none';
+      });
+      document.querySelector('.field-supervised_sections').style.display = r === 'supervisor' ? '' : 'none';
       document.querySelector('.field-teaching_classes').style.display = r === 'teacher' ? '' : 'none';
       document.querySelector('.field-teaching_subjects').style.display = r === 'teacher' ? '' : 'none';
     }

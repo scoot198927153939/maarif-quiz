@@ -268,3 +268,132 @@ class AttemptReportTests(TestCase):
         self.assertEqual(r["lang"], "fr")
         self.assertEqual(r["verdict"], "Réponses probablement données au hasard")
         self.assertTrue(all("ال" not in x for x in r["recs"]))
+
+
+class AttendanceTests(TestCase):
+    def setUp(self):
+        from .models import Section
+        self.Section = Section
+        self.s1 = Section.objects.get(code="1AS1")
+        self.s2 = Section.objects.get(code="7SN6")
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN)
+        self.sup = User.objects.create_user("sup", password="x", role=User.SUPERVISOR)
+        self.sup.supervised_sections.set([self.s1])
+        self.st = User.objects.create_user("1001", password="x", role=User.STUDENT, section=self.s1, full_name="أحمد")
+        self.other = User.objects.create_user("2002", password="x", role=User.STUDENT, section=self.s2)
+
+    def _xlsx(self, rows):
+        from openpyxl import Workbook
+        wb = Workbook()
+        for r in rows:
+            wb.active.append(r)
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        buf.name = "list.xlsx"
+        return buf
+
+    def test_sections_seeded_and_linked_to_level(self):
+        self.assertEqual(self.Section.objects.count(), 23)
+        self.assertEqual(self.st.classe.code, "1AS")
+        self.assertEqual(self.s2.classe.code, "7SN")
+
+    def test_supervisor_only_sees_assigned_sections(self):
+        self.client.login(username="sup", password="x")
+        self.assertRedirects(self.client.get("/"), reverse("attendance_home"))
+        r = self.client.get(reverse("attendance_home"))
+        self.assertContains(r, "1AS1")
+        self.assertNotContains(r, "7SN6")
+        self.assertEqual(self.client.get(reverse("section_roll", args=[self.s2.id])).status_code, 403)
+        self.assertEqual(self.client.get(reverse("student_file", args=[self.other.id])).status_code, 403)
+        self.assertEqual(self.client.get(reverse("teacher_dashboard")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("user_list")).status_code, 403)
+
+    def test_roll_call_notes_and_student_file(self):
+        from .models import StudentAttendance, StudentNote
+        self.client.login(username="sup", password="x")
+        url = reverse("section_roll", args=[self.s1.id])
+        r = self.client.post(url, {"date": "2026-10-05", f"s_{self.st.id}": "A", f"n_{self.st.id}": "لم يحضر الواجب"})
+        self.assertEqual(r.status_code, 302)
+        self.client.post(url, {"date": "2026-10-06", f"s_{self.st.id}": "L"})
+        self.client.post(url, {"date": "2026-10-06", f"s_{self.st.id}": "L"})  # إعادة الحفظ لا تكرر
+        self.assertEqual(StudentAttendance.objects.filter(student=self.st).count(), 2)
+        self.assertEqual(StudentNote.objects.get().text, "لم يحضر الواجب")
+        r = self.client.get(reverse("section_report", args=[self.s1.id]) + "?from=2026-10-05&to=2026-10-06")
+        self.assertContains(r, "غائب")
+        self.assertContains(r, "لم يحضر الواجب")
+        r = self.client.get(reverse("student_file", args=[self.st.id]))
+        self.assertContains(r, "لم يحضر الواجب")
+        self.assertEqual(r.context["totals"], {"present": 0, "absent": 1, "late": 1})
+
+    def test_roster_import_keeps_history(self):
+        from .models import StudentAttendance
+        StudentAttendance.objects.create(student=self.st, date="2026-10-01", status="A")
+        self.client.login(username="boss", password="x")
+        f = self._xlsx([
+            ["رقم قيد الطالب", "القسم", "اسم الطالب", "رقم هاتف الوكيل", "رقم الواتساب", "رقم هاتف الوكيل2"],
+            [1001, "1AS2", "أحمد محمد", 22000001, 22000001, None],
+            [3003, "7sn6", "مريم", "33000003", "", ""],
+        ])
+        self.client.post(reverse("roster_import"), {"file": f})
+        self.st.refresh_from_db()
+        self.assertEqual(self.st.section.code, "1AS2")
+        self.assertEqual(self.st.matricule, "1001")
+        self.assertEqual(self.st.guardian_phone, "22000001")
+        self.assertEqual(self.st.attendance.count(), 1)
+        new = User.objects.get(matricule="3003")
+        self.assertEqual((new.section.code, new.classe.code, new.username), ("7SN6", "7SN", "3003"))
+        self.assertTrue(new.check_password("3003"))
+        # إعادة الاستيراد تحدّث ولا تكرر
+        self.client.post(reverse("roster_import"), {"file": self._xlsx([[1001, "1AS1", "أحمد", "", "", ""]])})
+        self.assertEqual(User.objects.filter(matricule="1001").count(), 1)
+        self.assertEqual(self.st.attendance.count(), 1)
+
+    def test_roster_import_rejects_unknown_section(self):
+        self.client.login(username="boss", password="x")
+        r = self.client.post(reverse("roster_import"), {"file": self._xlsx([[5, "9XX1", "x"]])}, follow=True)
+        self.assertContains(r, "غير موجود")
+        self.assertFalse(User.objects.filter(matricule="5").exists())
+
+    def test_teachers_import_and_monthly(self):
+        from .models import Teacher, TeacherAttendance
+        self.client.login(username="boss", password="x")
+        self.client.post(reverse("teachers_import"), {"file": self._xlsx([["اسم الأستاذ", "المادة"], ["محمد", "الرياضيات"], ["Aicha", "الفرنسية"]])})
+        self.assertEqual(Teacher.objects.count(), 2)
+        t = Teacher.objects.get(name="محمد")
+        self.client.logout()
+        self.client.login(username="sup", password="x")
+        self.client.post(reverse("teacher_roll"), {"date": "2026-10-05", f"s_{t.id}": "A"})
+        self.client.post(reverse("teacher_roll"), {"date": "2026-10-06", f"s_{t.id}": "P", f"c_{t.id}": [self.s1.id, self.s2.id]})
+        self.assertEqual(
+            sorted(TeacherAttendance.objects.get(teacher=t, date="2026-10-06").sections.values_list("code", flat=True)),
+            ["1AS1", "7SN6"],
+        )
+        # اليوم التالي يبدأ دون أي قسم محدد
+        r = self.client.get(reverse("teacher_roll") + "?date=2026-10-07")
+        self.assertEqual([x["sections"] for x in r.context["rows"] if x["teacher"].id == t.id][0], set())
+        self.client.logout()
+        self.client.login(username="boss", password="x")
+        self.client.post(reverse("teachers_import"), {"file": self._xlsx([["محمد", "الفيزياء"]])})
+        self.assertEqual(TeacherAttendance.objects.filter(teacher=t).count(), 2)
+        self.client.logout()
+        self.client.login(username="sup", password="x")
+        r = self.client.get(reverse("teacher_monthly") + "?month=2026-10")
+        row = [x for x in r.context["teachers"] if x.id == t.id][0]
+        self.assertEqual((row.n_present, row.n_absent, row.subject), (1, 1, "الفيزياء"))
+        self.assertEqual(row.month_sections, ["1AS1", "7SN6"])
+        self.assertEqual(self.client.get(reverse("teacher_file", args=[t.id]) + "?month=2026-10").status_code, 200)
+        # المراقب لا يستورد
+        self.assertEqual(self.client.post(reverse("teachers_import")).status_code, 403)
+
+    def test_admin_creates_supervisor(self):
+        self.client.login(username="boss", password="x")
+        r = self.client.post(reverse("user_create"), {
+            "username": "mourakib", "full_name": "م", "role": "supervisor", "password": "p",
+            "supervised_sections": [self.s1.id, self.s2.id], "is_active": "on",
+        })
+        self.assertEqual(r.status_code, 302)
+        u = User.objects.get(username="mourakib")
+        self.assertEqual(u.supervised_sections.count(), 2)
+        for name in ["user_create", "attendance_home", "teacher_roll", "teacher_monthly"]:
+            self.assertEqual(self.client.get(reverse(name)).status_code, 200)
