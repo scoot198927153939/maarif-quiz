@@ -251,22 +251,42 @@ def teacher_roll(request):
         if day > timezone.localdate():
             messages.error(request, "لا يمكن تسجيل الحضور ليوم لم يأتِ بعد.")
         else:
+            valid = set(Section.objects.values_list("id", flat=True))
+            missing = []
             for t in teachers:
                 status = request.POST.get(f"s_{t.id}")
                 if status in STATUS_LABELS:
-                    TeacherAttendance.objects.update_or_create(
+                    rec, _ = TeacherAttendance.objects.update_or_create(
                         teacher=t, date=day,
                         defaults={"status": status, "note": request.POST.get(f"n_{t.id}", "").strip()[:255],
                                   "recorded_by": request.user},
                     )
+                    ids = {int(x) for x in request.POST.getlist(f"c_{t.id}") if x.isdigit()} & valid
+                    rec.sections.set(ids)
+                    if not ids and status != ABSENT:
+                        missing.append(t.name)
             messages.success(request, f"تم حفظ حضور الأساتذة ليوم {_day_label(day)}.")
+            if missing:
+                messages.error(request, "لم يُحدَّد القسم لـ: " + "، ".join(missing))
         return redirect(f"{reverse('teacher_roll')}?date={day.isoformat()}")
 
-    records = {a.teacher_id: a for a in TeacherAttendance.objects.filter(date=day)}
-    rows = [{"teacher": t, "status": records[t.id].status if t.id in records else PRESENT,
-             "note": records[t.id].note if t.id in records else ""} for t in teachers]
+    records = {a.teacher_id: a for a in TeacherAttendance.objects.filter(date=day).prefetch_related("sections")}
+    # إن لم يُسجَّل الأستاذ في هذا اليوم تُقترح أقسامه من آخر تسجيل له
+    last = {}
+    for a in (TeacherAttendance.objects.filter(date__lt=day).exclude(teacher_id__in=records)
+              .order_by("teacher_id", "-date").prefetch_related("sections")):
+        if a.teacher_id not in last and a.sections.exists():
+            last[a.teacher_id] = a
+    rows = []
+    for t in teachers:
+        rec = records.get(t.id)
+        src = rec or last.get(t.id)
+        rows.append({
+            "teacher": t, "status": rec.status if rec else PRESENT, "note": rec.note if rec else "",
+            "sections": {s.id for s in src.sections.all()} if src else set(),
+        })
     return render(request, "quiz/attendance/teacher_roll.html", {
-        "rows": rows, "day": day, "day_label": _day_label(day), "taken": bool(records),
+        "rows": rows, "all_sections": Section.objects.all(), "day": day, "day_label": _day_label(day), "taken": bool(records),
         "choices": ATTENDANCE_CHOICES, "is_future": day > timezone.localdate(),
         "prev_day": (day - datetime.timedelta(days=1)).isoformat(),
         "next_day": (day + datetime.timedelta(days=1)).isoformat(),
@@ -284,6 +304,14 @@ def teacher_monthly(request):
         n_late=Count("attendance", filter=rng & Q(attendance__status=LATE)),
     ).filter(Q(is_active=True) | Q(n_present__gt=0) | Q(n_absent__gt=0) | Q(n_late__gt=0))
     n_days = TeacherAttendance.objects.filter(date__gte=start, date__lt=end).values("date").distinct().count()
+    secs = {}
+    for tid, code in (TeacherAttendance.sections.through.objects
+                      .filter(teacherattendance__date__gte=start, teacherattendance__date__lt=end)
+                      .values_list("teacherattendance__teacher_id", "section__code").distinct()):
+        secs.setdefault(tid, []).append(code)
+    teachers = list(teachers)
+    for t in teachers:
+        t.month_sections = sorted(secs.get(t.id, []))
     return render(request, "quiz/attendance/teacher_monthly.html", {
         "teachers": teachers, "n_days": n_days, **_month_nav(start),
     })
@@ -299,7 +327,7 @@ def teacher_file(request, teacher_id):
         teacher.save()
         messages.success(request, "تم حفظ بيانات الأستاذ.")
         return redirect(f"{reverse('teacher_file', args=[teacher.id])}?month={start.strftime('%Y-%m')}")
-    records = teacher.attendance.filter(date__gte=start, date__lt=end).order_by("date")
+    records = teacher.attendance.filter(date__gte=start, date__lt=end).order_by("date").prefetch_related("sections")
     for r in records:
         r.label = _day_label(r.date)
     return render(request, "quiz/attendance/teacher_file.html", {

@@ -370,6 +370,7 @@ class TeacherAttendance(models.Model):
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name="attendance", verbose_name="الأستاذ")
     date = models.DateField("التاريخ")
     status = models.CharField("الحالة", max_length=1, choices=ATTENDANCE_CHOICES, default=PRESENT)
+    sections = models.ManyToManyField(Section, blank=True, related_name="teacher_attendance", verbose_name="الأقسام")
     note = models.CharField("ملاحظة", max_length=255, blank=True)
     recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     updated_at = models.DateTimeField(auto_now=True)

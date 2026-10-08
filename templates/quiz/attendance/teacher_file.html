@@ -18,9 +18,10 @@
 <p class="muted">منذ البداية: حضور {{ all_totals.present }} · غياب {{ all_totals.absent }} · تأخر {{ all_totals.late }}</p>
 {% if records %}
 <table class="table">
-  <thead><tr><th>اليوم</th><th>الحالة</th><th>ملاحظة</th></tr></thead>
+  <thead><tr><th>اليوم</th><th>الحالة</th><th>القسم</th><th>ملاحظة</th></tr></thead>
   <tbody>{% for r in records %}<tr><td>{{ r.label }}</td>
     <td><span class="badge {% if r.status == 'A' %}ko{% elif r.status == 'L' %}warn{% else %}ok{% endif %}">{{ r.get_status_display }}</span></td>
+    <td>{{ r.sections.all|join:" · "|default:"—" }}</td>
     <td>{{ r.note }}</td></tr>{% endfor %}</tbody>
 </table>
 {% else %}<p class="muted">لا يوجد تسجيل لهذا الشهر.</p>{% endif %}

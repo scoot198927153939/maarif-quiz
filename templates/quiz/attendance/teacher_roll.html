@@ -18,7 +18,7 @@
   <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
   <div class="table-wrap">
   <table class="table roll">
-    <thead><tr><th>#</th><th>الأستاذ</th><th>المادة</th><th>الحالة</th><th>ملاحظة</th></tr></thead>
+    <thead><tr><th>#</th><th>الأستاذ</th><th>المادة</th><th>الحالة</th><th>القسم الذي حضر فيه</th><th>ملاحظة</th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr class="st-{{ r.status }}">
@@ -30,6 +30,12 @@
             <label class="st st-{{ v }}"><input type="radio" name="s_{{ r.teacher.id }}" value="{{ v }}" {% if r.status == v %}checked{% endif %}><span>{{ l }}</span></label>
           {% endfor %}
         </div></td>
+        <td><details class="sec-pick">
+          <summary data-empty="اختر القسم">اختر القسم</summary>
+          <div class="sec-list">
+            {% for s in all_sections %}<label><input type="checkbox" name="c_{{ r.teacher.id }}" value="{{ s.id }}" data-code="{{ s.code }}" {% if s.id in r.sections %}checked{% endif %}> {{ s.code }}</label>{% endfor %}
+          </div>
+        </details></td>
         <td><input type="text" name="n_{{ r.teacher.id }}" value="{{ r.note }}" placeholder="اختياري"></td>
       </tr>
     {% endfor %}
@@ -54,6 +60,16 @@
 {% endblock %}
 {% block scripts %}
 <script>
+function syncSec(d) {
+  var codes = Array.prototype.map.call(d.querySelectorAll('input:checked'), function (i) { return i.dataset.code; });
+  var s = d.querySelector('summary');
+  s.textContent = codes.length ? codes.join(' · ') : s.dataset.empty;
+  s.classList.toggle('empty', !codes.length);
+}
+document.querySelectorAll('.sec-pick').forEach(function (d) {
+  syncSec(d);
+  d.addEventListener('change', function () { syncSec(d); });
+});
 document.querySelectorAll('.status-pick input').forEach(function (i) {
   i.addEventListener('change', function () { i.closest('tr').className = 'st-' + i.value; });
 });

@@ -364,7 +364,14 @@ class AttendanceTests(TestCase):
         self.client.logout()
         self.client.login(username="sup", password="x")
         self.client.post(reverse("teacher_roll"), {"date": "2026-10-05", f"s_{t.id}": "A"})
-        self.client.post(reverse("teacher_roll"), {"date": "2026-10-06", f"s_{t.id}": "P"})
+        self.client.post(reverse("teacher_roll"), {"date": "2026-10-06", f"s_{t.id}": "P", f"c_{t.id}": [self.s1.id, self.s2.id]})
+        self.assertEqual(
+            sorted(TeacherAttendance.objects.get(teacher=t, date="2026-10-06").sections.values_list("code", flat=True)),
+            ["1AS1", "7SN6"],
+        )
+        # اليوم التالي يقترح نفس الأقسام
+        r = self.client.get(reverse("teacher_roll") + "?date=2026-10-07")
+        self.assertEqual([x["sections"] for x in r.context["rows"] if x["teacher"].id == t.id][0], {self.s1.id, self.s2.id})
         self.client.logout()
         self.client.login(username="boss", password="x")
         self.client.post(reverse("teachers_import"), {"file": self._xlsx([["محمد", "الفيزياء"]])})
@@ -374,6 +381,7 @@ class AttendanceTests(TestCase):
         r = self.client.get(reverse("teacher_monthly") + "?month=2026-10")
         row = [x for x in r.context["teachers"] if x.id == t.id][0]
         self.assertEqual((row.n_present, row.n_absent, row.subject), (1, 1, "الفيزياء"))
+        self.assertEqual(row.month_sections, ["1AS1", "7SN6"])
         self.assertEqual(self.client.get(reverse("teacher_file", args=[t.id]) + "?month=2026-10").status_code, 200)
         # المراقب لا يستورد
         self.assertEqual(self.client.post(reverse("teachers_import")).status_code, 403)

@@ -16,18 +16,19 @@
 </div>
 <h2 class="print-only">{{ month_label }}</h2>
 <table class="table">
-  <thead><tr><th>الأستاذ</th><th>المادة</th><th>حاضر</th><th>غائب</th><th>متأخر</th><th class="no-print"></th></tr></thead>
+  <thead><tr><th>الأستاذ</th><th>المادة</th><th>الأقسام</th><th>حاضر</th><th>غائب</th><th>متأخر</th><th class="no-print"></th></tr></thead>
   <tbody>
   {% for t in teachers %}
     <tr>
       <td><a href="{% url 'teacher_file' t.id %}?month={{ month }}">{{ t }}</a>{% if not t.is_active %} <small class="muted">(خارج اللائحة)</small>{% endif %}</td>
       <td>{{ t.subject }}</td>
+      <td><small>{{ t.month_sections|join:" · "|default:"—" }}</small></td>
       <td>{{ t.n_present }}</td>
       <td>{% if t.n_absent %}<span class="badge ko">{{ t.n_absent }}</span>{% else %}0{% endif %}</td>
       <td>{% if t.n_late %}<span class="badge warn">{{ t.n_late }}</span>{% else %}0{% endif %}</td>
       <td class="no-print"><a href="{% url 'teacher_file' t.id %}?month={{ month }}">التفاصيل</a></td>
     </tr>
-  {% empty %}<tr><td colspan="6" class="muted center">لا يوجد أساتذة.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="7" class="muted center">لا يوجد أساتذة.</td></tr>{% endfor %}
   </tbody>
 </table>
 {% endblock %}

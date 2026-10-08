@@ -247,3 +247,8 @@ input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-ra
   .topbar, .no-print, .page-head .actions, .messages { display: none !important; }
   .print-only { display: block; }
 }
+.sec-pick { position: relative; min-width: 140px; }
+.sec-pick summary { cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: #fff; list-style: none; font-weight: 600; }
+.sec-pick summary.empty { color: var(--danger); font-weight: normal; }
+.sec-pick .sec-list { margin-top: 6px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: grid; grid-template-columns: repeat(3, auto); gap: 4px 12px; }
+.sec-pick .sec-list label { display: flex; gap: 4px; align-items: center; white-space: nowrap; font-size: .92rem; }
