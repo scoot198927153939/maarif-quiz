@@ -180,7 +180,7 @@ def import_students(file):
             continue
         classe = classes.get(code.upper())
         if not classe:
-            errors.append(f"السطر {idx}: القسم «{code}» غير موجود.")
+            errors.append(f"السطر {idx}: القسم «{get(row, 'section')}» غير موجود. الأقسام المقبولة مثل 1AS1 و 7SN2.")
             continue
         parsed.append((username, full_name, password, classe))
     if errors:
@@ -242,26 +242,87 @@ def teachers_template():
     return wb
 
 
-def _roster_columns(header):
-    """يحدد ترتيب الأعمدة من عناوين الملف، وإن لم يتعرف عليها يعتمد الترتيب الافتراضي."""
+def _norm_header(value):
+    h = _clean(value).replace(" ", "").replace("_", "").lower()
+    for src, dst in (("إ", "ا"), ("أ", "ا"), ("آ", "ا"), ("ـ", "")):
+        h = h.replace(src, dst)
+    return h
+
+
+def _section_code(value):
+    return "".join(ch for ch in _clean(value).upper() if ch.isalnum())
+
+
+def _header_columns(header):
     cols = {}
-    for i, h in enumerate(_clean(v).replace(" ", "") for v in header):
+    for i, h in enumerate(_norm_header(v) for v in header):
         if not h:
             continue
-        if "قيد" in h or "matricule" in h.lower():
+        if "قيد" in h or "matricule" in h or "matr" in h:
             cols.setdefault("matricule", i)
-        elif "واتس" in h or "whats" in h.lower():
+        elif "واتس" in h or "whats" in h:
             cols.setdefault("whatsapp", i)
-        elif "هاتف" in h or "tel" in h.lower():
-            key = "phone2" if ("2" in h or "٢" in h) else "phone1"
-            cols.setdefault(key, i)
-        elif "قسم" in h or "فصل" in h or "classe" in h.lower():
+        elif "هاتف" in h or "tel" in h or "phone" in h:
+            cols.setdefault("phone2" if ("2" in h or "٢" in h) else "phone1", i)
+        elif "قسم" in h or "فصل" in h or "classe" in h or "section" in h:
             cols.setdefault("section", i)
-        elif "اسم" in h or "nom" in h.lower():
+        elif "اسم" in h or "nom" in h or "name" in h:
             cols.setdefault("name", i)
-    if {"matricule", "section", "name"} <= cols.keys():
-        return cols, True
-    return {"matricule": 0, "section": 1, "name": 2, "phone1": 3, "whatsapp": 4, "phone2": 5}, False
+    return cols
+
+
+def _roster_columns(rows, section_codes):
+    """يحدد سطر العناوين وموضع كل عمود: من العناوين أولاً، ثم من محتوى الأعمدة
+    (عمود القسم هو الذي قيمه رموز أقسام مثل 1AS1، ورقم القيد عمود أرقام، والاسم عمود نص).
+    يعيد (الأعمدة، رقم أول سطر من البيانات)."""
+    header_idx, cols = None, {}
+    for i, row in enumerate(rows[:6]):
+        found = _header_columns(row)
+        if len(found) >= 2:
+            header_idx, cols = i, found
+            break
+    body = rows[header_idx + 1:] if header_idx is not None else rows
+    sample = [list(r) for r in body[:60] if any(_clean(v) for v in r)]
+    width = max((len(r) for r in sample), default=0)
+
+    def column(i):
+        return [_clean(r[i]) for r in sample if i < len(r) and _clean(r[i])]
+
+    def share(i, test):
+        vals = column(i)
+        return sum(1 for v in vals if test(v)) / len(vals) if vals else 0
+
+    used = set(cols.values())
+    if "section" not in cols:
+        best = max((i for i in range(width) if i not in used),
+                   key=lambda i: share(i, lambda v: _section_code(v) in section_codes), default=None)
+        if best is not None and share(best, lambda v: _section_code(v) in section_codes) >= 0.5:
+            cols["section"] = best
+            used.add(best)
+    digits = lambda v: v.replace(" ", "").replace("+", "").isdigit()
+    if "matricule" not in cols:
+        for i in range(width):
+            if i not in used and share(i, digits) >= 0.8:
+                cols["matricule"] = i
+                used.add(i)
+                break
+    if "name" not in cols:
+        for i in range(width):
+            if i not in used and share(i, lambda v: not any(ch.isdigit() for ch in v) and len(v) > 2) >= 0.8:
+                cols["name"] = i
+                used.add(i)
+                break
+    # أعمدة الهواتف غير المعنونة: أعمدة الأرقام الباقية بالترتيب
+    for key in ("phone1", "whatsapp", "phone2"):
+        if key not in cols:
+            for i in range(width):
+                if i not in used and column(i) and share(i, digits) >= 0.8:
+                    cols[key] = i
+                    used.add(i)
+                    break
+    if not {"matricule", "section", "name"} <= cols.keys():
+        cols = {"matricule": 0, "section": 1, "name": 2, "phone1": 3, "whatsapp": 4, "phone2": 5}
+    return cols, (header_idx + 1 if header_idx is not None else 0)
 
 
 def import_roster(file):
@@ -275,18 +336,18 @@ def import_roster(file):
     rows = list(wb.worksheets[0].iter_rows(values_only=True))
     if not rows:
         return 0, 0, ["الملف فارغ."]
-    cols, has_header = _roster_columns(rows[0])
-    body = rows[1:] if has_header or not _clean(rows[0][0]).isdigit() else rows
     sections = {s.code.upper(): s for s in Section.objects.all()}
+    cols, first = _roster_columns(rows, set(sections))
+    body = rows[first:]
 
     def get(row, key):
         i = cols.get(key)
         return _clean(row[i]) if i is not None and i < len(row) else ""
 
     errors, parsed, seen = [], [], set()
-    for idx, row in enumerate(body, start=len(rows) - len(body) + 1):
+    for idx, row in enumerate(body, start=first + 1):
         row = list(row)
-        mat, code, name = get(row, "matricule"), get(row, "section").replace(" ", "").upper(), get(row, "name")
+        mat, code, name = get(row, "matricule"), _section_code(get(row, "section")), get(row, "name")
         if not any([mat, code, name]):
             continue
         if not mat:
@@ -298,7 +359,7 @@ def import_roster(file):
         seen.add(mat)
         section = sections.get(code)
         if not section:
-            errors.append(f"السطر {idx}: القسم «{code}» غير موجود.")
+            errors.append(f"السطر {idx}: القسم «{get(row, 'section')}» غير موجود. الأقسام المقبولة مثل 1AS1 و 7SN2.")
             continue
         parsed.append((mat, section, name, get(row, "phone1"), get(row, "whatsapp"), get(row, "phone2")))
     if errors:

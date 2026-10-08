@@ -349,6 +349,25 @@ class AttendanceTests(TestCase):
         self.assertEqual(User.objects.filter(matricule="1001").count(), 1)
         self.assertEqual(self.st.attendance.count(), 1)
 
+    def test_roster_import_detects_columns_in_any_order(self):
+        self.client.login(username="boss", password="x")
+        f = self._xlsx([
+            ["لائحة التلاميذ 2026"],
+            ["الرقم", "الإسم الكامل", "الفصل", "الواتساب", "هاتف الولي"],
+            [4001, "زيدان محمد العربي", "1AS 1", 46000001, 22000001],
+            [4002, "اسماء احمدو", "7sn2", None, 22000002],
+        ])
+        r = self.client.post(reverse("roster_import"), {"file": f}, follow=True)
+        self.assertNotContains(r, "غير موجود")
+        u = User.objects.get(matricule="4001")
+        self.assertEqual((u.full_name, u.section.code, u.whatsapp, u.guardian_phone),
+                         ("زيدان محمد العربي", "1AS1", "46000001", "22000001"))
+        self.assertEqual(User.objects.get(matricule="4002").section.code, "7SN2")
+        # بدون عناوين وبترتيب مختلف
+        f = self._xlsx([[5001, "مريم سيدي", "5MA2", 33000001], [5002, "محمد", "6SN1", 33000002]])
+        self.client.post(reverse("roster_import"), {"file": f})
+        self.assertEqual(User.objects.get(matricule="5001").section.code, "5MA2")
+
     def test_roster_import_rejects_unknown_section(self):
         self.client.login(username="boss", password="x")
         r = self.client.post(reverse("roster_import"), {"file": self._xlsx([[5, "9XX1", "x"]])}, follow=True)
