@@ -8,16 +8,16 @@
     <a class="btn" href="{% url 'teacher_monthly' %}">📅 الحضور الشهري للأساتذة</a>
   </div>
 </div>
-<p class="muted">{{ today_label }} · اضغط على القسم لتسجيل الغياب والملاحظات.</p>
+<p class="muted">{{ today_label }} · 3 حصص في اليوم، والأرقام 1 2 3 تحت كل قسم تصبح خضراء عند تسجيل غياب تلك الحصة.</p>
 
 <div class="grid sections-grid">
 {% for s in sections %}
   <div class="card section-card">
     <div class="section-head">
       <a href="{% url 'section_roll' s.id %}"><h3>{{ s.code }}</h3></a>
-      {% if s.taken_today %}<span class="badge ok">سُجّل اليوم</span>{% else %}<span class="badge warn">لم يُسجَّل اليوم</span>{% endif %}
+      <span class="session-dots">{% for x in s.sessions %}<span class="dot{% if x.taken %} on{% endif %}" title="{{ x.label }}">{{ x.n }}</span>{% endfor %}</span>
     </div>
-    <p class="muted">{{ s.n_students }} تلميذ{% if s.taken_today %} · غائب: <b>{{ s.absent_today }}</b> · متأخر: <b>{{ s.late_today }}</b>{% endif %}</p>
+    <p class="muted">{{ s.n_students }} تلميذ{% if s.taken_today %} · غياب اليوم: <b>{{ s.absent_today }}</b> · تأخر: <b>{{ s.late_today }}</b> <small>(بالحصص)</small>{% endif %}</p>
     <div class="actions">
       <a class="btn primary" href="{% url 'section_roll' s.id %}">تسجيل الغياب</a>
       <a class="btn" href="{% url 'section_report' s.id %}">لائحة اليوم</a>

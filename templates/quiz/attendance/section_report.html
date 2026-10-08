@@ -18,10 +18,11 @@
 <h2>الغياب والتأخر</h2>
 {% if events %}
 <table class="table">
-  <thead><tr>{% if not single_day %}<th>التاريخ</th>{% endif %}<th>التلميذ</th><th>رقم القيد</th><th>الحالة</th></tr></thead>
+  <thead><tr>{% if not single_day %}<th>التاريخ</th>{% endif %}<th>الحصة</th><th>التلميذ</th><th>رقم القيد</th><th>الحالة</th></tr></thead>
   <tbody>
   {% for e in events %}
     <tr>{% if not single_day %}<td>{{ e.date|date:"Y-m-d" }}</td>{% endif %}
+      <td>{{ e.get_session_display }}</td>
       <td><a href="{% url 'student_file' e.student.id %}">{{ e.student }}</a></td><td>{{ e.student.matricule|default:"—" }}</td>
       <td><span class="badge {% if e.status == 'A' %}ko{% else %}warn{% endif %}">{{ e.get_status_display }}</span></td></tr>
   {% endfor %}
@@ -32,7 +33,7 @@
 {% if not single_day and totals %}
 <h2>المجموع لكل تلميذ</h2>
 <table class="table">
-  <thead><tr><th>التلميذ</th><th>الغياب</th><th>التأخر</th></tr></thead>
+  <thead><tr><th>التلميذ</th><th>حصص الغياب</th><th>حصص التأخر</th></tr></thead>
   <tbody>{% for s in totals %}<tr><td><a href="{% url 'student_file' s.id %}">{{ s }}</a></td><td>{{ s.n_absent }}</td><td>{{ s.n_late }}</td></tr>{% endfor %}</tbody>
 </table>
 {% endif %}

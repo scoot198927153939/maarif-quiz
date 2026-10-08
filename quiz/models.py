@@ -315,18 +315,23 @@ class Answer(models.Model):
 PRESENT, ABSENT, LATE = "P", "A", "L"
 ATTENDANCE_CHOICES = [(PRESENT, "حاضر"), (ABSENT, "غائب"), (LATE, "متأخر")]
 
+# ثلاث حصص في اليوم، كل حصة ساعتان، والغياب يُسجَّل لكل حصة
+SESSION_CHOICES = [(1, "الحصة 1"), (2, "الحصة 2"), (3, "الحصة 3")]
+SESSION_TIMES = {1: ("08:00", "10:00"), 2: ("10:00", "12:00"), 3: ("12:00", "14:00")}
+
 
 class StudentAttendance(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="attendance", verbose_name="التلميذ")
     date = models.DateField("التاريخ")
+    session = models.PositiveSmallIntegerField("الحصة", choices=SESSION_CHOICES, default=1)
     status = models.CharField("الحالة", max_length=1, choices=ATTENDANCE_CHOICES, default=PRESENT)
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, verbose_name="الفصل")
     recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = [("student", "date")]
-        ordering = ["-date"]
+        unique_together = [("student", "date", "session")]
+        ordering = ["-date", "session"]
         verbose_name = "حضور تلميذ"
         verbose_name_plural = "حضور التلاميذ"
 
@@ -369,14 +374,16 @@ class Teacher(models.Model):
 class TeacherAttendance(models.Model):
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name="attendance", verbose_name="الأستاذ")
     date = models.DateField("التاريخ")
+    session = models.PositiveSmallIntegerField("الحصة", choices=SESSION_CHOICES, default=1)
     status = models.CharField("الحالة", max_length=1, choices=ATTENDANCE_CHOICES, default=PRESENT)
-    sections = models.ManyToManyField(Section, blank=True, related_name="teacher_attendance", verbose_name="الأقسام")
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL,
+                                related_name="teacher_attendance", verbose_name="القسم")
     note = models.CharField("ملاحظة", max_length=255, blank=True)
     recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = [("teacher", "date")]
-        ordering = ["-date"]
+        unique_together = [("teacher", "date", "session")]
+        ordering = ["-date", "session"]
         verbose_name = "حضور أستاذ"
         verbose_name_plural = "حضور الأساتذة"

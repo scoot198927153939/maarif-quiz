@@ -12,8 +12,8 @@ from django.views.decorators.http import require_POST
 from . import excel
 from .forms import ImportFileForm
 from .models import (
-    ABSENT, ATTENDANCE_CHOICES, LATE, PRESENT, Section, StudentAttendance, StudentNote,
-    Teacher, TeacherAttendance, User,
+    ABSENT, ATTENDANCE_CHOICES, LATE, PRESENT, SESSION_CHOICES, SESSION_TIMES, Section, StudentAttendance,
+    StudentNote, Teacher, TeacherAttendance, User,
 )
 from .views import admin_required, role_required, xlsx_response
 
@@ -30,6 +30,29 @@ def _date(value, default=None):
         return datetime.date.fromisoformat(value)
     except (TypeError, ValueError):
         return default or timezone.localdate()
+
+
+def _current_session():
+    now = timezone.localtime().strftime("%H:%M")
+    for n, (start, end) in SESSION_TIMES.items():
+        if now < end:
+            return n
+    return SESSION_CHOICES[-1][0]
+
+
+def _session(request):
+    value = request.POST.get("session") or request.GET.get("session")
+    if value and value.isdigit() and int(value) in SESSION_TIMES:
+        return int(value)
+    return _current_session()
+
+
+def _sessions(taken=()):
+    return [{"n": n, "label": label, "start": SESSION_TIMES[n][0], "end": SESSION_TIMES[n][1], "taken": n in taken}
+            for n, label in SESSION_CHOICES]
+
+
+SESSION_LABELS = dict(SESSION_CHOICES)
 
 
 def _month(value):
@@ -86,11 +109,15 @@ def attendance_home(request):
     day = StudentAttendance.objects.filter(date=today)
     absent = dict(day.filter(status=ABSENT).values_list("student__section").annotate(n=Count("id")))
     late = dict(day.filter(status=LATE).values_list("student__section").annotate(n=Count("id")))
-    taken = set(day.values_list("student__section", flat=True))
+    taken = {}
+    for sec, n in day.order_by().values_list("student__section", "session").distinct():
+        taken.setdefault(sec, set()).add(n)
     for s in sections:
-        s.absent_today, s.late_today, s.taken_today = absent.get(s.id, 0), late.get(s.id, 0), s.id in taken
+        s.absent_today, s.late_today = absent.get(s.id, 0), late.get(s.id, 0)
+        s.sessions = _sessions(taken.get(s.id, ()))
+        s.taken_today = bool(taken.get(s.id))
     return render(request, "quiz/attendance/home.html", {
-        "sections": sections, "today": today, "today_label": _day_label(today),
+        "sections": sections, "today": today, "today_label": _day_label(today), "current_session": _current_session(),
         "import_form": ImportFileForm(),
         "n_teachers": Teacher.objects.filter(is_active=True).count(),
         "teachers_taken": TeacherAttendance.objects.filter(date=today).exists(),
@@ -103,37 +130,47 @@ def attendance_home(request):
 def section_roll(request, section_id):
     section = _get_section(request.user, section_id)
     day = _date(request.POST.get("date") or request.GET.get("date"))
+    session = _session(request)
     students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by("full_name", "username"))
+    here = f"{reverse('section_roll', args=[section.id])}?date={day.isoformat()}&session={session}"
 
     if request.method == "POST":
         if day > timezone.localdate():
             messages.error(request, "لا يمكن تسجيل الغياب ليوم لم يأتِ بعد.")
-            return redirect(f"{reverse('section_roll', args=[section.id])}?date={day.isoformat()}")
+            return redirect(here)
         n_notes = 0
         for st in students:
             status = request.POST.get(f"s_{st.id}")
             if status in STATUS_LABELS:
                 StudentAttendance.objects.update_or_create(
-                    student=st, date=day,
+                    student=st, date=day, session=session,
                     defaults={"status": status, "section": section, "recorded_by": request.user},
                 )
             note = request.POST.get(f"n_{st.id}", "").strip()
             if note:
                 StudentNote.objects.create(student=st, date=day, text=note, author=request.user)
                 n_notes += 1
-        msg = f"تم حفظ حضور {section} ليوم {_day_label(day)}."
+        msg = f"تم حفظ غياب {section} في {SESSION_LABELS[session]} ليوم {_day_label(day)}."
         if n_notes:
             msg += f" وأُضيفت {n_notes} ملاحظة."
         messages.success(request, msg)
-        return redirect(f"{reverse('section_roll', args=[section.id])}?date={day.isoformat()}")
+        return redirect(here)
 
-    records = {a.student_id: a.status for a in StudentAttendance.objects.filter(student__in=students, date=day)}
+    day_records = StudentAttendance.objects.filter(student__in=students, date=day)
+    records = {a.student_id: a.status for a in day_records if a.session == session}
+    others = {}
+    for a in day_records:
+        if a.session != session and a.status != PRESENT:
+            others.setdefault(a.student_id, []).append(f"{SESSION_LABELS[a.session]}: {a.get_status_display()}")
     notes = {}
     for n in StudentNote.objects.filter(student__in=students, date=day).order_by("created_at"):
         notes.setdefault(n.student_id, []).append(n)
-    rows = [{"student": st, "status": records.get(st.id, PRESENT), "notes": notes.get(st.id, [])} for st in students]
+    rows = [{"student": st, "status": records.get(st.id, PRESENT), "notes": notes.get(st.id, []),
+             "others": others.get(st.id, [])} for st in students]
     return render(request, "quiz/attendance/section_roll.html", {
         "section": section, "rows": rows, "day": day, "day_label": _day_label(day),
+        "session": session, "session_label": SESSION_LABELS[session],
+        "sessions": _sessions({a.session for a in day_records}),
         "taken": bool(records), "choices": ATTENDANCE_CHOICES,
         "prev_day": (day - datetime.timedelta(days=1)).isoformat(),
         "next_day": (day + datetime.timedelta(days=1)).isoformat(),
@@ -141,7 +178,6 @@ def section_roll(request, section_id):
         "summary": {
             "absent": [r["student"] for r in rows if records.get(r["student"].id) == ABSENT],
             "late": [r["student"] for r in rows if records.get(r["student"].id) == LATE],
-            "notes": [r for r in rows if r["notes"]],
         },
     })
 
@@ -158,7 +194,7 @@ def section_report(request, section_id):
     students = section.students.filter(role=User.STUDENT)
     events = (
         StudentAttendance.objects.filter(student__in=students, date__range=(start, end))
-        .exclude(status=PRESENT).select_related("student").order_by("-date", "student__full_name")
+        .exclude(status=PRESENT).select_related("student").order_by("-date", "session", "student__full_name")
     )
     notes = (
         StudentNote.objects.filter(student__in=students, date__range=(start, end))
@@ -191,10 +227,10 @@ def student_file(request, student_id):
         return redirect("student_file", student_id=student.id)
     attendance = student.attendance.all()
     history = {}
-    for a in attendance.exclude(status=PRESENT):
-        history.setdefault(a.date, {"date": a.date, "status": a.get_status_display(), "code": a.status, "notes": []})
+    for a in attendance.exclude(status=PRESENT).order_by("session"):
+        history.setdefault(a.date, {"date": a.date, "events": [], "notes": []})["events"].append(a)
     for n in student.notes.select_related("author"):
-        history.setdefault(n.date, {"date": n.date, "status": "", "code": "", "notes": []})["notes"].append(n)
+        history.setdefault(n.date, {"date": n.date, "events": [], "notes": []})["notes"].append(n)
     days = sorted(history.values(), key=lambda h: h["date"], reverse=True)
     for d in days:
         d["label"] = _day_label(d["date"])
@@ -235,7 +271,9 @@ def note_delete(request, note_id):
 @supervisor_required
 def teacher_roll(request):
     day = _date(request.POST.get("date") or request.GET.get("date"))
+    session = _session(request)
     teachers = list(Teacher.objects.filter(is_active=True))
+    here = f"{reverse('teacher_roll')}?date={day.isoformat()}&session={session}"
     if request.method == "POST":
         if "add_teacher" in request.POST:
             name = " ".join(request.POST.get("name", "").split())[:150]
@@ -247,39 +285,42 @@ def teacher_roll(request):
                     t.is_active = True
                     t.save()
                 messages.success(request, f"تمت إضافة الأستاذ «{t}»." if created else f"الأستاذ «{t}» موجود في اللائحة.")
-            return redirect(f"{reverse('teacher_roll')}?date={day.isoformat()}")
+            return redirect(here)
         if day > timezone.localdate():
             messages.error(request, "لا يمكن تسجيل الحضور ليوم لم يأتِ بعد.")
-        else:
-            valid = set(Section.objects.values_list("id", flat=True))
-            missing = []
-            for t in teachers:
-                status = request.POST.get(f"s_{t.id}")
-                if status in STATUS_LABELS:
-                    rec, _ = TeacherAttendance.objects.update_or_create(
-                        teacher=t, date=day,
-                        defaults={"status": status, "note": request.POST.get(f"n_{t.id}", "").strip()[:255],
-                                  "recorded_by": request.user},
-                    )
-                    ids = {int(x) for x in request.POST.getlist(f"c_{t.id}") if x.isdigit()} & valid
-                    rec.sections.set(ids)
-                    if not ids and status != ABSENT:
-                        missing.append(t.name)
-            messages.success(request, f"تم حفظ حضور الأساتذة ليوم {_day_label(day)}.")
-            if missing:
-                messages.error(request, "لم يُحدَّد القسم لـ: " + "، ".join(missing))
-        return redirect(f"{reverse('teacher_roll')}?date={day.isoformat()}")
+            return redirect(here)
+        sections = {str(s.id): s for s in Section.objects.all()}
+        missing, saved = [], 0
+        for t in teachers:
+            status = request.POST.get(f"s_{t.id}", "")
+            section = sections.get(request.POST.get(f"c_{t.id}", ""))
+            if status in STATUS_LABELS:
+                TeacherAttendance.objects.update_or_create(
+                    teacher=t, date=day, session=session,
+                    defaults={"status": status, "section": section, "recorded_by": request.user,
+                              "note": request.POST.get(f"n_{t.id}", "").strip()[:255]},
+                )
+                saved += 1
+                if section is None:
+                    missing.append(t.name)
+            else:  # «لا حصة»: يُلغى أي تسجيل سابق لهذه الحصة
+                TeacherAttendance.objects.filter(teacher=t, date=day, session=session).delete()
+        messages.success(request, f"تم حفظ حضور {saved} أستاذ في {SESSION_LABELS[session]} ليوم {_day_label(day)}.")
+        if missing:
+            messages.error(request, "لم يُحدَّد القسم لـ: " + "، ".join(missing))
+        return redirect(here)
 
-    records = {a.teacher_id: a for a in TeacherAttendance.objects.filter(date=day).prefetch_related("sections")}
+    day_records = TeacherAttendance.objects.filter(date=day)
+    records = {a.teacher_id: a for a in day_records if a.session == session}
     rows = []
     for t in teachers:
         rec = records.get(t.id)
-        rows.append({
-            "teacher": t, "status": rec.status if rec else PRESENT, "note": rec.note if rec else "",
-            "sections": {s.id for s in rec.sections.all()} if rec else set(),
-        })
+        rows.append({"teacher": t, "status": rec.status if rec else "", "note": rec.note if rec else "",
+                     "section": rec.section_id if rec else None})
     return render(request, "quiz/attendance/teacher_roll.html", {
-        "rows": rows, "all_sections": Section.objects.all(), "day": day, "day_label": _day_label(day), "taken": bool(records),
+        "rows": rows, "all_sections": Section.objects.all(), "day": day, "day_label": _day_label(day),
+        "taken": bool(records), "session": session, "session_label": SESSION_LABELS[session],
+        "sessions": _sessions({a.session for a in day_records}),
         "choices": ATTENDANCE_CHOICES, "is_future": day > timezone.localdate(),
         "prev_day": (day - datetime.timedelta(days=1)).isoformat(),
         "next_day": (day + datetime.timedelta(days=1)).isoformat(),
@@ -298,9 +339,8 @@ def teacher_monthly(request):
     ).filter(Q(is_active=True) | Q(n_present__gt=0) | Q(n_absent__gt=0) | Q(n_late__gt=0))
     n_days = TeacherAttendance.objects.filter(date__gte=start, date__lt=end).values("date").distinct().count()
     secs = {}
-    for tid, code in (TeacherAttendance.sections.through.objects
-                      .filter(teacherattendance__date__gte=start, teacherattendance__date__lt=end)
-                      .values_list("teacherattendance__teacher_id", "section__code").distinct()):
+    for tid, code in (TeacherAttendance.objects.filter(date__gte=start, date__lt=end, section__isnull=False)
+                      .order_by().values_list("teacher_id", "section__code").distinct()):
         secs.setdefault(tid, []).append(code)
     teachers = list(teachers)
     for t in teachers:
@@ -320,7 +360,7 @@ def teacher_file(request, teacher_id):
         teacher.save()
         messages.success(request, "تم حفظ بيانات الأستاذ.")
         return redirect(f"{reverse('teacher_file', args=[teacher.id])}?month={start.strftime('%Y-%m')}")
-    records = teacher.attendance.filter(date__gte=start, date__lt=end).order_by("date").prefetch_related("sections")
+    records = teacher.attendance.filter(date__gte=start, date__lt=end).order_by("date", "session").select_related("section")
     for r in records:
         r.label = _day_label(r.date)
     return render(request, "quiz/attendance/teacher_file.html", {
