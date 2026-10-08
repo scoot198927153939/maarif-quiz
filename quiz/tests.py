@@ -29,7 +29,7 @@ class QuizFlowTests(TestCase):
                 Choice.objects.create(question=q, letter=l, text=l)
 
     def test_seeded_classes_and_subjects(self):
-        self.assertEqual(Classe.objects.count(), 10)
+        self.assertEqual(Classe.objects.count(), 11)
         self.assertFalse(self.physique.classes.filter(code="1AS").exists())
         self.assertTrue(self.physique.classes.filter(code="7SN").exists())
         self.assertTrue(Subject.objects.get(name="العربية").classes.filter(code="4AS").exists())
@@ -294,7 +294,7 @@ class AttendanceTests(TestCase):
         return buf
 
     def test_sections_seeded_and_linked_to_level(self):
-        self.assertEqual(self.Section.objects.count(), 23)
+        self.assertEqual(self.Section.objects.count(), 24)
         self.assertEqual(self.st.classe.code, "1AS")
         self.assertEqual(self.s2.classe.code, "7SN")
 
