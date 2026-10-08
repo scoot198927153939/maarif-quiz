@@ -369,9 +369,9 @@ class AttendanceTests(TestCase):
             sorted(TeacherAttendance.objects.get(teacher=t, date="2026-10-06").sections.values_list("code", flat=True)),
             ["1AS1", "7SN6"],
         )
-        # اليوم التالي يقترح نفس الأقسام
+        # اليوم التالي يبدأ دون أي قسم محدد
         r = self.client.get(reverse("teacher_roll") + "?date=2026-10-07")
-        self.assertEqual([x["sections"] for x in r.context["rows"] if x["teacher"].id == t.id][0], {self.s1.id, self.s2.id})
+        self.assertEqual([x["sections"] for x in r.context["rows"] if x["teacher"].id == t.id][0], set())
         self.client.logout()
         self.client.login(username="boss", password="x")
         self.client.post(reverse("teachers_import"), {"file": self._xlsx([["محمد", "الفيزياء"]])})

@@ -271,19 +271,12 @@ def teacher_roll(request):
         return redirect(f"{reverse('teacher_roll')}?date={day.isoformat()}")
 
     records = {a.teacher_id: a for a in TeacherAttendance.objects.filter(date=day).prefetch_related("sections")}
-    # إن لم يُسجَّل الأستاذ في هذا اليوم تُقترح أقسامه من آخر تسجيل له
-    last = {}
-    for a in (TeacherAttendance.objects.filter(date__lt=day).exclude(teacher_id__in=records)
-              .order_by("teacher_id", "-date").prefetch_related("sections")):
-        if a.teacher_id not in last and a.sections.exists():
-            last[a.teacher_id] = a
     rows = []
     for t in teachers:
         rec = records.get(t.id)
-        src = rec or last.get(t.id)
         rows.append({
             "teacher": t, "status": rec.status if rec else PRESENT, "note": rec.note if rec else "",
-            "sections": {s.id for s in src.sections.all()} if src else set(),
+            "sections": {s.id for s in rec.sections.all()} if rec else set(),
         })
     return render(request, "quiz/attendance/teacher_roll.html", {
         "rows": rows, "all_sections": Section.objects.all(), "day": day, "day_label": _day_label(day), "taken": bool(records),
