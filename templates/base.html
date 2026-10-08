@@ -20,7 +20,12 @@
       <a href="{% url 'user_list' %}">المستخدمون</a>
       <a href="{% url 'teacher_dashboard' %}">الامتحانات</a>
       <a href="{% url 'class_results' %}">النتائج</a>
+      <a href="{% url 'attendance_home' %}">الحضور</a>
       <a href="{% url 'admin:index' %}">الإعدادات</a>
+    {% elif user.is_supervisor %}
+      <a href="{% url 'attendance_home' %}">الأقسام</a>
+      <a href="{% url 'teacher_roll' %}">حضور الأساتذة</a>
+      <a href="{% url 'teacher_monthly' %}">الحضور الشهري</a>
     {% elif user.is_teacher %}
       <a href="{% url 'teacher_dashboard' %}">امتحاناتي</a>
       <a href="{% url 'exam_create' %}">امتحان جديد</a>
@@ -30,7 +35,7 @@
     {% endif %}
   </nav>
   <div class="who">
-    <span>{{ user }}{% if user.is_student and user.classe %} · {{ user.classe }}{% endif %}</span>
+    <span>{{ user }}{% if user.is_student and user.classe %} · {{ user.section|default:user.classe }}{% endif %}</span>
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link">خروج</button></form>
   </div>
 </header>

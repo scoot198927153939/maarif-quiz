@@ -5,6 +5,7 @@
   <div class="actions">
     <a class="btn primary" href="{% url 'user_create' %}?role=student">+ تلميذ</a>
     <a class="btn primary" href="{% url 'user_create' %}?role=teacher">+ أستاذ</a>
+    <a class="btn" href="{% url 'user_create' %}?role=supervisor">+ مراقب</a>
     <a class="btn" href="{% url 'user_create' %}?role=admin">+ مشرف</a>
   </div>
 </div>
@@ -28,7 +29,7 @@
   {% for u in users %}
   <tr>
     <td>{{ u.username }}</td><td>{{ u.full_name }}</td><td>{{ u.get_role_display }}</td>
-    <td>{% if u.role == 'student' %}{{ u.classe|default:"—" }}{% elif u.role == 'teacher' %}<small>{{ u.teaching_subjects.all|join:"، " }} · {{ u.teaching_classes.all|join:" " }}</small>{% endif %}</td>
+    <td>{% if u.role == 'student' %}{% if u.section %}<a href="{% url 'student_file' u.id %}">{{ u.section }}</a>{% else %}{{ u.classe|default:"—" }}{% endif %}{% elif u.role == 'teacher' %}<small>{{ u.teaching_subjects.all|join:"، " }} · {{ u.teaching_classes.all|join:" " }}</small>{% elif u.role == 'supervisor' %}<small>{{ u.supervised_sections.all|join:" " }}</small>{% endif %}</td>
     <td>{% if u.is_active %}<span class="badge ok">نشط</span>{% else %}<span class="badge">موقوف</span>{% endif %}</td>
     <td class="actions"><a href="{% url 'user_edit' u.id %}">تعديل</a> <a href="{% url 'user_delete' u.id %}" class="danger-link">حذف</a></td>
   </tr>

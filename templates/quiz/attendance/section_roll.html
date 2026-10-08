@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}غياب {{ section }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>غياب القسم {{ section }}</h1>
+  <div class="actions">
+    <a class="btn" href="{% url 'section_report' section.id %}?from={{ day|date:'Y-m-d' }}">📋 لائحة الغياب والملاحظات</a>
+    <a class="btn" href="{% url 'attendance_home' %}">الأقسام</a>
+  </div>
+</div>
+<form method="get" class="card filters-form day-nav">
+  <a class="btn" href="?date={{ prev_day }}">→ اليوم السابق</a>
+  <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()">
+  <a class="btn" href="?date={{ next_day }}">اليوم التالي ←</a>
+  <b>{{ day_label }}</b>
+  {% if taken %}<span class="badge ok">تم التسجيل</span>{% else %}<span class="badge warn">لم يُسجَّل بعد</span>{% endif %}
+</form>
+
+{% if taken %}
+<div class="card day-summary">
+  <div><b>الغائبون ({{ summary.absent|length }}):</b> {% for s in summary.absent %}<a href="{% url 'student_file' s.id %}">{{ s }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="muted">لا أحد</span>{% endfor %}</div>
+  <div><b>المتأخرون ({{ summary.late|length }}):</b> {% for s in summary.late %}<a href="{% url 'student_file' s.id %}">{{ s }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="muted">لا أحد</span>{% endfor %}</div>
+</div>
+{% endif %}
+
+{% if rows %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+  <div class="actions spaced">
+    <button type="button" class="btn" data-all="P">الكل حاضر</button>
+    <small class="muted">الافتراضي «حاضر». غيّر الغائبين والمتأخرين فقط ثم احفظ. الملاحظة اختيارية.</small>
+  </div>
+  <div class="table-wrap">
+  <table class="table roll">
+    <thead><tr><th>#</th><th>رقم القيد</th><th>التلميذ</th><th>الحالة</th><th>ملاحظة اليوم</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="st-{{ r.status }}">
+        <td>{{ forloop.counter }}</td>
+        <td>{{ r.student.matricule|default:"—" }}</td>
+        <td><a href="{% url 'student_file' r.student.id %}">{{ r.student }}</a>
+          {% for n in r.notes %}<div class="note-line">📝 {{ n.text }}</div>{% endfor %}</td>
+        <td><div class="status-pick">
+          {% for v, l in choices %}
+            <label class="st st-{{ v }}"><input type="radio" name="s_{{ r.student.id }}" value="{{ v }}" {% if r.status == v %}checked{% endif %}><span>{{ l }}</span></label>
+          {% endfor %}
+        </div></td>
+        <td><input type="text" name="n_{{ r.student.id }}" placeholder="إضافة ملاحظة…"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if is_future %}<p class="msg error">هذا اليوم لم يأتِ بعد.</p>{% else %}
+  <div class="actions spaced"><button class="btn primary big">💾 حفظ الغياب</button></div>{% endif %}
+</form>
+{% else %}
+<div class="card empty"><p>لا يوجد تلاميذ في هذا القسم. يضيفهم المشرف باستيراد لائحة التلاميذ.</p></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.status-pick input').forEach(function (i) {
+  i.addEventListener('change', function () { i.closest('tr').className = 'st-' + i.value; });
+});
+var all = document.querySelector('[data-all]');
+if (all) all.addEventListener('click', function () {
+  document.querySelectorAll('.status-pick input[value=P]').forEach(function (i) { i.checked = true; i.dispatchEvent(new Event('change')); });
+});
+</script>
+{% endblock %}

@@ -18,6 +18,22 @@ class Classe(models.Model):
         return self.code
 
 
+class Section(models.Model):
+    """فصل داخل المستوى، مثل 1AS1 و 1AS2. الامتحانات تبقى على المستوى (1AS)."""
+
+    code = models.CharField("رمز القسم", max_length=10, unique=True)
+    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="sections", verbose_name="المستوى")
+    order = models.PositiveSmallIntegerField("الترتيب", default=0)
+
+    class Meta:
+        ordering = ["order", "code"]
+        verbose_name = "قسم (فصل)"
+        verbose_name_plural = "الأقسام (الفصول)"
+
+    def __str__(self):
+        return self.code
+
+
 class Subject(models.Model):
     name = models.CharField("المادة", max_length=100, unique=True)
     classes = models.ManyToManyField(Classe, related_name="subjects", verbose_name="الأقسام")
@@ -35,10 +51,12 @@ class User(AbstractUser):
     ADMIN = "admin"
     TEACHER = "teacher"
     STUDENT = "student"
+    SUPERVISOR = "supervisor"
     ROLE_CHOICES = [
         (ADMIN, "مشرف"),
         (TEACHER, "أستاذ"),
         (STUDENT, "تلميذ"),
+        (SUPERVISOR, "مراقب"),
     ]
 
     role = models.CharField("الدور", max_length=10, choices=ROLE_CHOICES, default=STUDENT)
@@ -52,6 +70,19 @@ class User(AbstractUser):
     )
     teaching_subjects = models.ManyToManyField(
         Subject, blank=True, related_name="teachers", verbose_name="المواد التي يدرسها",
+    )
+    # التلميذ: فصله وبيانات الاتصال بوليّه (تُملأ من لائحة Excel)
+    section = models.ForeignKey(
+        Section, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="students", verbose_name="الفصل (للتلميذ)",
+    )
+    matricule = models.CharField("رقم القيد", max_length=30, unique=True, null=True, blank=True)
+    guardian_phone = models.CharField("هاتف الوكيل", max_length=30, blank=True)
+    whatsapp = models.CharField("رقم الواتساب", max_length=30, blank=True)
+    guardian_phone2 = models.CharField("هاتف الوكيل 2", max_length=30, blank=True)
+    # المراقب: الفصول التي يسجّل غيابها
+    supervised_sections = models.ManyToManyField(
+        Section, blank=True, related_name="supervisors", verbose_name="الأقسام التي يراقبها",
     )
 
     class Meta:
@@ -72,6 +103,24 @@ class User(AbstractUser):
     @property
     def is_student(self):
         return self.role == self.STUDENT and not self.is_superuser
+
+    @property
+    def is_supervisor(self):
+        return self.role == self.SUPERVISOR and not self.is_superuser
+
+    def allowed_sections(self):
+        if self.is_admin_role:
+            return Section.objects.all()
+        if self.is_supervisor:
+            return self.supervised_sections.all()
+        return Section.objects.none()
+
+    def save(self, *args, **kwargs):
+        if self.section_id:
+            self.classe_id = self.section.classe_id
+        if self.matricule == "":
+            self.matricule = None
+        super().save(*args, **kwargs)
 
     def allowed_classes(self):
         if self.is_admin_role:
@@ -259,3 +308,74 @@ class Answer(models.Model):
 
     class Meta:
         unique_together = [("attempt", "question")]
+
+
+# ---------------------------------------------------------------- الحضور والملاحظات
+
+PRESENT, ABSENT, LATE = "P", "A", "L"
+ATTENDANCE_CHOICES = [(PRESENT, "حاضر"), (ABSENT, "غائب"), (LATE, "متأخر")]
+
+
+class StudentAttendance(models.Model):
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="attendance", verbose_name="التلميذ")
+    date = models.DateField("التاريخ")
+    status = models.CharField("الحالة", max_length=1, choices=ATTENDANCE_CHOICES, default=PRESENT)
+    section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL, verbose_name="الفصل")
+    recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("student", "date")]
+        ordering = ["-date"]
+        verbose_name = "حضور تلميذ"
+        verbose_name_plural = "حضور التلاميذ"
+
+    def __str__(self):
+        return f"{self.student} {self.date} {self.get_status_display()}"
+
+
+class StudentNote(models.Model):
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notes", verbose_name="التلميذ")
+    date = models.DateField("التاريخ")
+    text = models.TextField("الملاحظة")
+    author = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+        verbose_name = "ملاحظة"
+        verbose_name_plural = "الملاحظات اليومية"
+
+    def __str__(self):
+        return f"{self.student} {self.date}"
+
+
+class Teacher(models.Model):
+    """أستاذ في لائحة الحضور (مستقل عن حسابات الأساتذة في الامتحانات)."""
+
+    name = models.CharField("اسم الأستاذ", max_length=150, unique=True)
+    subject = models.CharField("المادة", max_length=100, blank=True)
+    is_active = models.BooleanField("في اللائحة", default=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "أستاذ (الحضور)"
+        verbose_name_plural = "الأساتذة (الحضور)"
+
+    def __str__(self):
+        return self.name
+
+
+class TeacherAttendance(models.Model):
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name="attendance", verbose_name="الأستاذ")
+    date = models.DateField("التاريخ")
+    status = models.CharField("الحالة", max_length=1, choices=ATTENDANCE_CHOICES, default=PRESENT)
+    note = models.CharField("ملاحظة", max_length=255, blank=True)
+    recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("teacher", "date")]
+        ordering = ["-date"]
+        verbose_name = "حضور أستاذ"
+        verbose_name_plural = "حضور الأساتذة"

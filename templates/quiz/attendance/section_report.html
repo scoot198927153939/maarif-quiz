@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}لائحة {{ section }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>لائحة الغياب والملاحظات · {{ section }}</h1>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'section_roll' section.id %}?date={{ start|date:'Y-m-d' }}">تسجيل الغياب</a>
+    <button class="btn" onclick="window.print()">🖨️ طباعة</button>
+  </div>
+</div>
+<form method="get" class="card filters-form no-print">
+  <label>من <input type="date" name="from" value="{{ start|date:'Y-m-d' }}"></label>
+  <label>إلى <input type="date" name="to" value="{{ end|date:'Y-m-d' }}"></label>
+  <button class="btn primary">عرض</button>
+</form>
+<p><b>{% if single_day %}{{ start_label }}{% else %}من {{ start_label }} إلى {{ end_label }}{% endif %}</b></p>
+
+<h2>الغياب والتأخر</h2>
+{% if events %}
+<table class="table">
+  <thead><tr>{% if not single_day %}<th>التاريخ</th>{% endif %}<th>التلميذ</th><th>رقم القيد</th><th>الحالة</th></tr></thead>
+  <tbody>
+  {% for e in events %}
+    <tr>{% if not single_day %}<td>{{ e.date|date:"Y-m-d" }}</td>{% endif %}
+      <td><a href="{% url 'student_file' e.student.id %}">{{ e.student }}</a></td><td>{{ e.student.matricule|default:"—" }}</td>
+      <td><span class="badge {% if e.status == 'A' %}ko{% else %}warn{% endif %}">{{ e.get_status_display }}</span></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="muted">لا غياب ولا تأخر{% if single_day %} في هذا اليوم{% else %} في هذه الفترة{% endif %}.</p>{% endif %}
+
+{% if not single_day and totals %}
+<h2>المجموع لكل تلميذ</h2>
+<table class="table">
+  <thead><tr><th>التلميذ</th><th>الغياب</th><th>التأخر</th></tr></thead>
+  <tbody>{% for s in totals %}<tr><td><a href="{% url 'student_file' s.id %}">{{ s }}</a></td><td>{{ s.n_absent }}</td><td>{{ s.n_late }}</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+
+<h2>الملاحظات</h2>
+{% if notes %}
+<table class="table">
+  <thead><tr>{% if not single_day %}<th>التاريخ</th>{% endif %}<th>التلميذ</th><th>الملاحظة</th><th>كتبها</th></tr></thead>
+  <tbody>
+  {% for n in notes %}
+    <tr>{% if not single_day %}<td>{{ n.date|date:"Y-m-d" }}</td>{% endif %}
+      <td><a href="{% url 'student_file' n.student.id %}">{{ n.student }}</a></td><td>{{ n.text|linebreaksbr }}</td><td class="muted">{{ n.author|default:"" }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="muted">لا توجد ملاحظات.</p>{% endif %}
+{% endblock %}

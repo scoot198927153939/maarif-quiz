@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}الحضور الشهري للأساتذة{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>الحضور الشهري للأساتذة</h1>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'teacher_roll' %}">تسجيل حضور اليوم</a>
+    <button class="btn" onclick="window.print()">🖨️ طباعة</button>
+  </div>
+</div>
+<div class="card filters-form day-nav no-print">
+  <a class="btn" href="?month={{ prev_month }}">→ الشهر السابق</a>
+  <b>{{ month_label }}</b>
+  <a class="btn" href="?month={{ next_month }}">الشهر التالي ←</a>
+  <span class="muted">أيام مسجلة هذا الشهر: {{ n_days }}</span>
+</div>
+<h2 class="print-only">{{ month_label }}</h2>
+<table class="table">
+  <thead><tr><th>الأستاذ</th><th>المادة</th><th>حاضر</th><th>غائب</th><th>متأخر</th><th class="no-print"></th></tr></thead>
+  <tbody>
+  {% for t in teachers %}
+    <tr>
+      <td><a href="{% url 'teacher_file' t.id %}?month={{ month }}">{{ t }}</a>{% if not t.is_active %} <small class="muted">(خارج اللائحة)</small>{% endif %}</td>
+      <td>{{ t.subject }}</td>
+      <td>{{ t.n_present }}</td>
+      <td>{% if t.n_absent %}<span class="badge ko">{{ t.n_absent }}</span>{% else %}0{% endif %}</td>
+      <td>{% if t.n_late %}<span class="badge warn">{{ t.n_late }}</span>{% else %}0{% endif %}</td>
+      <td class="no-print"><a href="{% url 'teacher_file' t.id %}?month={{ month }}">التفاصيل</a></td>
+    </tr>
+  {% empty %}<tr><td colspan="6" class="muted center">لا يوجد أساتذة.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

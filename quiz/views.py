@@ -32,6 +32,7 @@ def role_required(*roles):
                 ("admin" in roles and u.is_admin_role)
                 or ("teacher" in roles and u.is_teacher)
                 or ("student" in roles and u.is_student)
+                or ("supervisor" in roles and u.is_supervisor)
             )
             if not ok:
                 raise PermissionDenied
@@ -68,6 +69,8 @@ def home(request):
         return redirect("student_dashboard")
     if u.is_admin_role:
         return redirect("admin_dashboard")
+    if u.is_supervisor:
+        return redirect("attendance_home")
     return redirect("teacher_dashboard")
 
 
@@ -510,7 +513,7 @@ def admin_dashboard(request):
 
 @admin_required
 def user_list(request):
-    users = User.objects.select_related("classe").order_by("role", "classe__order", "full_name", "username")
+    users = User.objects.select_related("classe", "section").order_by("role", "classe__order", "section__order", "full_name", "username")
     role = request.GET.get("role")
     classe = request.GET.get("classe")
     q = request.GET.get("q", "").strip()

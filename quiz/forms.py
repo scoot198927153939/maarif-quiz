@@ -103,15 +103,22 @@ class UserForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ["username", "full_name", "role", "classe", "teaching_classes", "teaching_subjects", "is_active"]
+        fields = [
+            "username", "full_name", "role", "section", "classe", "matricule",
+            "guardian_phone", "whatsapp", "guardian_phone2",
+            "teaching_classes", "teaching_subjects", "supervised_sections", "is_active",
+        ]
         widgets = {
             "teaching_classes": forms.CheckboxSelectMultiple,
             "teaching_subjects": forms.CheckboxSelectMultiple,
+            "supervised_sections": forms.CheckboxSelectMultiple,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["username"].help_text = ""
+        self.fields["classe"].label = "المستوى (للتلميذ)"
+        self.fields["classe"].help_text = "يُحدَّد تلقائياً من الفصل إذا اخترته."
         if not self.instance.pk:
             self.fields["password"].required = True
             self.fields["password"].help_text = ""
@@ -119,8 +126,10 @@ class UserForm(forms.ModelForm):
     def clean(self):
         data = super().clean()
         role = data.get("role")
-        if role == User.STUDENT and not data.get("classe"):
-            self.add_error("classe", "يجب تحديد قسم التلميذ.")
+        if role == User.STUDENT and not data.get("classe") and not data.get("section"):
+            self.add_error("section", "يجب تحديد قسم التلميذ.")
+        if role == User.SUPERVISOR and not data.get("supervised_sections"):
+            self.add_error("supervised_sections", "اختر الأقسام التي يراقبها.")
         return data
 
     def save(self, commit=True):
@@ -129,6 +138,8 @@ class UserForm(forms.ModelForm):
             user.set_password(self.cleaned_data["password"])
         if user.role != User.STUDENT:
             user.classe = None
+            user.section = None
+            user.matricule = None
         user.is_staff = user.role == User.ADMIN
         if commit:
             user.save()
@@ -136,6 +147,8 @@ class UserForm(forms.ModelForm):
             if user.role != User.TEACHER:
                 user.teaching_classes.clear()
                 user.teaching_subjects.clear()
+            if user.role != User.SUPERVISOR:
+                user.supervised_sections.clear()
         return user
 
 

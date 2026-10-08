@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import attendance, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -36,4 +36,17 @@ urlpatterns = [
     path("manage/users/<int:user_id>/delete/", views.user_delete, name="user_delete"),
     path("manage/users/import/", views.students_import, name="students_import"),
     path("manage/students-template.xlsx", views.students_template, name="students_template"),
+    # الحضور والملاحظات (المراقب والمشرف)
+    path("attendance/", attendance.attendance_home, name="attendance_home"),
+    path("attendance/section/<int:section_id>/", attendance.section_roll, name="section_roll"),
+    path("attendance/section/<int:section_id>/report/", attendance.section_report, name="section_report"),
+    path("attendance/student/<int:student_id>/", attendance.student_file, name="student_file"),
+    path("attendance/notes/<int:note_id>/delete/", attendance.note_delete, name="note_delete"),
+    path("attendance/teachers/", attendance.teacher_roll, name="teacher_roll"),
+    path("attendance/teachers/monthly/", attendance.teacher_monthly, name="teacher_monthly"),
+    path("attendance/teachers/<int:teacher_id>/", attendance.teacher_file, name="teacher_file"),
+    path("attendance/import/students/", attendance.roster_import, name="roster_import"),
+    path("attendance/import/teachers/", attendance.teachers_import, name="teachers_import"),
+    path("attendance/students-list-template.xlsx", attendance.roster_template, name="roster_template"),
+    path("attendance/teachers-list-template.xlsx", attendance.teachers_template, name="teachers_template"),
 ]
