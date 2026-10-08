@@ -9,15 +9,18 @@
   </div>
 </div>
 <form method="get" class="card filters-form day-nav">
-  <a class="btn" href="?date={{ prev_day }}">→ اليوم السابق</a>
-  <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()">
-  <a class="btn" href="?date={{ next_day }}">اليوم التالي ←</a>
+  <a class="btn" href="?date={{ prev_day }}&session={{ session }}">→ اليوم السابق</a>
+  <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()"><input type="hidden" name="session" value="{{ session }}">
+  <a class="btn" href="?date={{ next_day }}&session={{ session }}">اليوم التالي ←</a>
   <b>{{ day_label }}</b>
-  {% if taken %}<span class="badge ok">تم التسجيل</span>{% else %}<span class="badge warn">لم يُسجَّل بعد</span>{% endif %}
 </form>
+<div class="session-tabs">
+  {% for s in sessions %}<a class="chip{% if s.n == session %} active{% endif %}" href="?date={{ day|date:'Y-m-d' }}&session={{ s.n }}">{{ s.label }} <small dir="ltr">{{ s.start }}–{{ s.end }}</small>{% if s.taken %} ✓{% endif %}</a>{% endfor %}
+</div>
 
 {% if taken %}
 <div class="card day-summary">
+  <div class="muted">{{ session_label }}</div>
   <div><b>الغائبون ({{ summary.absent|length }}):</b> {% for s in summary.absent %}<a href="{% url 'student_file' s.id %}">{{ s }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="muted">لا أحد</span>{% endfor %}</div>
   <div><b>المتأخرون ({{ summary.late|length }}):</b> {% for s in summary.late %}<a href="{% url 'student_file' s.id %}">{{ s }}</a>{% if not forloop.last %}، {% endif %}{% empty %}<span class="muted">لا أحد</span>{% endfor %}</div>
 </div>
@@ -27,6 +30,8 @@
 <form method="post">
   {% csrf_token %}
   <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+  <input type="hidden" name="session" value="{{ session }}">
+  <h2>{{ session_label }} {% if taken %}<span class="badge ok">مسجّلة</span>{% else %}<span class="badge warn">لم تُسجَّل بعد</span>{% endif %}</h2>
   <div class="actions spaced">
     <button type="button" class="btn" data-all="P">الكل حاضر</button>
     <small class="muted">الافتراضي «حاضر». غيّر الغائبين والمتأخرين فقط ثم احفظ. الملاحظة اختيارية.</small>
@@ -40,6 +45,7 @@
         <td>{{ forloop.counter }}</td>
         <td>{{ r.student.matricule|default:"—" }}</td>
         <td><a href="{% url 'student_file' r.student.id %}">{{ r.student }}</a>
+          {% for o in r.others %}<div class="note-line other">{{ o }}</div>{% endfor %}
           {% for n in r.notes %}<div class="note-line">📝 {{ n.text }}</div>{% endfor %}</td>
         <td><div class="status-pick">
           {% for v, l in choices %}
@@ -53,7 +59,7 @@
   </table>
   </div>
   {% if is_future %}<p class="msg error">هذا اليوم لم يأتِ بعد.</p>{% else %}
-  <div class="actions spaced"><button class="btn primary big">💾 حفظ الغياب</button></div>{% endif %}
+  <div class="actions spaced"><button class="btn primary big">💾 حفظ غياب {{ session_label }}</button></div>{% endif %}
 </form>
 {% else %}
 <div class="card empty"><p>لا يوجد تلاميذ في هذا القسم. يضيفهم المشرف باستيراد لائحة التلاميذ.</p></div>

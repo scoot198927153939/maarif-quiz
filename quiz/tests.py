@@ -313,18 +313,21 @@ class AttendanceTests(TestCase):
         from .models import StudentAttendance, StudentNote
         self.client.login(username="sup", password="x")
         url = reverse("section_roll", args=[self.s1.id])
-        r = self.client.post(url, {"date": "2026-10-05", f"s_{self.st.id}": "A", f"n_{self.st.id}": "لم يحضر الواجب"})
+        r = self.client.post(url, {"date": "2026-10-05", "session": 1, f"s_{self.st.id}": "A", f"n_{self.st.id}": "لم يحضر الواجب"})
         self.assertEqual(r.status_code, 302)
-        self.client.post(url, {"date": "2026-10-06", f"s_{self.st.id}": "L"})
-        self.client.post(url, {"date": "2026-10-06", f"s_{self.st.id}": "L"})  # إعادة الحفظ لا تكرر
-        self.assertEqual(StudentAttendance.objects.filter(student=self.st).count(), 2)
+        self.client.post(url, {"date": "2026-10-06", "session": 2, f"s_{self.st.id}": "L"})
+        self.client.post(url, {"date": "2026-10-06", "session": 2, f"s_{self.st.id}": "L"})  # إعادة الحفظ لا تكرر
+        self.client.post(url, {"date": "2026-10-06", "session": 3, f"s_{self.st.id}": "A"})
+        self.assertEqual(StudentAttendance.objects.filter(student=self.st).count(), 3)
+        r = self.client.get(url + "?date=2026-10-06&session=1")
+        self.assertContains(r, "الحصة 2: متأخر")
         self.assertEqual(StudentNote.objects.get().text, "لم يحضر الواجب")
         r = self.client.get(reverse("section_report", args=[self.s1.id]) + "?from=2026-10-05&to=2026-10-06")
         self.assertContains(r, "غائب")
         self.assertContains(r, "لم يحضر الواجب")
         r = self.client.get(reverse("student_file", args=[self.st.id]))
         self.assertContains(r, "لم يحضر الواجب")
-        self.assertEqual(r.context["totals"], {"present": 0, "absent": 1, "late": 1})
+        self.assertEqual(r.context["totals"], {"present": 0, "absent": 2, "late": 1})
 
     def test_roster_import_keeps_history(self):
         from .models import StudentAttendance
@@ -382,15 +385,19 @@ class AttendanceTests(TestCase):
         t = Teacher.objects.get(name="محمد")
         self.client.logout()
         self.client.login(username="sup", password="x")
-        self.client.post(reverse("teacher_roll"), {"date": "2026-10-05", f"s_{t.id}": "A"})
-        self.client.post(reverse("teacher_roll"), {"date": "2026-10-06", f"s_{t.id}": "P", f"c_{t.id}": [self.s1.id, self.s2.id]})
+        self.client.post(reverse("teacher_roll"), {"date": "2026-10-05", "session": 1, f"s_{t.id}": "A", f"c_{t.id}": self.s1.id})
+        self.client.post(reverse("teacher_roll"), {"date": "2026-10-06", "session": 1, f"s_{t.id}": "P", f"c_{t.id}": self.s1.id})
+        self.client.post(reverse("teacher_roll"), {"date": "2026-10-06", "session": 3, f"s_{t.id}": "P", f"c_{t.id}": self.s2.id})
         self.assertEqual(
-            sorted(TeacherAttendance.objects.get(teacher=t, date="2026-10-06").sections.values_list("code", flat=True)),
-            ["1AS1", "7SN6"],
+            list(TeacherAttendance.objects.filter(teacher=t, date="2026-10-06").values_list("session", "section__code")),
+            [(1, "1AS1"), (3, "7SN6")],
         )
-        # اليوم التالي يبدأ دون أي قسم محدد
-        r = self.client.get(reverse("teacher_roll") + "?date=2026-10-07")
-        self.assertEqual([x["sections"] for x in r.context["rows"] if x["teacher"].id == t.id][0], set())
+        # «لا حصة» يلغي التسجيل، واليوم التالي يبدأ فارغاً
+        self.client.post(reverse("teacher_roll"), {"date": "2026-10-06", "session": 3, f"s_{t.id}": ""})
+        self.assertEqual(TeacherAttendance.objects.filter(teacher=t, date="2026-10-06").count(), 1)
+        r = self.client.get(reverse("teacher_roll") + "?date=2026-10-07&session=1")
+        row = [x for x in r.context["rows"] if x["teacher"].id == t.id][0]
+        self.assertEqual((row["status"], row["section"]), ("", None))
         self.client.logout()
         self.client.login(username="boss", password="x")
         self.client.post(reverse("teachers_import"), {"file": self._xlsx([["محمد", "الفيزياء"]])})
@@ -400,7 +407,7 @@ class AttendanceTests(TestCase):
         r = self.client.get(reverse("teacher_monthly") + "?month=2026-10")
         row = [x for x in r.context["teachers"] if x.id == t.id][0]
         self.assertEqual((row.n_present, row.n_absent, row.subject), (1, 1, "الفيزياء"))
-        self.assertEqual(row.month_sections, ["1AS1", "7SN6"])
+        self.assertEqual(row.month_sections, ["1AS1"])
         self.assertEqual(self.client.get(reverse("teacher_file", args=[t.id]) + "?month=2026-10").status_code, 200)
         # المراقب لا يستورد
         self.assertEqual(self.client.post(reverse("teachers_import")).status_code, 403)

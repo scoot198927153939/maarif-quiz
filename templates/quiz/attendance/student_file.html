@@ -19,12 +19,12 @@
 </div>
 
 <div class="stats">
-  <div class="stat"><b>{{ totals.present }}</b><span>يوم حضور</span></div>
-  <div class="stat"><b class="ko-text">{{ totals.absent }}</b><span>يوم غياب</span></div>
-  <div class="stat"><b class="warn-text">{{ totals.late }}</b><span>مرة تأخر</span></div>
+  <div class="stat"><b>{{ totals.present }}</b><span>حصة حضور</span></div>
+  <div class="stat"><b class="ko-text">{{ totals.absent }}</b><span>حصة غياب</span></div>
+  <div class="stat"><b class="warn-text">{{ totals.late }}</b><span>حصة تأخر</span></div>
   <div class="stat"><b>{{ n_notes }}</b><span>ملاحظة</span></div>
 </div>
-<p class="muted">شهر {{ month_label }}: حضور {{ month_totals.present }} · غياب {{ month_totals.absent }} · تأخر {{ month_totals.late }}</p>
+<p class="muted">شهر {{ month_label }} (بالحصص): حضور {{ month_totals.present }} · غياب {{ month_totals.absent }} · تأخر {{ month_totals.late }}</p>
 
 <div class="card">
   <h3>📝 إضافة ملاحظة</h3>
@@ -44,13 +44,13 @@
   {% for d in days %}
     <tr>
       <td>{{ d.label }}</td>
-      <td>{% if d.code %}<span class="badge {% if d.code == 'A' %}ko{% else %}warn{% endif %}">{{ d.status }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td>{% for e in d.events %}<span class="badge {% if e.status == 'A' %}ko{% else %}warn{% endif %}">{{ e.get_session_display }}: {{ e.get_status_display }}</span> {% empty %}<span class="muted">—</span>{% endfor %}</td>
       <td>{% for n in d.notes %}<div class="note-line">{{ n.text|linebreaksbr }} <small class="muted">· {{ n.author|default:"" }}</small>
         {% if user.is_admin_role or n.author_id == user.id %}<form method="post" action="{% url 'note_delete' n.id %}" class="inline" onsubmit="return confirm('حذف هذه الملاحظة؟')">{% csrf_token %}<button class="link danger-link">حذف</button></form>{% endif %}</div>{% endfor %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
-<small class="muted">الأيام التي حضر فيها التلميذ دون ملاحظة لا تظهر في السجل.</small>
+<small class="muted">الحصص التي حضرها التلميذ لا تظهر في السجل، يظهر فقط الغياب والتأخر والملاحظات.</small>
 {% else %}<p class="muted">لا غياب ولا تأخر ولا ملاحظات مسجلة لهذا التلميذ.</p>{% endif %}
 {% endblock %}
