@@ -2,12 +2,10 @@
 {% block title %}لائحة {{ section }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>لائحة الغياب والملاحظات · {{ section }}</h1>
-  <div class="actions">
-    <a class="btn primary" href="{% url 'section_roll' section.id %}?date={{ start|date:'Y-m-d' }}">تسجيل الغياب</a>
-    <button class="btn" onclick="window.print()">🖨️ طباعة</button>
-  </div>
+  <h1>القسم {{ section }} · السجل والملاحظات</h1>
+  <div class="actions"><button class="btn" onclick="window.print()">🖨️ طباعة</button></div>
 </div>
+{% include "quiz/attendance/_section_tabs.html" %}
 <form method="get" class="card filters-form no-print">
   <label>من <input type="date" name="from" value="{{ start|date:'Y-m-d' }}"></label>
   <label>إلى <input type="date" name="to" value="{{ end|date:'Y-m-d' }}"></label>

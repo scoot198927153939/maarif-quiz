@@ -2,12 +2,10 @@
 {% block title %}غياب {{ section }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>غياب القسم {{ section }}</h1>
-  <div class="actions">
-    <a class="btn" href="{% url 'section_report' section.id %}?from={{ day|date:'Y-m-d' }}">📋 لائحة الغياب والملاحظات</a>
-    <a class="btn" href="{% url 'attendance_home' %}">الأقسام</a>
-  </div>
+  <h1>القسم {{ section }}</h1>
+  <div class="actions"><a class="btn" href="{% url 'attendance_home' %}">كل الأقسام</a></div>
 </div>
+{% include "quiz/attendance/_section_tabs.html" %}
 <form method="get" class="card filters-form day-nav">
   <a class="btn" href="?date={{ prev_day }}&session={{ session }}">→ اليوم السابق</a>
   <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()"><input type="hidden" name="session" value="{{ session }}">

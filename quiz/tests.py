@@ -428,6 +428,29 @@ class AttendanceTests(TestCase):
         self.client.login(username="boss", password="x")
         self.assertContains(self.client.get(reverse("students_list")), "2002")
 
+    def test_section_tabs_students_and_absentees(self):
+        self.st.guardian_phone = "22000001"
+        self.st.save()
+        other = User.objects.create_user("1009", password="x", role=User.STUDENT, section=self.s1, full_name="حاضر")
+        self.client.login(username="sup", password="x")
+        self.client.post(reverse("section_roll", args=[self.s1.id]),
+                         {"date": "2026-10-05", "session": 2, f"s_{self.st.id}": "A", f"s_{other.id}": "P"})
+        r = self.client.get(reverse("section_absentees", args=[self.s1.id]) + "?date=2026-10-05&session=2")
+        self.assertContains(r, "22000001")
+        self.assertNotContains(r, ">حاضر</a>")
+        self.assertContains(r, "لائحة القسم")
+        r = self.client.get(reverse("section_absentees", args=[self.s1.id]) + "?date=2026-10-05&session=1")
+        self.assertContains(r, "لم يُسجَّل غياب هذه الحصة")
+        r = self.client.get(reverse("section_absentees", args=[self.s1.id]) + "?date=2026-10-05&session=2&export=xlsx")
+        from openpyxl import load_workbook
+        rows = list(load_workbook(io.BytesIO(r.content)).active.iter_rows(values_only=True))
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[2][4], "22000001")
+        r = self.client.get(reverse("section_students", args=[self.s1.id]))
+        self.assertContains(r, "حاضر")
+        self.assertEqual(self.client.get(reverse("section_students", args=[self.s1.id]) + "?export=xlsx").status_code, 200)
+        self.assertEqual(self.client.get(reverse("section_students", args=[self.s2.id])).status_code, 403)
+
     def test_admin_creates_supervisor(self):
         self.client.login(username="boss", password="x")
         r = self.client.post(reverse("user_create"), {
