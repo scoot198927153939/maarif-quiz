@@ -260,3 +260,10 @@ input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-ra
 .note-line.other { color: var(--danger); }
 .status-pick .st-N input:checked + span { background: #78909c; color: #fff; }
 .sec-select { width: auto; min-width: 110px; }
+.students-list td[dir=ltr] { text-align: right; }
+@media print {
+  .students-list { font-size: 11px; }
+  .students-list th, .students-list td { padding: 4px 6px; }
+  .students-list a { color: inherit; }
+  .table-wrap { overflow: visible; }
+}

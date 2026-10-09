@@ -212,6 +212,37 @@ def section_report(request, section_id):
     })
 
 
+# ---------------------------------------------------------------- لائحة التلاميذ
+
+@supervisor_required
+def students_list(request):
+    """لائحة التلاميذ بكل بياناتهم، مع التصفية حسب القسم والبحث، والتحميل Excel والطباعة."""
+    allowed = request.user.allowed_sections()
+    students = User.objects.filter(role=User.STUDENT, is_active=True).select_related("section", "classe")
+    if not request.user.is_admin_role:
+        students = students.filter(section__in=allowed)
+    section = None
+    code = request.GET.get("section", "")
+    if code:
+        section = allowed.filter(code=code).first()
+        students = students.filter(section=section) if section else students.none()
+    q = request.GET.get("q", "").strip()
+    if q:
+        students = students.filter(Q(full_name__icontains=q) | Q(matricule__icontains=q) | Q(username__icontains=q))
+    students = students.annotate(
+        n_absent=Count("attendance", filter=Q(attendance__status=ABSENT)),
+        n_late=Count("attendance", filter=Q(attendance__status=LATE)),
+    ).order_by("section__order", "classe__order", "full_name", "username")
+    if request.GET.get("export") == "xlsx":
+        name = section.code if section else "التلاميذ"
+        return xlsx_response(excel.students_list_workbook(students, name),
+                             f"students_{section.code if section else 'all'}.xlsx")
+    return render(request, "quiz/attendance/students_list.html", {
+        "students": students, "sections": allowed, "current": code, "section": section, "q": q,
+        "today": timezone.localdate(),
+    })
+
+
 # ---------------------------------------------------------------- ملف التلميذ
 
 @supervisor_required
