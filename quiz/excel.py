@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from .models import Choice, Classe, Question, Section, Teacher, User
 from .topics import guess_topic
@@ -449,4 +449,40 @@ def absentees_workbook(students, title, day, session_label):
         cell.alignment = Alignment(horizontal="center")
     for col, w in zip("ABCDEFG", [6, 14, 32, 10, 16, 16, 16]):
         ws.column_dimensions[col].width = w
+    return wb
+
+
+def roll_sheet_workbook(students, section_code, day_label, session_label):
+    """ورقة غياب فارغة للطباعة: يضع الأستاذ علامة في خانة الحالة لكل تلميذ."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = section_code[:31]
+    ws.sheet_view.rightToLeft = True
+    thin = Side(style="thin", color="555555")
+    box = Border(left=thin, right=thin, top=thin, bottom=thin)
+    ws.append([f"ورقة الغياب · القسم {section_code}"])
+    ws.append([f"{day_label} · {session_label}"])
+    ws.append(["الأستاذ: ....................................   المادة: ......................   التوقيع: ................"])
+    ws.append([])
+    ws.append(["#", "رقم القيد", "اسم التلميذ", "حاضر", "غائب", "متأخر", "ملاحظة"])
+    for i, st in enumerate(students, start=1):
+        ws.append([i, st.matricule or "", st.full_name or st.username, "", "", "", ""])
+    for row in ws.iter_rows(min_row=5, max_row=ws.max_row):
+        for cell in row:
+            cell.border = box
+            cell.alignment = Alignment(horizontal="center", vertical="center") if cell.column != 3 else Alignment(vertical="center")
+    for cell in ws[5]:
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A2"].font = Font(bold=True, size=12)
+    for r in range(6, ws.max_row + 1):
+        ws.row_dimensions[r].height = 22
+    for col, w in zip("ABCDEFG", [5, 12, 34, 9, 9, 9, 26]):
+        ws.column_dimensions[col].width = w
+    ws.print_title_rows = "5:5"
+    ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
     return wb

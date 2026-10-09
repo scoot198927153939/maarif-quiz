@@ -259,6 +259,25 @@ def section_absentees(request, section_id):
     })
 
 
+@supervisor_required
+def section_sheet(request, section_id):
+    """ورقة غياب فارغة لحصة: تُطبع أو تُحمَّل Excel، ويعلّم عليها الأستاذ الغائبين."""
+    section = _get_section(request.user, section_id)
+    day = _date(request.GET.get("date"))
+    session = _session(request)
+    students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by("full_name", "username"))
+    start, end = SESSION_TIMES[session]
+    if request.GET.get("export") == "xlsx":
+        return xlsx_response(
+            excel.roll_sheet_workbook(students, section.code, _day_label(day), f"{SESSION_LABELS[session]} ({start}–{end})"),
+            f"roll_{section.code}_{day.isoformat()}_s{session}.xlsx",
+        )
+    return render(request, "quiz/attendance/section_sheet.html", {
+        "section": section, "students": students, "day": day, "day_label": _day_label(day),
+        "session": session, "session_label": SESSION_LABELS[session], "start": start, "end": end,
+    })
+
+
 # ---------------------------------------------------------------- لائحة التلاميذ
 
 @supervisor_required

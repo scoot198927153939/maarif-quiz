@@ -31,6 +31,8 @@
   <input type="hidden" name="session" value="{{ session }}">
   <h2>{{ session_label }} {% if taken %}<span class="badge ok">مسجّلة</span>{% else %}<span class="badge warn">لم تُسجَّل بعد</span>{% endif %}</h2>
   <div class="actions spaced">
+    <a class="btn" href="{% url 'section_sheet' section.id %}?date={{ day|date:'Y-m-d' }}&session={{ session }}" target="_blank">🖨️ ورقة الغياب للطباعة</a>
+    <a class="btn" href="{% url 'section_sheet' section.id %}?date={{ day|date:'Y-m-d' }}&session={{ session }}&export=xlsx">⬇️ ورقة الغياب Excel</a>
     <button type="button" class="btn" data-all="P">الكل حاضر</button>
     <small class="muted">الافتراضي «حاضر». غيّر الغائبين والمتأخرين فقط ثم احفظ. الملاحظة اختيارية.</small>
   </div>
