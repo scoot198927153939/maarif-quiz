@@ -267,3 +267,7 @@ input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-ra
   .students-list a { color: inherit; }
   .table-wrap { overflow: visible; }
 }
+.section-nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 16px; border-bottom: 2px solid var(--border); }
+.section-nav a { padding: 10px 16px; border-radius: 10px 10px 0 0; color: var(--text); background: #fff; border: 1px solid var(--border); border-bottom: 0; margin-bottom: -2px; }
+.section-nav a.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+.section-nav a:hover { text-decoration: none; }

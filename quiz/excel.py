@@ -430,3 +430,23 @@ def students_list_workbook(students, title):
                    s.whatsapp, s.guardian_phone2, s.username, s.n_absent, s.n_late])
     _style_header(ws, [6, 14, 32, 10, 16, 16, 16, 16, 12, 12])
     return wb
+
+
+def absentees_workbook(students, title, day, session_label):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = title[:31]
+    ws.append([f"الغائبون · {title} · {day.isoformat()}"])
+    ws.append(["#", "رقم القيد", "اسم التلميذ", "القسم", "هاتف الوكيل", "رقم الواتساب", "هاتف الوكيل 2"])
+    for i, s in enumerate(students, start=1):
+        ws.append([i, s.matricule or "", s.full_name or s.username, str(s.section or ""),
+                   s.guardian_phone, s.whatsapp, s.guardian_phone2])
+    ws.sheet_view.rightToLeft = True
+    ws["A1"].font = Font(bold=True, size=13)
+    for cell in ws[2]:
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+        cell.alignment = Alignment(horizontal="center")
+    for col, w in zip("ABCDEFG", [6, 14, 32, 10, 16, 16, 16]):
+        ws.column_dimensions[col].width = w
+    return wb
