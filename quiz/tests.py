@@ -451,6 +451,19 @@ class AttendanceTests(TestCase):
         self.assertEqual(self.client.get(reverse("section_students", args=[self.s1.id]) + "?export=xlsx").status_code, 200)
         self.assertEqual(self.client.get(reverse("section_students", args=[self.s2.id])).status_code, 403)
 
+    def test_roll_sheet_print_and_excel(self):
+        self.client.login(username="sup", password="x")
+        url = reverse("section_sheet", args=[self.s1.id])
+        r = self.client.get(url + "?date=2026-10-05&session=2")
+        self.assertContains(r, "أحمد")
+        self.assertContains(r, "الحصة 2")
+        r = self.client.get(url + "?date=2026-10-05&session=2&export=xlsx")
+        from openpyxl import load_workbook
+        rows = list(load_workbook(io.BytesIO(r.content)).active.iter_rows(values_only=True))
+        self.assertEqual(rows[4][:3], ("#", "رقم القيد", "اسم التلميذ"))
+        self.assertEqual(rows[5][2], "أحمد")
+        self.assertEqual(self.client.get(reverse("section_sheet", args=[self.s2.id])).status_code, 403)
+
     def test_admin_creates_supervisor(self):
         self.client.login(username="boss", password="x")
         r = self.client.post(reverse("user_create"), {
