@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <h1>المستخدمون</h1>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'user_create' %}?role=student">+ تلميذ</a>
+    <a class="btn primary" href="{% url 'user_create' %}?role=teacher">+ أستاذ</a>
+    <a class="btn" href="{% url 'user_create' %}?role=supervisor">+ مراقب</a>
+    <a class="btn" href="{% url 'user_create' %}?role=admin">+ مشرف</a>
+  </div>
+</div>
+<div class="card">
+  <h3>📥 استيراد التلاميذ من Excel</h3>
+  <form method="post" enctype="multipart/form-data" action="{% url 'students_import' %}" class="inline-form">
+    {% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button class="btn primary">استيراد</button>
+  </form>
+  <a href="{% url 'students_template' %}">⬇️ تحميل نموذج ملف التلاميذ</a>
+  <small class="muted">الأعمدة: اسم المستخدم، الاسم الكامل، كلمة المرور، القسم. إذا كان التلميذ موجوداً يتم تحديث بياناته.</small>
+</div>
+<form method="get" class="filters-form card">
+  <input type="search" name="q" value="{{ q }}" placeholder="بحث بالاسم أو اسم المستخدم">
+  <select name="role"><option value="">كل الأدوار</option>{% for v, l in roles %}<option value="{{ v }}" {% if current_role == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  <select name="classe"><option value="">كل الأقسام</option>{% for c in classes %}<option value="{{ c.code }}" {% if current_classe == c.code %}selected{% endif %}>{{ c.code }}</option>{% endfor %}</select>
+  <button class="btn">تصفية</button>
+</form>
+<table class="table">
+  <thead><tr><th>اسم المستخدم</th><th>الاسم</th><th>الدور</th><th>القسم / ما يدرّسه</th><th>الحالة</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+  <tr>
+    <td>{{ u.username }}</td><td>{{ u.full_name }}</td><td>{{ u.get_role_display }}</td>
+    <td>{% if u.role == 'student' %}{% if u.section %}<a href="{% url 'student_file' u.id %}">{{ u.section }}</a>{% else %}{{ u.classe|default:"—" }}{% endif %}{% elif u.role == 'teacher' %}<small>{{ u.teaching_subjects.all|join:"، " }} · {{ u.teaching_classes.all|join:" " }}</small>{% elif u.role == 'supervisor' %}<small>{{ u.supervised_sections.all|join:" " }}</small>{% endif %}</td>
+    <td>{% if u.is_active %}<span class="badge ok">نشط</span>{% else %}<span class="badge">موقوف</span>{% endif %}</td>
+    <td class="actions"><a href="{% url 'user_edit' u.id %}">تعديل</a> <a href="{% url 'user_delete' u.id %}" class="danger-link">حذف</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="6" class="muted center">لا يوجد مستخدمون.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

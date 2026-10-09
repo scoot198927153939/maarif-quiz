@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>لوحة المشرف</h1>
+<div class="stats">
+  <div class="stat"><b>{{ stats.students }}</b><span>تلميذ</span></div>
+  <div class="stat"><b>{{ stats.teachers }}</b><span>أستاذ</span></div>
+  <div class="stat"><b>{{ stats.exams }}</b><span>امتحان</span></div>
+  <div class="stat"><b>{{ stats.attempts }}</b><span>امتحان مُسلَّم</span></div>
+</div>
+<div class="actions spaced">
+  <a class="btn primary" href="{% url 'user_create' %}?role=student">+ تلميذ</a>
+  <a class="btn primary" href="{% url 'user_create' %}?role=teacher">+ أستاذ</a>
+  <a class="btn" href="{% url 'user_list' %}">📥 استيراد التلاميذ من Excel</a>
+  <a class="btn" href="{% url 'class_results' %}">📊 النقاط حسب القسم</a>
+  <a class="btn" href="{% url 'attendance_home' %}">🗓️ الحضور والملاحظات</a>
+  <a class="btn" href="{% url 'user_create' %}?role=supervisor">+ مراقب</a>
+</div>
+<h2>الأقسام</h2>
+<table class="table">
+  <thead><tr><th>القسم</th><th>المواد</th><th>التلاميذ</th><th>الامتحانات</th><th></th></tr></thead>
+  <tbody>
+  {% for c in classes %}
+  <tr>
+    <td><strong>{{ c.code }}</strong></td>
+    <td>{% for s in c.subjects.all %}<span class="tag">{{ s }}</span> {% endfor %}</td>
+    <td>{{ c.n_students }}</td><td>{{ c.n_exams }}</td>
+    <td class="actions"><a href="{% url 'user_list' %}?classe={{ c.code }}">التلاميذ</a> <a href="{% url 'class_results' %}?classe={{ c.id }}">النقاط</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

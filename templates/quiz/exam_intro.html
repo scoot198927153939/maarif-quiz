@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card narrow">
+  <span class="tag">{{ exam.subject }} · {{ exam.classe }}</span>
+  <h1>{{ exam.title }}</h1>
+  <p>{{ n_questions }} سؤال · المدة: <strong>{{ exam.duration_minutes }} دقيقة</strong></p>
+  {% if exam.instructions %}<div class="instructions">{{ exam.instructions|linebreaks }}</div>{% endif %}
+  <div class="warning-box">
+    <h3>🔒 قواعد الامتحان</h3>
+    <ul>
+      <li>سيفتح الامتحان في وضع ملء الشاشة. لا تغادره حتى تُسلّم.</li>
+      <li>الخروج من الصفحة أو تغيير النافذة أو فتح تبويب آخر يُسجَّل كمحاولة غش.</li>
+      <li>بعد <strong>{{ max_violations }}</strong> محاولات خروج يُسلَّم امتحانك تلقائياً.</li>
+      <li>عند انتهاء الوقت يُسلَّم الامتحان تلقائياً بالإجابات المحفوظة.</li>
+      <li>لا يمكنك إعادة الامتحان بعد التسليم.</li>
+    </ul>
+  </div>
+  <form method="post" id="start-form">
+    {% csrf_token %}
+    <button class="btn primary block big">أنا مستعد، ابدأ الامتحان</button>
+  </form>
+  <a href="{% url 'student_dashboard' %}" class="muted">رجوع</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // الدخول في وضع ملء الشاشة يجب أن يتم بنقرة من المستخدم
+  document.getElementById('start-form').addEventListener('submit', function () {
+    var el = document.documentElement;
+    try { (el.requestFullscreen || el.webkitRequestFullscreen || function(){}).call(el); } catch (e) {}
+    sessionStorage.setItem('examFullscreen', '1');
+  });
+</script>
+{% endblock %}

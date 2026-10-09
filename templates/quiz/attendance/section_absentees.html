@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}غائبو {{ section }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>القسم {{ section }} · لائحة الغائبين</h1>
+  <div class="actions no-print">
+    <a class="btn primary" href="?date={{ day|date:'Y-m-d' }}&session={{ session }}&export=xlsx">⬇️ تحميل Excel</a>
+    <button class="btn" onclick="window.print()">🖨️ طباعة / PDF</button>
+  </div>
+</div>
+{% include "quiz/attendance/_section_tabs.html" %}
+<form method="get" class="card filters-form day-nav no-print">
+  <a class="btn" href="?date={{ prev_day }}&session={{ session }}">→ اليوم السابق</a>
+  <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()"><input type="hidden" name="session" value="{{ session }}">
+  <a class="btn" href="?date={{ next_day }}&session={{ session }}">اليوم التالي ←</a>
+  <b>{{ day_label }}</b>
+</form>
+<div class="session-tabs no-print">
+  {% for s in sessions %}<a class="chip{% if s.n == session %} active{% endif %}" href="?date={{ day|date:'Y-m-d' }}&session={{ s.n }}">{{ s.label }} <small dir="ltr">{{ s.start }}–{{ s.end }}</small>{% if s.taken %} ✓{% endif %}</a>{% endfor %}
+</div>
+<h2>غائبو {{ session_label }} · {{ day_label }}</h2>
+{% if not taken %}
+  <p class="msg error no-print">لم يُسجَّل غياب هذه الحصة بعد. <a href="{% url 'section_roll' section.id %}?date={{ day|date:'Y-m-d' }}&session={{ session }}">سجّله الآن</a></p>
+{% elif students %}
+<p class="muted">عدد الغائبين: <b>{{ students|length }}</b></p>
+<div class="table-wrap">
+<table class="table students-list">
+  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الواتساب</th><th>هاتف الوكيل 2</th></tr></thead>
+  <tbody>
+  {% for s in students %}
+    <tr>
+      <td>{{ forloop.counter }}</td><td>{{ s.matricule|default:"—" }}</td>
+      <td><a href="{% url 'student_file' s.id %}">{{ s.full_name|default:s.username }}</a></td>
+      <td dir="ltr">{% if s.guardian_phone %}<a href="tel:{{ s.guardian_phone }}">{{ s.guardian_phone }}</a>{% endif %}</td>
+      <td dir="ltr">{% if s.whatsapp_link %}<a href="{{ s.whatsapp_link }}" target="_blank" rel="noopener">{{ s.whatsapp }}</a>{% else %}{{ s.whatsapp }}{% endif %}</td>
+      <td dir="ltr">{% if s.guardian_phone2 %}<a href="tel:{{ s.guardian_phone2 }}">{{ s.guardian_phone2 }}</a>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="muted">لا غائبين في هذه الحصة. 🎉</p>{% endif %}
+{% endblock %}

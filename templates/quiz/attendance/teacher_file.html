@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ teacher }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ teacher }}</h1><p class="muted">المادة: <b>{{ teacher.subject|default:"—" }}</b></p></div>
+  <div class="actions"><a class="btn" href="{% url 'teacher_monthly' %}?month={{ month }}">الحضور الشهري</a></div>
+</div>
+<div class="card filters-form day-nav">
+  <a class="btn" href="?month={{ prev_month }}">→ الشهر السابق</a>
+  <b>{{ month_label }}</b>
+  <a class="btn" href="?month={{ next_month }}">الشهر التالي ←</a>
+</div>
+<div class="stats">
+  <div class="stat"><b>{{ totals.present }}</b><span>حصة حضور</span></div>
+  <div class="stat"><b class="ko-text">{{ totals.absent }}</b><span>حصة غياب</span></div>
+  <div class="stat"><b class="warn-text">{{ totals.late }}</b><span>حصة تأخر</span></div>
+</div>
+<p class="muted">منذ البداية: حضور {{ all_totals.present }} · غياب {{ all_totals.absent }} · تأخر {{ all_totals.late }}</p>
+{% if records %}
+<table class="table">
+  <thead><tr><th>اليوم</th><th>الحصة</th><th>القسم</th><th>الحالة</th><th>ملاحظة</th></tr></thead>
+  <tbody>{% for r in records %}<tr><td>{{ r.label }}</td><td>{{ r.get_session_display }}</td><td>{{ r.section|default:"—" }}</td>
+    <td><span class="badge {% if r.status == 'A' %}ko{% elif r.status == 'L' %}warn{% else %}ok{% endif %}">{{ r.get_status_display }}</span></td>
+    <td>{{ r.note }}</td></tr>{% endfor %}</tbody>
+</table>
+{% else %}<p class="muted">لا يوجد تسجيل لهذا الشهر.</p>{% endif %}
+{% if user.is_admin_role %}
+<div class="card">
+  <h3>تعديل بيانات الأستاذ</h3>
+  <form method="post" class="inline-form">
+    {% csrf_token %}
+    <input type="text" name="subject" value="{{ teacher.subject }}" placeholder="المادة">
+    <label class="check"><input type="checkbox" name="is_active" {% if teacher.is_active %}checked{% endif %}> في لائحة الحضور</label>
+    <button class="btn">حفظ</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}لائحة {{ section }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>القسم {{ section }} · لائحة التلاميذ</h1>
+  <div class="actions no-print">
+    <a class="btn primary" href="?export=xlsx">⬇️ تحميل Excel</a>
+    <button class="btn" onclick="window.print()">🖨️ طباعة / PDF</button>
+  </div>
+</div>
+{% include "quiz/attendance/_section_tabs.html" %}
+<p class="print-only">مدارس المعارف الحرة · القسم {{ section }} · {{ today|date:"Y-m-d" }}</p>
+<p class="muted">عدد التلاميذ: <b>{{ students|length }}</b></p>
+<div class="table-wrap">
+<table class="table students-list">
+  <thead><tr>
+    <th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الواتساب</th>
+    <th>هاتف الوكيل 2</th><th>اسم المستخدم</th><th>غياب</th><th>تأخر</th>
+  </tr></thead>
+  <tbody>
+  {% for s in students %}
+    <tr>
+      <td>{{ forloop.counter }}</td><td>{{ s.matricule|default:"—" }}</td>
+      <td><a href="{% url 'student_file' s.id %}">{{ s.full_name|default:s.username }}</a></td>
+      <td dir="ltr">{{ s.guardian_phone }}</td><td dir="ltr">{{ s.whatsapp }}</td><td dir="ltr">{{ s.guardian_phone2 }}</td>
+      <td>{{ s.username }}</td>
+      <td>{% if s.n_absent %}<span class="badge ko">{{ s.n_absent }}</span>{% else %}0{% endif %}</td>
+      <td>{% if s.n_late %}<span class="badge warn">{{ s.n_late }}</span>{% else %}0{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="9" class="muted center">لا يوجد تلاميذ في هذا القسم.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

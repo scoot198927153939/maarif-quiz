@@ -1,0 +1,6 @@
+<nav class="section-nav no-print">
+  <a class="{% if tab == 'roll' %}active{% endif %}" href="{% url 'section_roll' section.id %}{% if day %}?date={{ day|date:'Y-m-d' }}&session={{ session }}{% endif %}">✅ تسجيل الغياب</a>
+  <a class="{% if tab == 'students' %}active{% endif %}" href="{% url 'section_students' section.id %}">📋 لائحة القسم</a>
+  <a class="{% if tab == 'absent' %}active{% endif %}" href="{% url 'section_absentees' section.id %}{% if day %}?date={{ day|date:'Y-m-d' }}&session={{ session }}{% endif %}">🚫 لائحة الغائبين</a>
+  <a class="{% if tab == 'report' %}active{% endif %}" href="{% url 'section_report' section.id %}{% if day %}?from={{ day|date:'Y-m-d' }}{% endif %}">🗂️ السجل والملاحظات</a>
+</nav>
