@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}لائحة التلاميذ{% if section %} {{ section }}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>لائحة التلاميذ{% if section %} · {{ section }}{% endif %}</h1>
+  <div class="actions no-print">
+    <a class="btn primary" href="?section={{ current }}&q={{ q|urlencode }}&export=xlsx">⬇️ تحميل Excel</a>
+    <button class="btn" onclick="window.print()">🖨️ طباعة / PDF</button>
+  </div>
+</div>
+<form method="get" class="card filters-form no-print">
+  <select name="section" onchange="this.form.submit()">
+    <option value="">كل الأقسام</option>
+    {% for s in sections %}<option value="{{ s.code }}" {% if current == s.code %}selected{% endif %}>{{ s.code }}</option>{% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ q }}" placeholder="بحث بالاسم أو رقم القيد">
+  <button class="btn">عرض</button>
+  <span class="muted">العدد: <b>{{ students|length }}</b></span>
+</form>
+<p class="print-only">مدارس المعارف الحرة · {% if section %}القسم {{ section }}{% else %}كل الأقسام{% endif %} · {{ today|date:"Y-m-d" }} · العدد: {{ students|length }}</p>
+<div class="table-wrap">
+<table class="table students-list">
+  <thead><tr>
+    <th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>القسم</th><th>هاتف الوكيل</th><th>الواتساب</th>
+    <th>هاتف الوكيل 2</th><th>اسم المستخدم</th><th>غياب</th><th>تأخر</th>
+  </tr></thead>
+  <tbody>
+  {% for s in students %}
+    <tr>
+      <td>{{ forloop.counter }}</td>
+      <td>{{ s.matricule|default:"—" }}</td>
+      <td><a href="{% url 'student_file' s.id %}">{{ s.full_name|default:s.username }}</a></td>
+      <td>{{ s.section|default:s.classe|default:"—" }}</td>
+      <td dir="ltr">{{ s.guardian_phone }}</td>
+      <td dir="ltr">{{ s.whatsapp }}</td>
+      <td dir="ltr">{{ s.guardian_phone2 }}</td>
+      <td>{{ s.username }}</td>
+      <td>{% if s.n_absent %}<span class="badge ko">{{ s.n_absent }}</span>{% else %}0{% endif %}</td>
+      <td>{% if s.n_late %}<span class="badge warn">{{ s.n_late }}</span>{% else %}0{% endif %}</td>
+    </tr>
+  {% empty %}<tr><td colspan="10" class="muted center">لا يوجد تلاميذ.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<small class="muted no-print">الغياب والتأخر بعدد الحصص منذ بداية التسجيل. اضغط على اسم التلميذ لفتح ملفه.</small>
+{% endblock %}

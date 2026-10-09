@@ -21,9 +21,11 @@
       <a href="{% url 'teacher_dashboard' %}">الامتحانات</a>
       <a href="{% url 'class_results' %}">النتائج</a>
       <a href="{% url 'attendance_home' %}">الحضور</a>
+      <a href="{% url 'students_list' %}">لائحة التلاميذ</a>
       <a href="{% url 'admin:index' %}">الإعدادات</a>
     {% elif user.is_supervisor %}
       <a href="{% url 'attendance_home' %}">الأقسام</a>
+      <a href="{% url 'students_list' %}">لائحة التلاميذ</a>
       <a href="{% url 'teacher_roll' %}">حضور الأساتذة</a>
       <a href="{% url 'teacher_monthly' %}">الحضور الشهري</a>
     {% elif user.is_teacher %}

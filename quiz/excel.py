@@ -414,3 +414,19 @@ def import_teachers(file):
     if not created and not updated:
         errors.append("لم يتم العثور على أي أستاذ في الملف.")
     return created, updated, errors
+
+
+STUDENT_LIST_HEADERS = ["#", "رقم القيد", "اسم التلميذ", "القسم", "هاتف الوكيل", "رقم الواتساب",
+                        "هاتف الوكيل 2", "اسم المستخدم", "حصص الغياب", "حصص التأخر"]
+
+
+def students_list_workbook(students, title):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = title[:31]
+    ws.append(STUDENT_LIST_HEADERS)
+    for i, s in enumerate(students, start=1):
+        ws.append([i, s.matricule or "", s.full_name, str(s.section or s.classe or ""), s.guardian_phone,
+                   s.whatsapp, s.guardian_phone2, s.username, s.n_absent, s.n_late])
+    _style_header(ws, [6, 14, 32, 10, 16, 16, 16, 16, 12, 12])
+    return wb

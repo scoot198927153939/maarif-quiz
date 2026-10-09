@@ -40,6 +40,7 @@ urlpatterns = [
     path("attendance/", attendance.attendance_home, name="attendance_home"),
     path("attendance/section/<int:section_id>/", attendance.section_roll, name="section_roll"),
     path("attendance/section/<int:section_id>/report/", attendance.section_report, name="section_report"),
+    path("attendance/students/", attendance.students_list, name="students_list"),
     path("attendance/student/<int:student_id>/", attendance.student_file, name="student_file"),
     path("attendance/notes/<int:note_id>/delete/", attendance.note_delete, name="note_delete"),
     path("attendance/teachers/", attendance.teacher_roll, name="teacher_roll"),

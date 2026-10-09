@@ -6,6 +6,7 @@
   <div class="actions">
     <a class="btn primary" href="{% url 'teacher_roll' %}">👨‍🏫 حضور الأساتذة اليوم{% if teachers_taken %} ✓{% endif %}</a>
     <a class="btn" href="{% url 'teacher_monthly' %}">📅 الحضور الشهري للأساتذة</a>
+    <a class="btn" href="{% url 'students_list' %}">📋 لائحة التلاميذ</a>
   </div>
 </div>
 <p class="muted">{{ today_label }} · 3 حصص في اليوم، والأرقام 1 2 3 تحت كل قسم تصبح خضراء عند تسجيل غياب تلك الحصة.</p>
@@ -21,6 +22,7 @@
     <div class="actions">
       <a class="btn primary" href="{% url 'section_roll' s.id %}">تسجيل الغياب</a>
       <a class="btn" href="{% url 'section_report' s.id %}">لائحة اليوم</a>
+      <a class="btn" href="{% url 'students_list' %}?section={{ s.code }}">التلاميذ</a>
     </div>
   </div>
 {% empty %}

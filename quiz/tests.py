@@ -412,6 +412,22 @@ class AttendanceTests(TestCase):
         # المراقب لا يستورد
         self.assertEqual(self.client.post(reverse("teachers_import")).status_code, 403)
 
+    def test_students_list_and_export(self):
+        self.st.matricule, self.st.guardian_phone = "1001", "22000001"
+        self.st.save()
+        self.client.login(username="sup", password="x")
+        r = self.client.get(reverse("students_list"))
+        self.assertContains(r, "22000001")
+        self.assertNotContains(r, "2002")  # تلميذ قسم لا يراقبه
+        r = self.client.get(reverse("students_list") + "?section=1AS1&export=xlsx")
+        self.assertEqual(r.status_code, 200)
+        from openpyxl import load_workbook
+        rows = list(load_workbook(io.BytesIO(r.content)).active.iter_rows(values_only=True))
+        self.assertEqual(rows[1][1:5], ("1001", "أحمد", "1AS1", "22000001"))
+        self.client.logout()
+        self.client.login(username="boss", password="x")
+        self.assertContains(self.client.get(reverse("students_list")), "2002")
+
     def test_admin_creates_supervisor(self):
         self.client.login(username="boss", password="x")
         r = self.client.post(reverse("user_create"), {
