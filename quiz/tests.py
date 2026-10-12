@@ -501,3 +501,37 @@ class AttendanceTests(TestCase):
         self.assertEqual(u.supervised_sections.count(), 2)
         for name in ["user_create", "attendance_home", "teacher_roll", "teacher_monthly"]:
             self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+
+class LibraryTests(TestCase):
+    def setUp(self):
+        from .models import Section
+        self.sec = Section.objects.get(code="7SN6")
+        self.lib = User.objects.create_user("lib", password="x", role=User.LIBRARIAN)
+        self.a = User.objects.create_user("a1", password="x", role=User.STUDENT, section=self.sec, full_name="أ")
+        self.b = User.objects.create_user("b1", password="x", role=User.STUDENT, section=self.sec, full_name="ب")
+
+    def test_librarian_stock_and_delivery(self):
+        from .models import BookDelivery
+        url = reverse("library_section", args=[self.sec.id])
+        self.client.login(username="lib", password="x")
+        self.assertRedirects(self.client.get(reverse("home")), reverse("library_home"), fetch_redirect_response=False)
+        self.assertNotContains(self.client.get(reverse("library_home")), "1AS1")  # الأقسام من 3AS فقط
+        self.client.post(url, {"action": "stock", "stock_math_1": "30", "stock_math_2": "25"})
+        # تلميذ يستلم النسخة 1، والمتأخر يستلم النسختين معاً
+        self.client.post(url, {"action": "deliver", f"d_{self.a.id}_math_1": "1",
+                               f"d_{self.b.id}_math_1": "1", f"d_{self.b.id}_math_2": "1"})
+        self.assertEqual(BookDelivery.objects.count(), 3)
+        r = self.client.get(url)
+        math1 = r.context["summary"][0]
+        self.assertEqual((math1["stock"], math1["given"], math1["left"]), (30, 2, 28))
+        self.assertEqual(r.context["summary"][1]["left"], 24)
+        # إلغاء علامة يلغي التسليم
+        self.client.post(url, {"action": "deliver", f"d_{self.b.id}_math_1": "1", f"d_{self.b.id}_math_2": "1"})
+        self.assertFalse(BookDelivery.objects.filter(student=self.a).exists())
+        r = self.client.get(url + "?export=xlsx")
+        self.assertEqual(r.status_code, 200)
+
+    def test_others_cannot_open_library(self):
+        self.client.login(username="a1", password="x")
+        self.assertEqual(self.client.get(reverse("library_home")).status_code, 403)

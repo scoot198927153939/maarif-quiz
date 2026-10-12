@@ -52,11 +52,13 @@ class User(AbstractUser):
     TEACHER = "teacher"
     STUDENT = "student"
     SUPERVISOR = "supervisor"
+    LIBRARIAN = "librarian"
     ROLE_CHOICES = [
         (ADMIN, "مشرف"),
         (TEACHER, "أستاذ"),
         (STUDENT, "تلميذ"),
         (SUPERVISOR, "مراقب"),
+        (LIBRARIAN, "مسؤول المكتبة"),
     ]
 
     role = models.CharField("الدور", max_length=10, choices=ROLE_CHOICES, default=STUDENT)
@@ -107,6 +109,10 @@ class User(AbstractUser):
     @property
     def is_supervisor(self):
         return self.role == self.SUPERVISOR and not self.is_superuser
+
+    @property
+    def is_librarian(self):
+        return self.role == self.LIBRARIAN and not self.is_superuser
 
     def allowed_sections(self):
         if self.is_admin_role:
@@ -387,3 +393,38 @@ class TeacherAttendance(models.Model):
         ordering = ["-date", "session"]
         verbose_name = "حضور أستاذ"
         verbose_name_plural = "حضور الأساتذة"
+
+
+# ---------------------------------------------------------------- المكتبة: توزيع الكتب
+
+BOOK_SUBJECTS = [("math", "الرياضيات"), ("phys", "الفيزياء"), ("sci", "العلوم"), ("isl", "التربية الإسلامية")]
+BOOK_PARTS = [(1, "النسخة 1"), (2, "النسخة 2")]
+LIBRARY_LEVELS = ["3AS", "4AS", "5MA", "5SN", "6MA", "6SN", "7MA", "7SN"]
+
+
+class BookStock(models.Model):
+    """عدد الكتب الموجودة لفصل من مادة ونسخة."""
+    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="book_stock", verbose_name="الفصل")
+    subject = models.CharField("المادة", max_length=10, choices=BOOK_SUBJECTS)
+    part = models.PositiveSmallIntegerField("النسخة", choices=BOOK_PARTS)
+    quantity = models.PositiveIntegerField("العدد", default=0)
+
+    class Meta:
+        verbose_name = "مخزون كتب"
+        verbose_name_plural = "مخزون الكتب"
+        constraints = [models.UniqueConstraint(fields=["section", "subject", "part"], name="uniq_book_stock")]
+
+
+class BookDelivery(models.Model):
+    """تسليم نسخة كتاب لتلميذ. الفصل يُحفظ وقت التسليم لأن الكتاب خرج من مخزونه."""
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="books", verbose_name="التلميذ")
+    subject = models.CharField("المادة", max_length=10, choices=BOOK_SUBJECTS)
+    part = models.PositiveSmallIntegerField("النسخة", choices=BOOK_PARTS)
+    section = models.ForeignKey(Section, null=True, on_delete=models.SET_NULL, related_name="book_deliveries", verbose_name="الفصل")
+    date = models.DateField("تاريخ التسليم")
+    delivered_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        verbose_name = "تسليم كتاب"
+        verbose_name_plural = "تسليم الكتب"
+        constraints = [models.UniqueConstraint(fields=["student", "subject", "part"], name="uniq_book_delivery")]

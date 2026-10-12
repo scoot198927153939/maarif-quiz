@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
 from .models import (
+    BookDelivery, BookStock,
     Answer, Attempt, Choice, Classe, Exam, Question, Section, StudentAttendance, StudentNote, Subject,
     Teacher, TeacherAttendance, User,
 )
@@ -41,6 +42,8 @@ class TeacherAdmin(admin.ModelAdmin):
 admin.site.register(StudentAttendance)
 admin.site.register(StudentNote)
 admin.site.register(TeacherAttendance)
+admin.site.register(BookStock)
+admin.site.register(BookDelivery)
 
 
 @admin.register(Subject)

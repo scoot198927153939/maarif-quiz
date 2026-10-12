@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}توزيع الكتب{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📚 توزيع الكتب</h1>
+</div>
+<p class="muted">في كل خانة: <b>الباقي</b> من الموجود (ن1 = النسخة 1، ن2 = النسخة 2). افتح القسم لإدخال عدد الكتب الموجودة وتعليم التلاميذ الذين استلموا.</p>
+<div class="table-wrap">
+<table class="table books-table">
+  <thead>
+    <tr><th rowspan="2">القسم</th><th rowspan="2">التلاميذ</th>
+      {% for s in sections|slice:":1" %}{% for b in s.books %}{% if b.part == 1 %}<th colspan="2">{{ b.label }}</th>{% endif %}{% endfor %}{% endfor %}
+      <th rowspan="2">المسلَّم</th></tr>
+    <tr>{% for s in sections|slice:":1" %}{% for b in s.books %}<th><small>ن {{ b.part }}</small></th>{% endfor %}{% endfor %}</tr>
+  </thead>
+  <tbody>
+  {% for s in sections %}
+    <tr>
+      <td><a class="btn{% if s.short %} danger{% endif %}" href="{% url 'library_section' s.id %}">{{ s.code }}</a></td>
+      <td>{{ s.n_students }}</td>
+      {% for b in s.books %}<td class="center{% if b.left < 0 %} bad{% endif %}">{% if b.stock or b.given %}<b>{{ b.left }}</b> <small class="muted">من {{ b.stock }}</small>{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}
+      <td class="center">{{ s.total_given }} من {{ s.total_stock }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="11" class="muted center">لا توجد أقسام.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
