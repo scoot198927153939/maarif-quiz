@@ -50,6 +50,7 @@ urlpatterns = [
     path("attendance/teachers/monthly/", attendance.teacher_monthly, name="teacher_monthly"),
     path("attendance/teachers/<int:teacher_id>/", attendance.teacher_file, name="teacher_file"),
     path("library/", library.library_home, name="library_home"),
+    path("library/level/<int:classe_id>/", library.library_level, name="library_level"),
     path("library/section/<int:section_id>/", library.library_section, name="library_section"),
     path("attendance/import/students/", attendance.roster_import, name="roster_import"),
     path("attendance/import/teachers/", attendance.teachers_import, name="teachers_import"),
