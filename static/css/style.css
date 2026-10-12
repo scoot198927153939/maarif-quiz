@@ -273,10 +273,21 @@ input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-ra
 .section-nav a:hover { text-decoration: none; }
 
 /* المكتبة */
+.level-grid { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+.level-card h2 { margin: 0; }
+.level-card.short { border-color: #b42318; }
+.stock-mini { font-size: .92rem; margin: .5rem 0; }
+.stock-mini th, .stock-mini td { padding: .35rem .5rem; text-align: center; }
+.stock-mini tbody th { text-align: right; font-weight: 600; }
+.section-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 1rem; }
+.stock-pills { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; }
+.pill-group { display: flex; align-items: center; gap: .4rem; }
+.pill { background: #eef6f3; border-radius: 999px; padding: .15rem .6rem; font-size: .9rem; }
+.pill.bad, .books-table .bad, .stock-mini .bad { color: #b42318; background: #fef3f2; }
+.stock-mini .done { color: #667085; }
 .books-table th, .books-table td { text-align: center; white-space: nowrap; }
-.books-table td:nth-child(2) { text-align: right; }
-.books-table .bad { color: #b42318; background: #fef3f2; }
+.books-table td.name { text-align: right; }
+.books-table .subj { border-right: 2px solid #d0d5dd; }
 .books-table input[type=checkbox] { width: 20px; height: 20px; }
 .num-input { width: 90px; }
-.btn.danger { border-color: #b42318; color: #b42318; }
 .msg.warning { background: #fffaeb; color: #93370d; }

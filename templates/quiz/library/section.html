@@ -2,59 +2,52 @@
 {% block title %}كتب {{ section }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>📚 كتب القسم {{ section }}</h1>
+  <h1>📚 تسليم الكتب: {{ section }}</h1>
   <div class="actions">
     <a class="btn" href="?export=xlsx">⬇️ تحميل اللائحة Excel</a>
-    <a class="btn" href="{% url 'library_home' %}">كل الأقسام</a>
+    <a class="btn" href="{% url 'library_home' %}">كل المستويات</a>
   </div>
+</div>
+<div class="section-chips">
+  {% for s in siblings %}<a class="chip{% if s.id == section.id %} active{% endif %}" href="{% url 'library_section' s.id %}">{{ s.code }}</a>{% endfor %}
+</div>
+
+<div class="card">
+  <div class="section-head">
+    <h3>الباقي من كتب المستوى {{ section.classe.code }} (لكل فصوله)</h3>
+    <a class="btn" href="{% url 'library_level' section.classe.id %}">✏️ عدد الكتب</a>
+  </div>
+  {% if has_stock %}
+  <div class="stock-pills">
+    {% for row in summary %}<div class="pill-group"><b>{{ row.label }}</b>
+      {% for p in row.parts %}<span class="pill{% if p.left < 0 %} bad{% endif %}">ن{{ p.part }}: <b>{{ p.left }}</b> من {{ p.stock }}</span>{% endfor %}
+    </div>{% endfor %}
+  </div>
+  {% else %}<p class="msg warning">لم يُدخل بعد عدد الكتب الموجودة للمستوى {{ section.classe.code }}.</p>{% endif %}
 </div>
 
 <form method="post" class="card">
-  {% csrf_token %}<input type="hidden" name="action" value="stock">
-  <h3>1. عدد الكتب الموجودة لهذا القسم</h3>
-  <div class="table-wrap">
-  <table class="table books-table">
-    <thead><tr><th>المادة</th><th>النسخة</th><th>الموجود</th><th>المسلَّم</th><th>الباقي</th></tr></thead>
-    <tbody>
-    {% for b in summary %}
-      <tr>
-        {% if b.part == 1 %}<td rowspan="2"><b>{{ b.label }}</b></td>{% endif %}
-        <td>{{ b.part_label }}</td>
-        <td><input type="number" min="0" name="stock_{{ b.subject }}_{{ b.part }}" value="{{ b.stock }}" class="num-input"></td>
-        <td class="center">{{ b.given }}</td>
-        <td class="center{% if b.left < 0 %} bad{% endif %}"><b>{{ b.left }}</b>{% if b.left < 0 %} <small>(أكثر من الموجود)</small>{% endif %}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  <button class="btn primary">حفظ عدد الكتب</button>
-</form>
-
-<form method="post" class="card">
-  {% csrf_token %}<input type="hidden" name="action" value="deliver">
-  <h3>2. تسليم الكتب للتلاميذ ({{ students|length }})</h3>
-  {% if not has_stock %}<p class="msg warning">لم تُدخل بعد عدد الكتب الموجودة لهذا القسم. أدخله أعلاه أولاً لتعرف الباقي.</p>{% endif %}
-  <p class="muted">ضع علامة أمام التلميذ عند تسليمه الكتاب. التلميذ المتأخر يمكن أن يستلم النسختين معاً. اضغط على اسم العمود لتعليم العمود كله.</p>
+  {% csrf_token %}
+  <p class="muted">ضع علامة أمام التلميذ عند تسليمه الكتاب. التلميذ المتأخر يمكن أن يستلم النسختين معاً. اضغط على «ن1» أو «ن2» لتعليم العمود كله.</p>
   <div class="table-wrap">
   <table class="table books-table">
     <thead>
-      <tr><th rowspan="2">#</th><th rowspan="2">التلميذ</th>
-        {% for code, label in subjects %}<th colspan="2">{{ label }}</th>{% endfor %}<th rowspan="2">العدد</th></tr>
-      <tr>{% for b in summary %}<th><button type="button" class="link col-toggle" data-col="{{ forloop.counter0 }}">ن {{ b.part }}</button></th>{% endfor %}</tr>
+      <tr><th rowspan="2">#</th><th rowspan="2">التلميذ ({{ students|length }})</th>
+        {% for row in summary %}<th colspan="2" class="subj">{{ row.label }}</th>{% endfor %}<th rowspan="2">استلم</th></tr>
+      <tr>{% for row in summary %}{% for p in row.parts %}<th class="{% if forloop.first %}subj{% endif %}"><button type="button" class="link col-toggle" data-col="{{ row.subject }}-{{ p.part }}">ن{{ p.part }}</button></th>{% endfor %}{% endfor %}</tr>
     </thead>
     <tbody>
     {% for st in students %}
       <tr>
         <td>{{ forloop.counter }}</td>
-        <td>{{ st.full_name|default:st.username }} <small class="muted">{{ st.matricule|default:"" }}</small></td>
-        {% for c in st.cells %}<td class="center"><input type="checkbox" name="{{ c.name }}" value="1" data-col="{{ forloop.counter0 }}" {% if c.date %}checked title="سُلِّم {{ c.date|date:'Y-m-d' }}"{% endif %}></td>{% endfor %}
-        <td class="center">{{ st.n_books }}</td>
+        <td class="name">{{ st.full_name|default:st.username }} <small class="muted">{{ st.matricule|default:"" }}</small></td>
+        {% for c in st.cells %}<td class="{% if c.first %}subj{% endif %}"><input type="checkbox" name="{{ c.name }}" value="1" data-col="{{ c.col }}" {% if c.date %}checked title="سُلِّم {{ c.date|date:'Y-m-d' }}"{% endif %}></td>{% endfor %}
+        <td>{{ st.n_books }}</td>
       </tr>
-    {% empty %}<tr><td colspan="11" class="muted center">لا يوجد تلاميذ في هذا القسم. استورد لائحة التلاميذ أولاً.</td></tr>{% endfor %}
+    {% empty %}<tr><td colspan="11" class="muted center">لا يوجد تلاميذ في هذا الفصل. استورد لائحة التلاميذ أولاً.</td></tr>{% endfor %}
     </tbody>
     <tfoot>
-      <tr><td></td><td><b>المسلَّم من الموجود</b></td>{% for b in summary %}<td class="center{% if b.left < 0 %} bad{% endif %}">{{ b.given }} من {{ b.stock }}</td>{% endfor %}<td></td></tr>
+      <tr><td></td><td class="name"><b>سُلِّم في {{ section.code }}</b></td>{% for row in summary %}{% for p in row.parts %}<td class="{% if forloop.first %}subj{% endif %}">{{ p.in_section }}</td>{% endfor %}{% endfor %}<td></td></tr>
     </tfoot>
   </table>
   </div>

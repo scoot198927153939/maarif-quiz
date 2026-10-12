@@ -403,8 +403,8 @@ LIBRARY_LEVELS = ["3AS", "4AS", "5MA", "5SN", "6MA", "6SN", "7MA", "7SN"]
 
 
 class BookStock(models.Model):
-    """عدد الكتب الموجودة لفصل من مادة ونسخة."""
-    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="book_stock", verbose_name="الفصل")
+    """عدد الكتب الموجودة لمستوى (كل فصول 7SN مثلاً تشترك في نفس الكتب) من مادة ونسخة."""
+    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="book_stock", verbose_name="المستوى")
     subject = models.CharField("المادة", max_length=10, choices=BOOK_SUBJECTS)
     part = models.PositiveSmallIntegerField("النسخة", choices=BOOK_PARTS)
     quantity = models.PositiveIntegerField("العدد", default=0)
@@ -412,7 +412,7 @@ class BookStock(models.Model):
     class Meta:
         verbose_name = "مخزون كتب"
         verbose_name_plural = "مخزون الكتب"
-        constraints = [models.UniqueConstraint(fields=["section", "subject", "part"], name="uniq_book_stock")]
+        constraints = [models.UniqueConstraint(fields=["classe", "subject", "part"], name="uniq_book_stock_level")]
 
 
 class BookDelivery(models.Model):
