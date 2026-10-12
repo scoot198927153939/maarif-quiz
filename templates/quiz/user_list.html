@@ -15,7 +15,7 @@
     {% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button class="btn primary">استيراد</button>
   </form>
   <a href="{% url 'students_template' %}">⬇️ تحميل نموذج ملف التلاميذ</a>
-  <small class="muted">الأعمدة: اسم المستخدم، الاسم الكامل، كلمة المرور، القسم. إذا كان التلميذ موجوداً يتم تحديث بياناته.</small>
+  <small class="muted">يقبل نموذج المستخدمين (اسم المستخدم، الاسم الكامل، كلمة المرور، القسم) أو لائحة التلاميذ (رقم القيد، القسم، الاسم، الهواتف). إذا كان التلميذ موجوداً يتم تحديث بياناته.</small>
 </div>
 <form method="get" class="filters-form card">
   <input type="search" name="q" value="{{ q }}" placeholder="بحث بالاسم أو اسم المستخدم">

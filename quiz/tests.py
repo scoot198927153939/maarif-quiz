@@ -377,6 +377,21 @@ class AttendanceTests(TestCase):
         self.assertContains(r, "غير موجود")
         self.assertFalse(User.objects.filter(matricule="5").exists())
 
+    def test_users_page_import_accepts_roster_and_section_codes(self):
+        self.client.login(username="boss", password="x")
+        # ملف لائحة التلاميذ يُرفع من صفحة المستخدمين: كان يعطي خطأ 500
+        f = self._xlsx([["رقم قيد الطالب", "القسم", "اسم الطالب", "هاتف الوكيل"], [6001, "6AF", "سالم", 22000006]])
+        r = self.client.post(reverse("students_import"), {"file": f}, follow=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(User.objects.get(matricule="6001").section.code, "6AF")
+        # الصيغة القديمة مع رمز فصل مثل 1AS1، وقسم غير معروف لا يسبب خطأ 500
+        f = self._xlsx([["اسم المستخدم", "الاسم الكامل", "كلمة المرور", "القسم"], ["ali", "علي", "1234", "1AS1"]])
+        self.client.post(reverse("students_import"), {"file": f})
+        self.assertEqual(User.objects.get(username="ali").section.code, "1AS1")
+        f = self._xlsx([["اسم المستخدم", "الاسم الكامل", "كلمة المرور", "القسم"], ["bad", "x", "1", None]])
+        r = self.client.post(reverse("students_import"), {"file": f}, follow=True)
+        self.assertContains(r, "غير موجود")
+
     def test_teachers_import_and_monthly(self):
         from .models import Teacher, TeacherAttendance
         self.client.login(username="boss", password="x")
