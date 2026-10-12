@@ -168,7 +168,13 @@ def import_students(file):
     except Exception:
         return 0, 0, ["تعذّر قراءة الملف. تأكد أنه ملف Excel بصيغة ‎.xlsx"]
     rows = list(wb.worksheets[0].iter_rows(values_only=True))
+    header = " ".join(_norm_header(v) for v in (rows[0] if rows else ()))
+    if not any(k in header for k in ("مستخدم", "username", "مرور", "password")):
+        # ملف لائحة التلاميذ (رقم القيد، القسم، الاسم، الهواتف): يُستورد بنفس طريقة صفحة الحضور
+        file.seek(0)
+        return import_roster(file)
     classes = {c.code.upper(): c for c in Classe.objects.all()}
+    sections = {s.code.upper(): s for s in Section.objects.all()}
     errors, parsed = [], []
     for idx, row in enumerate(rows[1:], start=2):
         row = list(row) + [None] * 4
@@ -178,17 +184,20 @@ def import_students(file):
         if not username:
             errors.append(f"السطر {idx}: اسم المستخدم فارغ.")
             continue
-        classe = classes.get(code.upper())
+        key = _section_code(code)
+        classe, section = classes.get(key), sections.get(key)
+        if section:
+            classe = section.classe
         if not classe:
-            errors.append(f"السطر {idx}: القسم «{get(row, 'section')}» غير موجود. الأقسام المقبولة مثل 1AS1 و 7SN2.")
+            errors.append(f"السطر {idx}: القسم «{code}» غير موجود. الأقسام المقبولة مثل 1AS أو 1AS1.")
             continue
-        parsed.append((username, full_name, password, classe))
+        parsed.append((username, full_name, password, classe, section))
     if errors:
         return 0, 0, errors
 
     created = updated = 0
     with transaction.atomic():
-        for username, full_name, password, classe in parsed:
+        for username, full_name, password, classe, section in parsed:
             user = User.objects.filter(username=username).first()
             if user and not user.is_student:
                 errors.append(f"«{username}» حساب موجود لغير تلميذ، تم تجاهله.")
@@ -202,6 +211,8 @@ def import_students(file):
                 updated += 1
             user.full_name = full_name or user.full_name
             user.classe = classe
+            if section:
+                user.section = section
             if password:
                 user.set_password(password)
             user.save()
