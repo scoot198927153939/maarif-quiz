@@ -213,7 +213,8 @@ def import_students(file):
             user.classe = classe
             if section:
                 user.section = section
-            if password:
+            # كلمة مرور جديدة فقط إن تغيّرت، وإلا يخرج التلميذ من حسابه بعد كل استيراد
+            if password and (user.pk is None or not user.check_password(password)):
                 user.set_password(password)
             user.save()
     return created, updated, errors

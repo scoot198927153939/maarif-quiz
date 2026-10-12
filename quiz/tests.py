@@ -392,6 +392,17 @@ class AttendanceTests(TestCase):
         r = self.client.post(reverse("students_import"), {"file": f}, follow=True)
         self.assertContains(r, "غير موجود")
 
+    def test_reimport_does_not_log_students_out(self):
+        student = self.client_class()
+        student.login(username="1001", password="x")
+        self.assertEqual(student.get(reverse("home")).wsgi_request.user.username, "1001")
+        self.client.login(username="boss", password="x")
+        f = self._xlsx([["اسم المستخدم", "الاسم الكامل", "كلمة المرور", "القسم"], ["1001", "أحمد", "x", "1AS1"]])
+        self.client.post(reverse("students_import"), {"file": f})
+        f = self._xlsx([["رقم قيد الطالب", "القسم", "اسم الطالب"], [1001, "1AS2", "أحمد"]])
+        self.client.post(reverse("roster_import"), {"file": f})
+        self.assertEqual(student.get(reverse("home")).wsgi_request.user.username, "1001")
+
     def test_teachers_import_and_monthly(self):
         from .models import Teacher, TeacherAttendance
         self.client.login(username="boss", password="x")
