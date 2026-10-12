@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import attendance, views
+from . import attendance, library, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -49,6 +49,8 @@ urlpatterns = [
     path("attendance/teachers/", attendance.teacher_roll, name="teacher_roll"),
     path("attendance/teachers/monthly/", attendance.teacher_monthly, name="teacher_monthly"),
     path("attendance/teachers/<int:teacher_id>/", attendance.teacher_file, name="teacher_file"),
+    path("library/", library.library_home, name="library_home"),
+    path("library/section/<int:section_id>/", library.library_section, name="library_section"),
     path("attendance/import/students/", attendance.roster_import, name="roster_import"),
     path("attendance/import/teachers/", attendance.teachers_import, name="teachers_import"),
     path("attendance/students-list-template.xlsx", attendance.roster_template, name="roster_template"),

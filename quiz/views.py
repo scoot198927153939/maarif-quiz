@@ -33,6 +33,7 @@ def role_required(*roles):
                 or ("teacher" in roles and u.is_teacher)
                 or ("student" in roles and u.is_student)
                 or ("supervisor" in roles and u.is_supervisor)
+                or ("librarian" in roles and u.is_librarian)
             )
             if not ok:
                 raise PermissionDenied
@@ -71,6 +72,8 @@ def home(request):
         return redirect("admin_dashboard")
     if u.is_supervisor:
         return redirect("attendance_home")
+    if u.is_librarian:
+        return redirect("library_home")
     return redirect("teacher_dashboard")
 
 

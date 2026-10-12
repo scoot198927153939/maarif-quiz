@@ -271,3 +271,12 @@ input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-ra
 .section-nav a { padding: 10px 16px; border-radius: 10px 10px 0 0; color: var(--text); background: #fff; border: 1px solid var(--border); border-bottom: 0; margin-bottom: -2px; }
 .section-nav a.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
 .section-nav a:hover { text-decoration: none; }
+
+/* المكتبة */
+.books-table th, .books-table td { text-align: center; white-space: nowrap; }
+.books-table td:nth-child(2) { text-align: right; }
+.books-table .bad { color: #b42318; background: #fef3f2; }
+.books-table input[type=checkbox] { width: 20px; height: 20px; }
+.num-input { width: 90px; }
+.btn.danger { border-color: #b42318; color: #b42318; }
+.msg.warning { background: #fffaeb; color: #93370d; }
