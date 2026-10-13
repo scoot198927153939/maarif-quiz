@@ -291,3 +291,31 @@ input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-ra
 .books-table input[type=checkbox] { width: 20px; height: 20px; }
 .num-input { width: 90px; }
 .msg.warning { background: #fffaeb; color: #93370d; }
+
+/* صفحة أخذ الغياب المبسطة */
+.roll-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.roll-title { text-align: center; flex: 1; }
+.roll-title h1 { margin: 0; font-size: 1.7rem; }
+.roll-when { font-size: 1.1rem; color: var(--muted, #555); }
+.roll-list { display: flex; flex-direction: column; gap: .6rem; }
+.roll-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: #fff;
+  border: 1px solid var(--border); border-radius: 12px; padding: .7rem 1rem; }
+.roll-row.st-A { background: #fdecea; border-color: #f5c2bc; }
+.roll-row.st-L { background: #fff6e5; border-color: #f5d9a3; }
+.roll-name { display: flex; align-items: center; gap: .8rem; font-size: 1.25rem; font-weight: 600; }
+.roll-mat { min-width: 3.5em; text-align: center; font-size: 1rem; background: #eef2f1; border-radius: 8px; padding: .15rem .5rem; font-weight: 700; }
+.roll-pick { display: flex; flex-direction: column; gap: .35rem; min-width: 150px; }
+.roll-pick .opt { cursor: pointer; }
+.roll-pick .opt input { display: none; }
+.roll-pick .opt span { display: block; text-align: center; font-size: 1.1rem; font-weight: 600; padding: .4rem 1rem;
+  border: 2px solid var(--border); border-radius: 10px; background: #fff; }
+.roll-pick .opt-P input:checked + span { background: var(--ok); border-color: var(--ok); color: #fff; }
+.roll-pick .opt-A input:checked + span { background: var(--danger); border-color: var(--danger); color: #fff; }
+.roll-pick .opt-L input:checked + span { background: var(--warn); border-color: var(--warn); color: #fff; }
+.roll-save { position: sticky; bottom: 0; background: #f4f6f5; border-top: 1px solid var(--border); padding: .8rem 0; margin-top: .8rem; text-align: center; z-index: 5; }
+.roll-save .btn { font-size: 1.2rem; padding: .7rem 2.5rem; }
+@media (max-width: 560px) {
+  .roll-name { font-size: 1.1rem; } .roll-pick { min-width: 110px; }
+  .roll-title { order: -1; flex-basis: 100%; }
+  .roll-when { font-size: 1rem; }
+}

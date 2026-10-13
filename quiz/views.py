@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 from . import excel
 from .analysis import analyze
 from .forms import ExamForm, ImportFileForm, QuestionForm, ResultsFilterForm, UserForm
-from .models import Answer, Attempt, Classe, Exam, Question, Subject, User
+from .models import STUDENT_ORDER, Answer, Attempt, Classe, Exam, Question, Subject, User
 
 
 # ---------------------------------------------------------------- helpers
@@ -436,7 +436,7 @@ def exam_results(request, exam_id):
     exam = get_managed_exam(request.user, exam_id)
     attempts = {a.student_id: a for a in exam.attempts.all()}
     rows = []
-    for s in exam.classe.students.filter(role=User.STUDENT, is_active=True).order_by("full_name", "username"):
+    for s in exam.classe.students.filter(role=User.STUDENT, is_active=True).order_by(*STUDENT_ORDER):
         rows.append((s, attempts.get(s.id)))
     submitted = [a for a in attempts.values() if a.status == Attempt.SUBMITTED]
     avg = sum(a.score for a in submitted) / len(submitted) if submitted else None
@@ -488,7 +488,7 @@ def class_results(request):
             (a.student_id, a.exam_id): a.score
             for a in Attempt.objects.filter(exam__in=exams, status=Attempt.SUBMITTED)
         }
-        for s in classe.students.filter(role=User.STUDENT, is_active=True).order_by("full_name", "username"):
+        for s in classe.students.filter(role=User.STUDENT, is_active=True).order_by(*STUDENT_ORDER):
             rows.append((s, [scores.get((s.id, e.id)) for e in exams]))
         if request.GET.get("export") == "xlsx":
             return xlsx_response(excel.results_workbook(classe, exams, rows), f"results_{classe.code}.xlsx")
@@ -516,7 +516,7 @@ def admin_dashboard(request):
 
 @admin_required
 def user_list(request):
-    users = User.objects.select_related("classe", "section").order_by("role", "classe__order", "section__order", "full_name", "username")
+    users = User.objects.select_related("classe", "section").order_by("role", "classe__order", "section__order", *STUDENT_ORDER)
     role = request.GET.get("role")
     classe = request.GET.get("classe")
     q = request.GET.get("q", "").strip()

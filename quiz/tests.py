@@ -309,6 +309,16 @@ class AttendanceTests(TestCase):
         self.assertEqual(self.client.get(reverse("teacher_dashboard")).status_code, 403)
         self.assertEqual(self.client.get(reverse("user_list")).status_code, 403)
 
+    def test_students_sorted_by_matricule(self):
+        from .models import STUDENT_ORDER
+        for mat in ("10", "9", "100"):
+            User.objects.create_user(f"m{mat}", password="x", role=User.STUDENT, section=self.s1, matricule=mat, full_name="ا")
+        self.st.matricule = "2"
+        self.st.save()
+        self.client.login(username="sup", password="x")
+        r = self.client.get(reverse("section_roll", args=[self.s1.id]))
+        self.assertEqual([x["student"].matricule for x in r.context["rows"]], ["2", "9", "10", "100"])
+
     def test_roll_call_notes_and_student_file(self):
         from .models import StudentAttendance, StudentNote
         self.client.login(username="sup", password="x")
@@ -319,8 +329,8 @@ class AttendanceTests(TestCase):
         self.client.post(url, {"date": "2026-10-06", "session": 2, f"s_{self.st.id}": "L"})  # إعادة الحفظ لا تكرر
         self.client.post(url, {"date": "2026-10-06", "session": 3, f"s_{self.st.id}": "A"})
         self.assertEqual(StudentAttendance.objects.filter(student=self.st).count(), 3)
-        r = self.client.get(url + "?date=2026-10-06&session=1")
-        self.assertContains(r, "الحصة 2: متأخر")
+        r = self.client.get(reverse("section_tools", args=[self.s1.id]) + "?date=2026-10-06&session=1")
+        self.assertEqual([len(x["late"]) for x in r.context["summary"]], [0, 1, 0])
         self.assertEqual(StudentNote.objects.get().text, "لم يحضر الواجب")
         r = self.client.get(reverse("section_report", args=[self.s1.id]) + "?from=2026-10-05&to=2026-10-06")
         self.assertContains(r, "غائب")
