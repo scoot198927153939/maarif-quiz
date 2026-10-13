@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}خيارات {{ section }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>القسم {{ section }}: خيارات أخرى</h1>
+  <div class="actions"><a class="btn primary" href="{% url 'section_roll' section.id %}">✅ أخذ الغياب الآن</a></div>
+</div>
+{% include "quiz/attendance/_section_tabs.html" %}
+
+<div class="card">
+  <h3>تسجيل أو تعديل غياب يوم أو حصة أخرى</h3>
+  <form method="get" action="{% url 'section_roll' section.id %}" class="filters-form">
+    <input type="date" name="date" value="{{ day|date:'Y-m-d' }}">
+    <select name="session">{% for s in sessions %}<option value="{{ s.n }}" {% if s.n == session %}selected{% endif %}>{{ s.label }} ({{ s.start }}–{{ s.end }}){% if s.taken %} ✓{% endif %}</option>{% endfor %}</select>
+    <button class="btn primary">فتح</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>ورقة غياب فارغة للأستاذ</h3>
+  <p class="muted">لليوم والحصة المختارين أعلاه.</p>
+  <div class="actions">
+    <a class="btn" href="{% url 'section_sheet' section.id %}?date={{ day|date:'Y-m-d' }}&session={{ session }}" target="_blank">🖨️ للطباعة</a>
+    <a class="btn" href="{% url 'section_sheet' section.id %}?date={{ day|date:'Y-m-d' }}&session={{ session }}&export=xlsx">⬇️ Excel</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3>ملخص {{ day_label }}</h3>
+  {% for s in summary %}
+    <div><b>{{ s.label }}:</b>
+      {% if s.taken %}غائبون {{ s.absent|length }}{% if s.absent %} ({% for st in s.absent %}{{ st }}{% if not forloop.last %}، {% endif %}{% endfor %}){% endif %} · متأخرون {{ s.late|length }}{% if s.late %} ({% for st in s.late %}{{ st }}{% if not forloop.last %}، {% endif %}{% endfor %}){% endif %}
+      {% else %}<span class="muted">لم تُسجَّل</span>{% endif %}</div>
+  {% endfor %}
+  <p class="muted">الملاحظات اليومية تُضاف من ملف التلميذ (لائحة القسم ← اسم التلميذ).</p>
+</div>
+{% endblock %}

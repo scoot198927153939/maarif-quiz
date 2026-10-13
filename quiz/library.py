@@ -7,7 +7,7 @@ from django.utils import timezone
 from openpyxl import Workbook
 
 from . import excel
-from .models import BOOK_PARTS, BOOK_SUBJECTS, LIBRARY_LEVELS, BookDelivery, BookStock, Classe, Section, User
+from .models import STUDENT_ORDER, BOOK_PARTS, BOOK_SUBJECTS, LIBRARY_LEVELS, BookDelivery, BookStock, Classe, Section, User
 from .views import role_required, xlsx_response
 
 library_required = role_required("admin", "librarian")
@@ -74,7 +74,7 @@ def library_level(request, classe_id):
 def library_section(request, section_id):
     section = get_object_or_404(Section.objects.select_related("classe"), pk=section_id,
                                 classe__code__in=LIBRARY_LEVELS)
-    students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by("full_name", "username"))
+    students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by(*STUDENT_ORDER))
 
     if request.method == "POST":
         today = timezone.localdate()

@@ -322,6 +322,16 @@ PRESENT, ABSENT, LATE = "P", "A", "L"
 ATTENDANCE_CHOICES = [(PRESENT, "حاضر"), (ABSENT, "غائب"), (LATE, "متأخر")]
 
 # ثلاث حصص في اليوم، كل حصة ساعتان، والغياب يُسجَّل لكل حصة
+def student_order(prefix=""):
+    """ترتيب التلاميذ برقم القيد تصاعدياً (10 بعد 9 وليس بعد 1)، ومن لا رقم له في الآخر."""
+    from django.db.models import F
+    from django.db.models.functions import Length
+    return [Length(f"{prefix}matricule").asc(nulls_last=True), F(f"{prefix}matricule").asc(nulls_last=True),
+            f"{prefix}full_name", f"{prefix}username"]
+
+
+STUDENT_ORDER = student_order()
+
 SESSION_CHOICES = [(1, "الحصة 1"), (2, "الحصة 2"), (3, "الحصة 3")]
 SESSION_TIMES = {1: ("08:00", "10:00"), 2: ("10:00", "12:00"), 3: ("12:00", "14:00")}
 

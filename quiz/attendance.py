@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from . import excel
 from .forms import ImportFileForm
 from .models import (
-    ABSENT, ATTENDANCE_CHOICES, LATE, PRESENT, SESSION_CHOICES, SESSION_TIMES, Section, StudentAttendance,
+    ABSENT, ATTENDANCE_CHOICES, LATE, PRESENT, SESSION_CHOICES, SESSION_TIMES, STUDENT_ORDER, Section, StudentAttendance, student_order,
     StudentNote, Teacher, TeacherAttendance, User,
 )
 from .views import admin_required, role_required, xlsx_response
@@ -131,7 +131,7 @@ def section_roll(request, section_id):
     section = _get_section(request.user, section_id)
     day = _date(request.POST.get("date") or request.GET.get("date"))
     session = _session(request)
-    students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by("full_name", "username"))
+    students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by(*STUDENT_ORDER))
     here = f"{reverse('section_roll', args=[section.id])}?date={day.isoformat()}&session={session}"
 
     if request.method == "POST":
@@ -170,6 +170,7 @@ def section_roll(request, section_id):
     return render(request, "quiz/attendance/section_roll.html", {
         "section": section, "tab": "roll", "rows": rows, "day": day, "day_label": _day_label(day),
         "session": session, "session_label": SESSION_LABELS[session],
+        "start": SESSION_TIMES[session][0], "end": SESSION_TIMES[session][1],
         "sessions": _sessions({a.session for a in day_records}),
         "taken": bool(records), "choices": ATTENDANCE_CHOICES,
         "prev_day": (day - datetime.timedelta(days=1)).isoformat(),
@@ -179,6 +180,25 @@ def section_roll(request, section_id):
             "absent": [r["student"] for r in rows if records.get(r["student"].id) == ABSENT],
             "late": [r["student"] for r in rows if records.get(r["student"].id) == LATE],
         },
+    })
+
+
+@supervisor_required
+def section_tools(request, section_id):
+    """الخيارات التي أُبعدت عن صفحة أخذ الغياب: يوم أو حصة أخرى، ورقة الغياب، ملخص اليوم."""
+    section = _get_section(request.user, section_id)
+    day = _date(request.GET.get("date"))
+    session = _session(request)
+    records = StudentAttendance.objects.filter(student__section=section, date=day).select_related("student")
+    summary = []
+    for n, label in SESSION_CHOICES:
+        mine = [a for a in records if a.session == n]
+        summary.append({"label": label, "taken": bool(mine),
+                        "absent": [a.student for a in mine if a.status == ABSENT],
+                        "late": [a.student for a in mine if a.status == LATE]})
+    return render(request, "quiz/attendance/section_tools.html", {
+        "section": section, "tab": "tools", "day": day, "day_label": _day_label(day), "session": session,
+        "sessions": _sessions({a.session for a in records}), "summary": summary,
     })
 
 
@@ -194,17 +214,17 @@ def section_report(request, section_id):
     students = section.students.filter(role=User.STUDENT)
     events = (
         StudentAttendance.objects.filter(student__in=students, date__range=(start, end))
-        .exclude(status=PRESENT).select_related("student").order_by("-date", "session", "student__full_name")
+        .exclude(status=PRESENT).select_related("student").order_by("-date", "session", *student_order("student__"))
     )
     notes = (
         StudentNote.objects.filter(student__in=students, date__range=(start, end))
-        .select_related("student", "author").order_by("-date", "student__full_name")
+        .select_related("student", "author").order_by("-date", *student_order("student__"))
     )
     totals = (
         students.annotate(
             n_absent=Count("attendance", filter=Q(attendance__status=ABSENT, attendance__date__range=(start, end))),
             n_late=Count("attendance", filter=Q(attendance__status=LATE, attendance__date__range=(start, end))),
-        ).filter(Q(n_absent__gt=0) | Q(n_late__gt=0)).order_by("-n_absent", "-n_late", "full_name")
+        ).filter(Q(n_absent__gt=0) | Q(n_late__gt=0)).order_by("-n_absent", "-n_late", *STUDENT_ORDER)
     )
     return render(request, "quiz/attendance/section_report.html", {
         "section": section, "tab": "report", "start": start, "end": end, "events": events, "notes": notes, "totals": totals,
@@ -225,7 +245,7 @@ def section_students(request, section_id):
     section = _get_section(request.user, section_id)
     students = _student_counts(
         section.students.filter(role=User.STUDENT, is_active=True).select_related("section")
-    ).order_by("full_name", "username")
+    ).order_by(*STUDENT_ORDER)
     if request.GET.get("export") == "xlsx":
         return xlsx_response(excel.students_list_workbook(students, section.code), f"students_{section.code}.xlsx")
     return render(request, "quiz/attendance/section_students.html", {
@@ -241,7 +261,7 @@ def section_absentees(request, section_id):
     session = _session(request)
     day_records = StudentAttendance.objects.filter(student__section=section, date=day)
     absent = [a.student for a in day_records.filter(session=session, status=ABSENT)
-              .select_related("student", "student__section").order_by("student__full_name")]
+              .select_related("student", "student__section").order_by(*student_order("student__"))]
     for st in absent:
         st.whatsapp_link = _whatsapp_link(st.whatsapp)
     if request.GET.get("export") == "xlsx":
@@ -265,7 +285,7 @@ def section_sheet(request, section_id):
     section = _get_section(request.user, section_id)
     day = _date(request.GET.get("date"))
     session = _session(request)
-    students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by("full_name", "username"))
+    students = list(section.students.filter(role=User.STUDENT, is_active=True).order_by(*STUDENT_ORDER))
     start, end = SESSION_TIMES[session]
     if request.GET.get("export") == "xlsx":
         return xlsx_response(
@@ -295,7 +315,7 @@ def students_list(request):
     q = request.GET.get("q", "").strip()
     if q:
         students = students.filter(Q(full_name__icontains=q) | Q(matricule__icontains=q) | Q(username__icontains=q))
-    students = _student_counts(students).order_by("section__order", "classe__order", "full_name", "username")
+    students = _student_counts(students).order_by("section__order", "classe__order", *STUDENT_ORDER)
     if request.GET.get("export") == "xlsx":
         name = section.code if section else "التلاميذ"
         return xlsx_response(excel.students_list_workbook(students, name),
