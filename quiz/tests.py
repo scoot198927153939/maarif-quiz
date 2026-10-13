@@ -309,6 +309,14 @@ class AttendanceTests(TestCase):
         self.assertEqual(self.client.get(reverse("teacher_dashboard")).status_code, 403)
         self.assertEqual(self.client.get(reverse("user_list")).status_code, 403)
 
+    def test_phone2_is_whatsapp_link(self):
+        self.st.guardian_phone2 = "46 00 00 01"
+        self.st.save()
+        self.assertEqual(self.st.wa_link, "https://wa.me/22246000001")
+        self.client.login(username="sup", password="x")
+        r = self.client.get(reverse("student_file", args=[self.st.id]))
+        self.assertContains(r, "https://wa.me/22246000001")
+
     def test_students_sorted_by_matricule(self):
         from .models import STUDENT_ORDER
         for mat in ("10", "9", "100"):

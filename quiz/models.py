@@ -80,8 +80,9 @@ class User(AbstractUser):
     )
     matricule = models.CharField("رقم القيد", max_length=30, unique=True, null=True, blank=True)
     guardian_phone = models.CharField("هاتف الوكيل", max_length=30, blank=True)
-    whatsapp = models.CharField("رقم الواتساب", max_length=30, blank=True)
-    guardian_phone2 = models.CharField("هاتف الوكيل 2", max_length=30, blank=True)
+    whatsapp = models.CharField("واتساب آخر", max_length=30, blank=True)
+    # «هاتف الوكيل 2» في لائحة المدرسة هو رقم الواتساب
+    guardian_phone2 = models.CharField("رقم الواتساب (هاتف الوكيل 2)", max_length=30, blank=True)
     # المراقب: الفصول التي يسجّل غيابها
     supervised_sections = models.ManyToManyField(
         Section, blank=True, related_name="supervisors", verbose_name="الأقسام التي يراقبها",
@@ -113,6 +114,21 @@ class User(AbstractUser):
     @property
     def is_librarian(self):
         return self.role == self.LIBRARIAN and not self.is_superuser
+
+    @property
+    def wa_number(self):
+        """رقم الواتساب: هاتف الوكيل 2، وإلا الرقم المسجّل كواتساب."""
+        return self.guardian_phone2 or self.whatsapp
+
+    @property
+    def wa_link(self):
+        """رابط يفتح محادثة واتساب مع الرقم مباشرة."""
+        digits = "".join(ch for ch in self.wa_number if ch.isdigit())
+        if not digits:
+            return ""
+        if len(digits) == 8:  # رقم موريتاني بدون رمز الدولة
+            digits = "222" + digits
+        return f"https://wa.me/{digits}"
 
     def allowed_sections(self):
         if self.is_admin_role:

@@ -319,3 +319,4 @@ input[type=date] { padding: 8px 10px; border: 1px solid var(--border); border-ra
   .roll-title { order: -1; flex-basis: 100%; }
   .roll-when { font-size: 1rem; }
 }
+a.wa { color: #128c7e; font-weight: 600; white-space: nowrap; }
