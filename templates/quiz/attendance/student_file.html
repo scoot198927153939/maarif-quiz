@@ -14,8 +14,7 @@
 
 <div class="card contact">
   <div>📞 هاتف الوكيل: {% if student.guardian_phone %}<a href="tel:{{ student.guardian_phone }}" dir="ltr">{{ student.guardian_phone }}</a>{% else %}<span class="muted">—</span>{% endif %}</div>
-  <div>💬 واتساب: {% if whatsapp_link %}<a href="{{ whatsapp_link }}" target="_blank" rel="noopener" dir="ltr">{{ student.whatsapp }}</a>{% else %}<span class="muted">—</span>{% endif %}</div>
-  {% if student.guardian_phone2 %}<div>📞 هاتف الوكيل 2: <a href="tel:{{ student.guardian_phone2 }}" dir="ltr">{{ student.guardian_phone2 }}</a></div>{% endif %}
+  <div>💬 واتساب: {% if student.wa_link %}<a class="wa" href="{{ student.wa_link }}" target="_blank" rel="noopener" dir="ltr">{{ student.wa_number }}</a>{% else %}<span class="muted">—</span>{% endif %}</div>
 </div>
 
 <div class="stats">

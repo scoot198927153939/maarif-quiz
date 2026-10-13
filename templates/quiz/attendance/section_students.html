@@ -15,19 +15,19 @@
 <table class="table students-list">
   <thead><tr>
     <th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الواتساب</th>
-    <th>هاتف الوكيل 2</th><th>اسم المستخدم</th><th>غياب</th><th>تأخر</th>
+    <th>اسم المستخدم</th><th>غياب</th><th>تأخر</th>
   </tr></thead>
   <tbody>
   {% for s in students %}
     <tr>
       <td>{{ forloop.counter }}</td><td>{{ s.matricule|default:"—" }}</td>
       <td><a href="{% url 'student_file' s.id %}">{{ s.full_name|default:s.username }}</a></td>
-      <td dir="ltr">{{ s.guardian_phone }}</td><td dir="ltr">{{ s.whatsapp }}</td><td dir="ltr">{{ s.guardian_phone2 }}</td>
+      <td dir="ltr">{% if s.guardian_phone %}<a href="tel:{{ s.guardian_phone }}">{{ s.guardian_phone }}</a>{% endif %}</td><td dir="ltr">{% if s.wa_link %}<a class="wa" href="{{ s.wa_link }}" target="_blank" rel="noopener">💬 {{ s.wa_number }}</a>{% endif %}</td>
       <td>{{ s.username }}</td>
       <td>{% if s.n_absent %}<span class="badge ko">{{ s.n_absent }}</span>{% else %}0{% endif %}</td>
       <td>{% if s.n_late %}<span class="badge warn">{{ s.n_late }}</span>{% else %}0{% endif %}</td>
     </tr>
-  {% empty %}<tr><td colspan="9" class="muted center">لا يوجد تلاميذ في هذا القسم.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="8" class="muted center">لا يوجد تلاميذ في هذا القسم.</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>

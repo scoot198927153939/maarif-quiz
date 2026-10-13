@@ -25,15 +25,14 @@
 <p class="muted">عدد الغائبين: <b>{{ students|length }}</b></p>
 <div class="table-wrap">
 <table class="table students-list">
-  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الواتساب</th><th>هاتف الوكيل 2</th></tr></thead>
+  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الواتساب</th></tr></thead>
   <tbody>
   {% for s in students %}
     <tr>
       <td>{{ forloop.counter }}</td><td>{{ s.matricule|default:"—" }}</td>
       <td><a href="{% url 'student_file' s.id %}">{{ s.full_name|default:s.username }}</a></td>
       <td dir="ltr">{% if s.guardian_phone %}<a href="tel:{{ s.guardian_phone }}">{{ s.guardian_phone }}</a>{% endif %}</td>
-      <td dir="ltr">{% if s.whatsapp_link %}<a href="{{ s.whatsapp_link }}" target="_blank" rel="noopener">{{ s.whatsapp }}</a>{% else %}{{ s.whatsapp }}{% endif %}</td>
-      <td dir="ltr">{% if s.guardian_phone2 %}<a href="tel:{{ s.guardian_phone2 }}">{{ s.guardian_phone2 }}</a>{% endif %}</td>
+      <td dir="ltr">{% if s.wa_link %}<a class="wa" href="{{ s.wa_link }}" target="_blank" rel="noopener">💬 {{ s.wa_number }}</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

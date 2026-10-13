@@ -428,8 +428,8 @@ def import_teachers(file):
     return created, updated, errors
 
 
-STUDENT_LIST_HEADERS = ["#", "رقم القيد", "اسم التلميذ", "القسم", "هاتف الوكيل", "رقم الواتساب",
-                        "هاتف الوكيل 2", "اسم المستخدم", "حصص الغياب", "حصص التأخر"]
+STUDENT_LIST_HEADERS = ["#", "رقم القيد", "اسم التلميذ", "القسم", "هاتف الوكيل", "الواتساب",
+                        "اسم المستخدم", "حصص الغياب", "حصص التأخر"]
 
 
 def students_list_workbook(students, title):
@@ -439,8 +439,8 @@ def students_list_workbook(students, title):
     ws.append(STUDENT_LIST_HEADERS)
     for i, s in enumerate(students, start=1):
         ws.append([i, s.matricule or "", s.full_name, str(s.section or s.classe or ""), s.guardian_phone,
-                   s.whatsapp, s.guardian_phone2, s.username, s.n_absent, s.n_late])
-    _style_header(ws, [6, 14, 32, 10, 16, 16, 16, 16, 12, 12])
+                   s.wa_number, s.username, s.n_absent, s.n_late])
+    _style_header(ws, [6, 14, 32, 10, 16, 16, 16, 12, 12])
     return wb
 
 
@@ -449,10 +449,10 @@ def absentees_workbook(students, title, day, session_label):
     ws = wb.active
     ws.title = title[:31]
     ws.append([f"الغائبون · {title} · {day.isoformat()}"])
-    ws.append(["#", "رقم القيد", "اسم التلميذ", "القسم", "هاتف الوكيل", "رقم الواتساب", "هاتف الوكيل 2"])
+    ws.append(["#", "رقم القيد", "اسم التلميذ", "القسم", "هاتف الوكيل", "الواتساب"])
     for i, s in enumerate(students, start=1):
         ws.append([i, s.matricule or "", s.full_name or s.username, str(s.section or ""),
-                   s.guardian_phone, s.whatsapp, s.guardian_phone2])
+                   s.guardian_phone, s.wa_number])
     ws.sheet_view.rightToLeft = True
     ws["A1"].font = Font(bold=True, size=13)
     for cell in ws[2]:

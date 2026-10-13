@@ -262,8 +262,6 @@ def section_absentees(request, section_id):
     day_records = StudentAttendance.objects.filter(student__section=section, date=day)
     absent = [a.student for a in day_records.filter(session=session, status=ABSENT)
               .select_related("student", "student__section").order_by(*student_order("student__"))]
-    for st in absent:
-        st.whatsapp_link = _whatsapp_link(st.whatsapp)
     if request.GET.get("export") == "xlsx":
         return xlsx_response(
             excel.absentees_workbook(absent, f"{section.code} {SESSION_LABELS[session]}", day, SESSION_LABELS[session]),
@@ -355,17 +353,7 @@ def student_file(request, student_id):
         "month_totals": _counts(attendance.filter(date__gte=month_start)),
         "month_label": f"{MONTHS[month_start.month - 1]} {month_start.year}",
         "days": days, "n_notes": student.notes.count(), "today": timezone.localdate(),
-        "whatsapp_link": _whatsapp_link(student.whatsapp),
     })
-
-
-def _whatsapp_link(number):
-    digits = "".join(ch for ch in number if ch.isdigit())
-    if not digits:
-        return ""
-    if len(digits) == 8:  # رقم موريتاني بدون رمز الدولة
-        digits = "222" + digits
-    return f"https://wa.me/{digits}"
 
 
 @supervisor_required
