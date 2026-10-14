@@ -1,4 +1,5 @@
 """استيراد وتصدير ملفات Excel (الأسئلة، التلاميذ، النتائج)."""
+import re
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -283,10 +284,25 @@ def _header_columns(header):
     return cols
 
 
+def _sheet_section(title, rows, section_codes):
+    """قسم الورقة كلها إن لم يكن في الملف عمود للقسم: من اسم الورقة (مثل 7SN2)
+    أو من سطر عنوان في أعلاها (مثل «لائحة تلاميذ القسم 7SN2»)."""
+    code = _section_code(title)
+    if code in section_codes:
+        return code
+    for row in rows[:6]:
+        for v in row:
+            for word in _clean(v).replace(":", " ").replace("-", " ").split():
+                if _section_code(word) in section_codes:
+                    return _section_code(word)
+    return ""
+
+
 def _roster_columns(rows, section_codes):
     """يحدد سطر العناوين وموضع كل عمود: من العناوين أولاً، ثم من محتوى الأعمدة
     (عمود القسم هو الذي قيمه رموز أقسام مثل 1AS1، ورقم القيد عمود أرقام، والاسم عمود نص).
-    يعيد (الأعمدة، رقم أول سطر من البيانات)."""
+    العمود الذي يدل عنوانه على القسم لا يُقبل إلا إذا كانت قيمه فعلاً رموز أقسام.
+    يعيد (الأعمدة، رقم أول سطر من البيانات)؛ قد لا يوجد عمود للقسم."""
     header_idx, cols = None, {}
     for i, row in enumerate(rows[:6]):
         found = _header_columns(row)
@@ -304,14 +320,24 @@ def _roster_columns(rows, section_codes):
         vals = column(i)
         return sum(1 for v in vals if test(v)) / len(vals) if vals else 0
 
+    is_section = lambda v: _section_code(v) in section_codes
+    looks_section = lambda v: bool(re.fullmatch(r"\d[A-Z]{1,3}\d{0,2}", _section_code(v) or ""))
+    digits = lambda v: v.replace(" ", "").replace("+", "").isdigit()
+    is_name = lambda v: not any(ch.isdigit() for ch in v) and len(v) > 2
+    # تحقق من محتوى الأعمدة التي عُرفت بعناوينها
+    if "section" in cols and share(cols["section"], looks_section) < 0.5:
+        del cols["section"]
+    if "matricule" in cols and share(cols["matricule"], digits) < 0.5:
+        del cols["matricule"]
+    if "name" in cols and share(cols["name"], is_name) < 0.5:
+        del cols["name"]
+
     used = set(cols.values())
     if "section" not in cols:
-        best = max((i for i in range(width) if i not in used),
-                   key=lambda i: share(i, lambda v: _section_code(v) in section_codes), default=None)
-        if best is not None and share(best, lambda v: _section_code(v) in section_codes) >= 0.5:
+        best = max((i for i in range(width) if i not in used), key=lambda i: share(i, is_section), default=None)
+        if best is not None and share(best, is_section) >= 0.5:
             cols["section"] = best
             used.add(best)
-    digits = lambda v: v.replace(" ", "").replace("+", "").isdigit()
     if "matricule" not in cols:
         for i in range(width):
             if i not in used and share(i, digits) >= 0.8:
@@ -320,7 +346,7 @@ def _roster_columns(rows, section_codes):
                 break
     if "name" not in cols:
         for i in range(width):
-            if i not in used and share(i, lambda v: not any(ch.isdigit() for ch in v) and len(v) > 2) >= 0.8:
+            if i not in used and share(i, is_name) >= 0.8:
                 cols["name"] = i
                 used.add(i)
                 break
@@ -332,48 +358,58 @@ def _roster_columns(rows, section_codes):
                     cols[key] = i
                     used.add(i)
                     break
-    if not {"matricule", "section", "name"} <= cols.keys():
-        cols = {"matricule": 0, "section": 1, "name": 2, "phone1": 3, "whatsapp": 4, "phone2": 5}
     return cols, (header_idx + 1 if header_idx is not None else 0)
 
 
 def import_roster(file):
     """لائحة التلاميذ للحضور. التلميذ يُعرف برقم قيده: إن وُجد تُحدَّث بياناته وفصله
     (ويبقى غيابه وملاحظاته ونتائجه)، وإلا يُنشأ له حساب اسم مستخدمه وكلمة مروره رقم القيد.
-    لا يُحذف أي تلميذ غير موجود في الملف. يعيد (المضافون، المحدَّثون، الأخطاء)."""
+    لا يُحذف أي تلميذ غير موجود في الملف. تُقرأ كل أوراق الملف؛ إن لم يكن فيها عمود للقسم
+    يؤخذ القسم من اسم الورقة أو من عنوانها. يعيد (المضافون، المحدَّثون، الأخطاء)."""
     try:
         wb = load_workbook(file, read_only=True, data_only=True)
     except Exception:
         return 0, 0, ["تعذّر قراءة الملف. تأكد أنه ملف Excel بصيغة ‎.xlsx"]
-    rows = list(wb.worksheets[0].iter_rows(values_only=True))
-    if not rows:
-        return 0, 0, ["الملف فارغ."]
     sections = {s.code.upper(): s for s in Section.objects.all()}
-    cols, first = _roster_columns(rows, set(sections))
-    body = rows[first:]
-
-    def get(row, key):
-        i = cols.get(key)
-        return _clean(row[i]) if i is not None and i < len(row) else ""
-
+    codes = set(sections)
     errors, parsed, seen = [], [], set()
-    for idx, row in enumerate(body, start=first + 1):
-        row = list(row)
-        mat, code, name = get(row, "matricule"), _section_code(get(row, "section")), get(row, "name")
-        if not any([mat, code, name]):
+    for ws in wb.worksheets:
+        rows = list(ws.iter_rows(values_only=True))
+        if not any(any(_clean(v) for v in r) for r in rows):
             continue
-        if not mat:
-            errors.append(f"السطر {idx}: رقم القيد فارغ.")
+        where = f"الورقة «{ws.title}» " if len(wb.worksheets) > 1 else ""
+        cols, first = _roster_columns(rows, codes)
+        sheet_code = "" if "section" in cols else _sheet_section(ws.title, rows, codes)
+        if "matricule" not in cols or "name" not in cols:
+            errors.append(f"{where}لم أجد عمود رقم القيد أو عمود الاسم. اجعل في أول سطر عناوين مثل: رقم القيد، القسم، اسم التلميذ.")
             continue
-        if mat in seen:
-            errors.append(f"السطر {idx}: رقم القيد {mat} مكرر في الملف.")
+        if "section" not in cols and not sheet_code:
+            errors.append(f"{where}لم أجد عمود القسم (قيم مثل 1AS1 أو 7SN2). أضف عموداً للقسم، "
+                          f"أو سمِّ الورقة باسم القسم مثل 7SN2.")
             continue
-        seen.add(mat)
-        section = sections.get(code)
-        if not section:
-            errors.append(f"السطر {idx}: القسم «{get(row, 'section')}» غير موجود. الأقسام المقبولة مثل 1AS1 و 7SN2.")
-            continue
-        parsed.append((mat, section, name, get(row, "phone1"), get(row, "whatsapp"), get(row, "phone2")))
+
+        def get(row, key):
+            i = cols.get(key)
+            return _clean(row[i]) if i is not None and i < len(row) else ""
+
+        for idx, row in enumerate(rows[first:], start=first + 1):
+            row = list(row)
+            mat, name = get(row, "matricule"), get(row, "name")
+            code = _section_code(get(row, "section")) if "section" in cols else sheet_code
+            if not mat and not name:
+                continue
+            if not mat:
+                errors.append(f"{where}السطر {idx}: رقم القيد فارغ ({name}).")
+                continue
+            if mat in seen:
+                errors.append(f"{where}السطر {idx}: رقم القيد {mat} مكرر في الملف.")
+                continue
+            seen.add(mat)
+            section = sections.get(code)
+            if not section:
+                errors.append(f"{where}السطر {idx}: القسم «{get(row, 'section') or code}» غير موجود. الأقسام المقبولة مثل 1AS1 و 7SN2.")
+                continue
+            parsed.append((mat, section, name, get(row, "phone1"), get(row, "whatsapp"), get(row, "phone2")))
     if errors:
         return 0, 0, errors
     if not parsed:
