@@ -391,9 +391,43 @@ class AttendanceTests(TestCase):
 
     def test_roster_import_rejects_unknown_section(self):
         self.client.login(username="boss", password="x")
-        r = self.client.post(reverse("roster_import"), {"file": self._xlsx([[5, "9XX1", "x"]])}, follow=True)
+        r = self.client.post(reverse("roster_import"), {"file": self._xlsx([["رقم القيد", "القسم", "الاسم"], [5, "9XX1", "سالم"]])}, follow=True)
         self.assertContains(r, "غير موجود")
         self.assertFalse(User.objects.filter(matricule="5").exists())
+
+    def test_roster_import_without_section_column_says_so(self):
+        self.client.login(username="boss", password="x")
+        f = self._xlsx([["رقم القيد", "الاسم"], [7001, "فاطمة وناني باري"], [7002, "محمد سالم"]])
+        r = self.client.post(reverse("roster_import"), {"file": f}, follow=True)
+        self.assertContains(r, "لم أجد عمود القسم")
+        self.assertNotContains(r, "«فاطمة وناني باري» غير موجود")
+        self.assertFalse(User.objects.filter(matricule="7001").exists())
+
+    def test_roster_import_section_from_sheet_name_or_title(self):
+        from openpyxl import Workbook
+        self.client.login(username="boss", password="x")
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "7SN2"
+        for row in [["رقم القيد", "الاسم"], [7101, "فاطمة وناني باري"], [7102, "محمد سالم"]]:
+            ws.append(row)
+        ws2 = wb.create_sheet("ورقة")
+        for row in [["لائحة القسم 1AS1"], ["رقم القيد", "الاسم"], [7103, "أحمد"]]:
+            ws2.append(row)
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0); buf.name = "list.xlsx"
+        self.client.post(reverse("roster_import"), {"file": buf}, follow=True)
+        self.assertEqual(User.objects.get(matricule="7101").section.code, "7SN2")
+        self.assertEqual(User.objects.get(matricule="7101").full_name, "فاطمة وناني باري")
+        self.assertEqual(User.objects.get(matricule="7103").section.code, "1AS1")
+
+    def test_roster_import_mislabelled_header_detected_by_content(self):
+        self.client.login(username="boss", password="x")
+        # عنوان «القسم» فوق عمود الأسماء، والقسم الحقيقي في عمود بلا عنوان واضح
+        f = self._xlsx([["رقم القيد", "القسم", "ملاحظة"], [7201, "فاطمة وناني باري", "7SN2"], [7202, "محمد سالم", "7SN2"]])
+        self.client.post(reverse("roster_import"), {"file": f}, follow=True)
+        u = User.objects.get(matricule="7201")
+        self.assertEqual(u.section.code, "7SN2")
+        self.assertEqual(u.full_name, "فاطمة وناني باري")
 
     def test_users_page_import_accepts_roster_and_section_codes(self):
         self.client.login(username="boss", password="x")
