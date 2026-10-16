@@ -146,7 +146,7 @@ def record(request, user, kind, action, target="", username=None):
     ActivityLog.objects.create(
         user=user if user is not None and user.pk else None,
         username=(str(user) if user is not None and user.pk else username or "")[:150],
-        role=getattr(user, "role", "") or "",
+        role=getattr(user, "effective_role", "") or "",
         kind=kind, action=action[:200], target=(target or "")[:255],
         path=request.path[:255] if request else "", ip=client_ip(request) if request else None,
     )
@@ -214,11 +214,11 @@ def activity_report(request):
     now = timezone.now()
     online = list(
         User.objects.filter(last_seen__gte=now - datetime.timedelta(minutes=ONLINE_MINUTES))
-        .select_related("classe", "section").order_by("role", "-last_seen")
+        .select_related("classe", "section").order_by("-is_superuser", "role", "-last_seen")
     )
     online_by_role = {}
     for u in online:
-        online_by_role[u.get_role_display()] = online_by_role.get(u.get_role_display(), 0) + 1
+        online_by_role[u.effective_role_label] = online_by_role.get(u.effective_role_label, 0) + 1
 
     (since, until), info = _period(request)
     logs = ActivityLog.objects.filter(created_at__gte=since, created_at__lt=until)
