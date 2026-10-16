@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -152,9 +153,14 @@ LOGOUT_REDIRECT_URL = 'login'
 # عدد مرات مغادرة صفحة الامتحان المسموح بها قبل التسليم التلقائي
 EXAM_MAX_VIOLATIONS = int(os.environ.get('EXAM_MAX_VIOLATIONS', '3'))
 
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage" if DEBUG
+    # التخزين نفسه دائماً (وليس حسب DEBUG): أمر collectstatic قد يُشغَّل دون متغيرات الموقع
+    # (مثل زر «تشغيل سكربت» في cPanel)، فيجب أن يُنشئ ملف manifest الذي يحتاجه الموقع.
+    # أثناء الاختبارات فقط نستعمل التخزين البسيط لأنها لا تشغّل collectstatic.
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage" if TESTING
                     else "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
