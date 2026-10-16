@@ -163,3 +163,11 @@ CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS",
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+# أخطاء الخادم (500) تُكتب في سجل الاستضافة (مثل ملف Passenger log) حتى عند إيقاف DEBUG
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "loggers": {"django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False}},
+}
