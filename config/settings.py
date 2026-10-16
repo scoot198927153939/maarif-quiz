@@ -169,6 +169,8 @@ CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS",
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    # يطلب من المتصفح فتح الموقع دائماً بـ https (للنطاق نفسه فقط، دون النطاقات الفرعية الأخرى)
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
 
 # أخطاء الخادم (500) تُكتب في سجل الاستضافة (مثل ملف Passenger log) حتى عند إيقاف DEBUG
 LOGGING = {
