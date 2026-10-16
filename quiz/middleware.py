@@ -37,3 +37,27 @@ class ExamLockMiddleware:
                     if name not in EXAM_URL_NAMES:
                         return redirect("take_exam", exam_id=attempt.exam_id)
         return self.get_response(request)
+
+
+class ActivityMiddleware:
+    """يحدّث «آخر نشاط» لكل مستخدم ويسجّل كل إضافة أو تعديل أو حذف ناجح (طلبات POST)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from . import activity
+
+        user = getattr(request, "user", None)
+        event = None
+        if user is not None and user.is_authenticated and not request.path.startswith(
+            (settings.STATIC_URL, settings.MEDIA_URL)
+        ):
+            activity.touch(user)
+            if request.method == "POST":
+                # يُقرأ قبل تنفيذ الطلب، حتى يبقى اسم الشيء المحذوف معروفاً
+                event = activity.describe(request)
+        response = self.get_response(request)
+        if event and response.status_code < 400:
+            activity.record(request, user, **event)
+        return response

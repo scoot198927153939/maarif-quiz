@@ -6,6 +6,7 @@
   <div class="stat"><b>{{ stats.teachers }}</b><span>أستاذ</span></div>
   <div class="stat"><b>{{ stats.exams }}</b><span>امتحان</span></div>
   <div class="stat"><b>{{ stats.attempts }}</b><span>امتحان مُسلَّم</span></div>
+  <a class="stat" href="{% url 'activity_report' %}" style="text-decoration:none;color:inherit"><b style="color:#22a55a">{{ stats.online }}</b><span>متصل الآن</span></a>
 </div>
 <div class="actions spaced">
   <a class="btn primary" href="{% url 'user_create' %}?role=student">+ تلميذ</a>
@@ -14,6 +15,7 @@
   <a class="btn" href="{% url 'class_results' %}">📊 النقاط حسب القسم</a>
   <a class="btn" href="{% url 'attendance_home' %}">🗓️ الحضور والملاحظات</a>
   <a class="btn" href="{% url 'user_create' %}?role=supervisor">+ مراقب</a>
+  <a class="btn" href="{% url 'activity_report' %}">📋 سجل النشاط</a>
 </div>
 <h2>الأقسام</h2>
 <table class="table">
