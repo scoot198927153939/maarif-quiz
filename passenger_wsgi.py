@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-DOMAIN = os.environ.get("SITE_DOMAIN", "elmaaref.net")
+DOMAIN = os.environ.get("SITE_DOMAIN", "elmaaref.maurimath.net")
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 os.environ.setdefault("DJANGO_DEBUG", "0")
 os.environ.setdefault("DJANGO_ALLOWED_HOSTS", f"{DOMAIN},www.{DOMAIN}")
