@@ -98,6 +98,15 @@ class User(AbstractUser):
         return self.full_name or self.username
 
     @property
+    def effective_role(self):
+        """الدور الفعلي: حساب المدير العام (superuser) مشرف مهما كانت قيمة خانة الدور."""
+        return self.ADMIN if self.is_superuser else self.role
+
+    @property
+    def effective_role_label(self):
+        return dict(self.ROLE_CHOICES).get(self.effective_role, "")
+
+    @property
     def is_admin_role(self):
         return self.role == self.ADMIN or self.is_superuser
 

@@ -656,3 +656,10 @@ class ActivityLogTests(TestCase):
     def test_report_is_admin_only(self):
         self.client.login(username="prof", password="x")
         self.assertEqual(self.client.get(reverse("activity_report")).status_code, 403)
+
+    def test_superuser_is_logged_as_admin_not_student(self):
+        User.objects.create_superuser("root", password="x")  # خانة الدور تبقى «تلميذ» افتراضياً
+        self.client.post(reverse("login"), {"username": "root", "password": "x"})
+        self.assertEqual(self.logs().get(kind="login").role, User.ADMIN)
+        r = self.client.get(reverse("activity_report"))
+        self.assertContains(r, "<td>مشرف</td>", html=True)

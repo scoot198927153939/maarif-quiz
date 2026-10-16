@@ -37,7 +37,7 @@
   {% for u in online %}
     <tr>
       <td><span class="dot-on"></span>{{ u }}</td>
-      <td>{{ u.get_role_display }}</td>
+      <td>{{ u.effective_role_label }}</td>
       <td>{{ u.section|default:u.classe|default:"—" }}</td>
       <td>منذ {{ u.last_seen|timesince }}</td>
     </tr>
