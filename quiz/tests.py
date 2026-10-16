@@ -589,3 +589,70 @@ class LibraryTests(TestCase):
     def test_others_cannot_open_library(self):
         self.client.login(username="a1", password="x")
         self.assertEqual(self.client.get(reverse("library_home")).status_code, 403)
+
+
+class ActivityLogTests(TestCase):
+    def setUp(self):
+        from .models import ActivityLog  # noqa: F401
+        self.c1 = Classe.objects.get(code="1AS")
+        self.math = Subject.objects.get(name="الرياضيات")
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN, full_name="المدير")
+        self.teacher = User.objects.create_user("prof", password="x", role=User.TEACHER, full_name="الأستاذ")
+        self.teacher.teaching_classes.set([self.c1])
+        self.teacher.teaching_subjects.set([self.math])
+        self.s1 = User.objects.create_user("s1", password="x", role=User.STUDENT, classe=self.c1)
+        self.exam = Exam.objects.create(title="امتحان تجريبي", classe=self.c1, subject=self.math,
+                                        teacher=self.teacher, is_published=True)
+        q = Question.objects.create(exam=self.exam, text="q", correct_answer="A", points=1)
+        for l in "AB":
+            Choice.objects.create(question=q, letter=l, text=l)
+
+    def logs(self):
+        from .models import ActivityLog
+        return ActivityLog.objects.order_by("created_at")
+
+    def test_login_logout_and_failed_login_are_logged(self):
+        self.client.post(reverse("login"), {"username": "prof", "password": "wrong"})
+        self.client.post(reverse("login"), {"username": "prof", "password": "x"})
+        self.assertIsNotNone(User.objects.get(pk=self.teacher.pk).last_seen)
+        self.client.post(reverse("logout"))
+        kinds = list(self.logs().values_list("kind", "username"))
+        self.assertEqual(kinds, [("failed", "الأستاذ"), ("login", "الأستاذ"), ("logout", "الأستاذ")])
+        self.assertIsNone(User.objects.get(pk=self.teacher.pk).last_seen)
+
+    def test_changes_are_logged_with_target_even_after_delete(self):
+        self.client.login(username="prof", password="x")
+        self.client.post(reverse("exam_toggle_publish", args=[self.exam.id]))
+        self.client.post(reverse("exam_delete", args=[self.exam.id]))
+        rows = list(self.logs().exclude(kind="login").values_list("kind", "action", "target"))
+        self.assertEqual(rows[0], ("edit", "إخفاء امتحان", "امتحان تجريبي (1AS)"))
+        self.assertEqual(rows[1], ("delete", "حذف امتحان", "امتحان تجريبي (1AS)"))
+
+    def test_student_exam_events_but_not_each_answer(self):
+        self.client.login(username="s1", password="x")
+        self.client.post(reverse("exam_intro", args=[self.exam.id]))
+        q = self.exam.questions.first()
+        self.client.post(reverse("save_answer", args=[self.exam.id]),
+                         data=json.dumps({"question": q.id, "selected": "A"}), content_type="application/json")
+        self.client.post(reverse("submit_exam", args=[self.exam.id]))
+        actions = list(self.logs().exclude(kind="login").values_list("action", flat=True))
+        self.assertEqual(actions, ["بدء امتحان", "تسليم امتحان"])
+
+    def test_report_page_shows_online_users_and_exports(self):
+        self.client.login(username="s1", password="x")
+        self.client.get(reverse("student_dashboard"))
+        self.client.login(username="boss", password="x")
+        r = self.client.get(reverse("activity_report"))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(self.s1, r.context["online"])
+        self.assertContains(r, "تسجيل الدخول")
+        r = self.client.get(reverse("activity_report") + "?mode=month")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context["per_day"]), 1)
+        r = self.client.get(reverse("activity_report") + "?mode=month&export=1")
+        self.assertEqual(r["Content-Type"].split(";")[0],
+                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    def test_report_is_admin_only(self):
+        self.client.login(username="prof", password="x")
+        self.assertEqual(self.client.get(reverse("activity_report")).status_code, 403)

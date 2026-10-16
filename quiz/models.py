@@ -87,6 +87,8 @@ class User(AbstractUser):
     supervised_sections = models.ManyToManyField(
         Section, blank=True, related_name="supervisors", verbose_name="الأقسام التي يراقبها",
     )
+    # آخر طلب من هذا المستخدم: يُعرف به من هو متصل الآن
+    last_seen = models.DateTimeField("آخر نشاط", null=True, blank=True)
 
     class Meta:
         verbose_name = "مستخدم"
@@ -454,3 +456,47 @@ class BookDelivery(models.Model):
         verbose_name = "تسليم كتاب"
         verbose_name_plural = "تسليم الكتب"
         constraints = [models.UniqueConstraint(fields=["student", "subject", "part"], name="uniq_book_delivery")]
+
+
+class ActivityLog(models.Model):
+    """حدث قام به مستخدم في التطبيق (دخول، إضافة، تعديل، حذف، امتحان...)."""
+
+    LOGIN = "login"
+    LOGOUT = "logout"
+    FAILED = "failed"
+    ADD = "add"
+    EDIT = "edit"
+    DELETE = "delete"
+    IMPORT = "import"
+    EXAM = "exam"
+    OTHER = "other"
+    KIND_CHOICES = [
+        (LOGIN, "دخول"),
+        (LOGOUT, "خروج"),
+        (FAILED, "محاولة دخول فاشلة"),
+        (ADD, "إضافة"),
+        (EDIT, "تعديل"),
+        (DELETE, "حذف"),
+        (IMPORT, "استيراد"),
+        (EXAM, "امتحان"),
+        (OTHER, "أخرى"),
+    ]
+
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="activities")
+    # يُحفظ الاسم والدور نصاً حتى يبقى السجل مقروءاً لو حُذف المستخدم
+    username = models.CharField("المستخدم", max_length=150)
+    role = models.CharField("الدور", max_length=10, blank=True)
+    kind = models.CharField("النوع", max_length=10, choices=KIND_CHOICES, default=OTHER)
+    action = models.CharField("العملية", max_length=200)
+    target = models.CharField("على", max_length=255, blank=True)
+    path = models.CharField("الصفحة", max_length=255, blank=True)
+    ip = models.GenericIPAddressField("عنوان IP", null=True, blank=True)
+    created_at = models.DateTimeField("الوقت", default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "حدث"
+        verbose_name_plural = "سجل النشاط"
+
+    def __str__(self):
+        return f"{self.username}: {self.action}"

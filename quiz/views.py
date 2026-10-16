@@ -2,6 +2,7 @@ import json
 import os
 import random
 import shutil
+from datetime import timedelta
 from functools import wraps
 
 from django.conf import settings
@@ -506,6 +507,7 @@ def admin_dashboard(request):
         "teachers": User.objects.filter(role=User.TEACHER).count(),
         "exams": Exam.objects.count(),
         "attempts": Attempt.objects.filter(status=Attempt.SUBMITTED).count(),
+        "online": User.objects.filter(last_seen__gte=timezone.now() - timedelta(minutes=5)).count(),
     }
     classes = Classe.objects.annotate(
         n_students=Count("students", filter=Q(students__role=User.STUDENT), distinct=True),
