@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>النقاط حسب القسم</h1>
+<form method="get" class="card filters-form">
+  {{ form.classe.label_tag }} {{ form.classe }}
+  {{ form.subject.label_tag }} {{ form.subject }}
+  <button class="btn primary">عرض</button>
+  {% if classe %}<button class="btn" name="export" value="xlsx">⬇️ تصدير Excel</button>{% endif %}
+</form>
+{% if classe %}
+  {% if exams %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>التلميذ</th>{% for e in exams %}<th>{{ e.subject }}<br><small>{{ e.title }} (/{{ e.total_points|floatformat:"-2" }})</small></th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for s, scores in rows %}
+      <tr><td>{{ s }} <small class="muted">{{ s.username }}</small></td>
+      {% for sc in scores %}<td class="center">{% if sc is not None %}{{ sc|floatformat:"-2" }}{% else %}<span class="muted">—</span>{% endif %}</td>{% endfor %}</tr>
+    {% empty %}
+      <tr><td colspan="{{ exams|length|add:1 }}" class="muted center">لا يوجد تلاميذ في هذا القسم.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">لا توجد امتحانات لهذا القسم{% if form.cleaned_data.subject %} في هذه المادة{% endif %}.</p>{% endif %}
+{% else %}<p class="muted">اختر قسماً لعرض النقاط.</p>{% endif %}
+{% endblock %}

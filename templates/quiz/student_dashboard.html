@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>امتحانات القسم {{ user.classe|default:"—" }}</h1>
+{% if not user.classe %}<div class="msg error">لم يُحدَّد قسمك بعد. تواصل مع الإدارة.</div>{% endif %}
+
+<h2>الامتحانات المتاحة الآن</h2>
+<div class="grid">
+{% for exam in available %}
+  <div class="card exam-card">
+    <span class="tag">{{ exam.subject }}</span>
+    <h3>{{ exam.title }}</h3>
+    <p class="muted">{{ exam.n_questions }} سؤال · {{ exam.duration_minutes }} دقيقة · الأستاذ: {{ exam.teacher }}</p>
+    {% if exam.available_until %}<p class="muted">متاح حتى {{ exam.available_until|date:"Y-m-d H:i" }}</p>{% endif %}
+    {% if exam.attempt %}
+      <a class="btn primary" href="{% url 'take_exam' exam.id %}">متابعة الامتحان</a>
+    {% else %}
+      <a class="btn primary" href="{% url 'exam_intro' exam.id %}">ابدأ الامتحان</a>
+    {% endif %}
+  </div>
+{% empty %}
+  <p class="muted">لا توجد امتحانات متاحة حالياً.</p>
+{% endfor %}
+</div>
+
+{% if upcoming %}
+<h2>امتحانات قادمة</h2>
+<div class="grid">
+{% for exam in upcoming %}
+  <div class="card exam-card muted-card">
+    <span class="tag">{{ exam.subject }}</span>
+    <h3>{{ exam.title }}</h3>
+    <p class="muted">يبدأ {{ exam.available_from|date:"Y-m-d H:i" }}</p>
+  </div>
+{% endfor %}
+</div>
+{% endif %}
+
+<h2>نتائجي</h2>
+{% if finished %}
+<table class="table">
+  <thead><tr><th>المادة</th><th>الامتحان</th><th>النقطة</th><th>تاريخ التسليم</th><th></th></tr></thead>
+  <tbody>
+  {% for exam in finished %}
+    <tr>
+      <td>{{ exam.subject }}</td>
+      <td>{{ exam.title }}</td>
+      <td>{% if exam.show_result %}<strong>{{ exam.attempt.score|floatformat:"-2" }} / {{ exam.attempt.total|floatformat:"-2" }}</strong>{% else %}<span class="muted">لم تُنشر بعد</span>{% endif %}</td>
+      <td>{{ exam.attempt.submitted_at|date:"Y-m-d H:i" }}</td>
+      <td><a href="{% url 'attempt_result' exam.id %}">التفاصيل</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="muted">لم تُجرِ أي امتحان بعد.</p>{% endif %}
+{% endblock %}

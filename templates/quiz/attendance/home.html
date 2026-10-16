@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}الحضور والملاحظات{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>الحضور والملاحظات</h1>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'teacher_roll' %}">👨‍🏫 حضور الأساتذة اليوم{% if teachers_taken %} ✓{% endif %}</a>
+    <a class="btn" href="{% url 'teacher_monthly' %}">📅 الحضور الشهري للأساتذة</a>
+    <a class="btn" href="{% url 'students_list' %}">📋 لائحة التلاميذ</a>
+  </div>
+</div>
+<p class="muted">{{ today_label }} · 3 حصص في اليوم، والأرقام 1 2 3 تحت كل قسم تصبح خضراء عند تسجيل غياب تلك الحصة.</p>
+
+<div class="grid sections-grid">
+{% for s in sections %}
+  <div class="card section-card">
+    <div class="section-head">
+      <a href="{% url 'section_roll' s.id %}"><h3>{{ s.code }}</h3></a>
+      <span class="session-dots">{% for x in s.sessions %}<span class="dot{% if x.taken %} on{% endif %}" title="{{ x.label }}">{{ x.n }}</span>{% endfor %}</span>
+    </div>
+    <p class="muted">{{ s.n_students }} تلميذ{% if s.taken_today %} · غياب اليوم: <b>{{ s.absent_today }}</b> · تأخر: <b>{{ s.late_today }}</b> <small>(بالحصص)</small>{% endif %}</p>
+    <div class="actions">
+      <a class="btn primary" href="{% url 'section_roll' s.id %}">تسجيل الغياب</a>
+      <a class="btn" href="{% url 'section_report' s.id %}">لائحة اليوم</a>
+      <a class="btn" href="{% url 'students_list' %}?section={{ s.code }}">التلاميذ</a>
+    </div>
+  </div>
+{% empty %}
+  <div class="card empty"><p>لم يُحدَّد لك أي قسم بعد. اطلب من المشرف إضافة أقسامك.</p></div>
+{% endfor %}
+</div>
+
+{% if user.is_admin_role %}
+<h2>استيراد اللوائح من Excel</h2>
+<div class="grid two">
+  <div class="card">
+    <h3>📥 لائحة التلاميذ</h3>
+    <form method="post" enctype="multipart/form-data" action="{% url 'roster_import' %}" class="inline-form">
+      {% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button class="btn primary">استيراد</button>
+    </form>
+    <a href="{% url 'roster_template' %}">⬇️ تحميل نموذج لائحة التلاميذ</a>
+    <small class="muted d-block">الأعمدة: رقم قيد الطالب، القسم، اسم الطالب، رقم هاتف الوكيل، رقم الواتساب، رقم هاتف الوكيل2 (إن وجد).
+      التلميذ يُعرف برقم قيده: عند إعادة الاستيراد تُحدَّث بياناته وقسمه ويبقى غيابه وملاحظاته ونتائجه كما هي.
+      التلميذ الجديد يُنشأ له حساب اسم المستخدم وكلمة المرور فيه هما رقم القيد.</small>
+  </div>
+  <div class="card">
+    <h3>📥 لائحة الأساتذة</h3>
+    <form method="post" enctype="multipart/form-data" action="{% url 'teachers_import' %}" class="inline-form">
+      {% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button class="btn primary">استيراد</button>
+    </form>
+    <a href="{% url 'teachers_template' %}">⬇️ تحميل نموذج لائحة الأساتذة</a>
+    <small class="muted d-block">الأعمدة: اسم الأستاذ، المادة. الأستاذ الموجود تُحدَّث مادته ويبقى سجل حضوره. ({{ n_teachers }} أستاذ في اللائحة الآن)</small>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
