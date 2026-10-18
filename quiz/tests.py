@@ -733,12 +733,13 @@ class TimetableTests(TestCase):
         import_timetable(self.general_file())
         self.client.login(username="s1", password="x")
         resp = self.client.get(reverse("my_timetable"))
-        self.assertContains(resp, "محفوظ محمد فال")
-        self.assertNotContains(resp, "احمد اسحاق")
-        self.assertContains(self.client.get(reverse("student_dashboard")), "محفوظ محمد فال")
+        self.assertContains(resp, "اللغة الفرنسية")
+        self.assertNotContains(resp, "التاريخ والجغرافيا")
+        self.assertNotContains(resp, "محفوظ محمد فال")  # اسم الأستاذ لا يظهر
+        self.assertContains(self.client.get(reverse("student_dashboard")), "اللغة الفرنسية")
         self.assertEqual(self.client.get(reverse("timetable_home")).status_code, 403)
         self.client.login(username="s2", password="x")
-        self.assertContains(self.client.get(reverse("my_timetable")), "احمد اسحاق")
+        self.assertContains(self.client.get(reverse("my_timetable")), "التاريخ والجغرافيا")
 
     def test_only_admin_imports(self):
         teacher = User.objects.create_user("prof", password="x", role=User.TEACHER)

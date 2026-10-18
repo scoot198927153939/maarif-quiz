@@ -13,7 +13,7 @@
         {% for e in row.cells %}
           {% if e %}
             <td class="has tt-{{ e.subject_key|default:'other' }}{% if e.subject == e.code %} tt-other{% endif %}">
-              <b>{{ e.subject }}</b>{% if e.teacher %}<small>{{ e.teacher }}</small>{% endif %}
+              <b>{{ e.subject }}</b>
             </td>
           {% else %}<td></td>{% endif %}
         {% endfor %}
