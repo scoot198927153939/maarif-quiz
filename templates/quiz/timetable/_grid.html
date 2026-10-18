@@ -1,0 +1,26 @@
+<div class="tt-card">
+  <div class="tt-head">
+    <h2>جدول الحصص<span class="code">{{ grid.code }}</span></h2>
+    <span class="muted">مدارس المعارف الحرة · {{ grid.count }} حصة في الأسبوع</span>
+  </div>
+  <div class="tt-wrap">
+  <table class="tt">
+    <thead><tr><th class="day">اليوم</th>{% for s in grid.slots %}<th dir="ltr">{{ s }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in grid.rows %}
+      <tr class="{% if row.today %}today{% endif %}">
+        <th class="day">{{ row.day }}</th>
+        {% for e in row.cells %}
+          {% if e %}
+            <td class="has tt-{{ e.subject_key|default:'other' }}{% if e.subject == e.code %} tt-other{% endif %}">
+              <b>{{ e.subject }}</b>{% if e.teacher %}<small>{{ e.teacher }}</small>{% endif %}
+            </td>
+          {% else %}<td></td>{% endif %}
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted" style="margin:.5rem 0 0;font-size:.8rem">آخر تحديث: {{ grid.updated|date:"Y-m-d" }}</p>
+</div>

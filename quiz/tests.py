@@ -663,3 +663,101 @@ class ActivityLogTests(TestCase):
         self.assertEqual(self.logs().get(kind="login").role, User.ADMIN)
         r = self.client.get(reverse("activity_report"))
         self.assertContains(r, "<td>مشرف</td>", html=True)
+
+
+class TimetableTests(TestCase):
+    def setUp(self):
+        from .models import Section
+        self.c1 = Classe.objects.get(code="1AS")
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN)
+        self.s1 = User.objects.create_user("s1", password="x", role=User.STUDENT, classe=self.c1,
+                                           section=Section.objects.get(code="1AS1"))
+        self.s2 = User.objects.create_user("s2", password="x", role=User.STUDENT, classe=self.c1,
+                                           section=Section.objects.get(code="1AS2"))
+
+    def general_file(self):
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "General"
+        ws["D4"] = "PLANNING"
+        ws.append([])
+        for col, code in zip("CDEF", ["1A1", "1A2", "5C1", "7D9"]):
+            ws[f"{col}5"] = code
+        ws["J5"] = "6D3"  # ملاحظة جانبية بعد فراغ: ليست فصلاً
+        rows = [
+            ("Lun", "8-10", "AR3", "M10-M8", "PC(3,5)", "Ti"),
+            (None, "10-12", "Fr1", None, "SN1", None),
+            (None, None, None, None, None, None),
+            ("Mar", "8-10", "M1", "HG1", None, None),
+        ]
+        for i, r in enumerate(rows, start=6):
+            for j, v in enumerate(r, start=1):
+                ws.cell(i, j, v)
+        for col, code in zip("CDEF", ["1A1", "1A2", "5C1", "7D9"]):
+            ws[f"{col}10"] = code
+        ws["J10"], ws["K10"] = "المادة", "الاسم"
+        legend = [("AR3", "محفوظ  محمد فال"), ("M10", "احمد اسحاق"), ("M8-M6", "حرمه بن حمود"),
+                  ("Fr1", "دم مامادو"), ("PC3", "أستاذ الفيزياء")]
+        for i, (code, name) in enumerate(legend, start=11):
+            ws[f"J{i}"], ws[f"K{i}"] = code, name
+        ws["A30"], ws["B30"], ws["C30"] = "Lun", "8-10", "IR9"  # جدول قديم أسفل الورقة
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        buf.name = "emploi.xlsx"
+        return buf
+
+    def test_import_splits_general_into_sections(self):
+        from .models import TimetableEntry
+        self.client.login(username="boss", password="x")
+        resp = self.client.post(reverse("timetable_import"), {"file": self.general_file()}, follow=True)
+        self.assertContains(resp, "4 قسماً")
+        self.assertEqual(sorted(set(TimetableEntry.objects.values_list("section_code", flat=True))),
+                         ["1AS1", "1AS2", "5MA1", "7SN9"])
+        e = TimetableEntry.objects.get(section_code="1AS1", day=0, slot="8-10")
+        self.assertEqual((e.subject, e.teacher), ("اللغة العربية", "محفوظ محمد فال"))
+        e = TimetableEntry.objects.get(section_code="1AS2", day=0)
+        self.assertEqual((e.subject, e.teacher), ("الرياضيات", "احمد اسحاق / حرمه بن حمود"))
+        e = TimetableEntry.objects.get(section_code="5MA1", day=0, slot="8-10")
+        self.assertEqual((e.subject, e.teacher), ("الفيزياء والكيمياء", "أستاذ الفيزياء"))
+        self.assertEqual(TimetableEntry.objects.get(section_code="7SN9").subject, "Ti")
+        self.assertFalse(TimetableEntry.objects.filter(code="IR9").exists())
+        self.assertContains(resp, "7SN9")  # فصل غير موجود في التطبيق
+        # إعادة الاستيراد تحلّ محلّ الجدول القديم
+        self.client.post(reverse("timetable_import"), {"file": self.general_file()})
+        self.assertEqual(TimetableEntry.objects.filter(section_code="1AS1").count(), 3)
+
+    def test_student_sees_only_own_section(self):
+        from .timetable import import_timetable
+        import_timetable(self.general_file())
+        self.client.login(username="s1", password="x")
+        resp = self.client.get(reverse("my_timetable"))
+        self.assertContains(resp, "محفوظ محمد فال")
+        self.assertNotContains(resp, "احمد اسحاق")
+        self.assertContains(self.client.get(reverse("student_dashboard")), "محفوظ محمد فال")
+        self.assertEqual(self.client.get(reverse("timetable_home")).status_code, 403)
+        self.client.login(username="s2", password="x")
+        self.assertContains(self.client.get(reverse("my_timetable")), "احمد اسحاق")
+
+    def test_only_admin_imports(self):
+        teacher = User.objects.create_user("prof", password="x", role=User.TEACHER)
+        self.client.login(username="prof", password="x")
+        self.assertEqual(self.client.get(reverse("timetable_home")).status_code, 200)
+        resp = self.client.post(reverse("timetable_import"), {"file": self.general_file()})
+        self.assertEqual(resp.status_code, 403)
+        self.assertIsNotNone(teacher)
+
+    def test_bad_file_keeps_old_timetable(self):
+        from openpyxl import Workbook
+        from .models import TimetableEntry
+        from .timetable import import_timetable
+        import_timetable(self.general_file())
+        buf = io.BytesIO()
+        Workbook().save(buf)
+        buf.seek(0)
+        buf.name = "x.xlsx"
+        self.client.login(username="boss", password="x")
+        resp = self.client.post(reverse("timetable_import"), {"file": buf}, follow=True)
+        self.assertContains(resp, "لم يتغيّر الجدول السابق")
+        self.assertTrue(TimetableEntry.objects.exists())

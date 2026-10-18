@@ -509,3 +509,27 @@ class ActivityLog(models.Model):
 
     def __str__(self):
         return f"{self.username}: {self.action}"
+
+
+class TimetableEntry(models.Model):
+    """حصة واحدة في الجدول الزمني لقسم (فصل)، مستوردة من الجدول العام."""
+
+    DAYS = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+
+    section_code = models.CharField("القسم", max_length=10, db_index=True)
+    day = models.PositiveSmallIntegerField("اليوم")  # 0 = الاثنين
+    slot_order = models.PositiveSmallIntegerField("ترتيب الحصة")
+    slot = models.CharField("التوقيت", max_length=20)
+    code = models.CharField("الرمز في الملف", max_length=40)
+    subject_key = models.CharField("رمز المادة", max_length=5, blank=True)
+    subject = models.CharField("المادة", max_length=60)
+    teacher = models.CharField("الأستاذ", max_length=200, blank=True)
+    created_at = models.DateTimeField("تاريخ الاستيراد", default=timezone.now)
+
+    class Meta:
+        ordering = ["section_code", "day", "slot_order"]
+        verbose_name = "حصة"
+        verbose_name_plural = "الجدول الزمني"
+
+    def __str__(self):
+        return f"{self.section_code} {self.DAYS[self.day]} {self.slot}: {self.subject}"

@@ -52,4 +52,11 @@
   </tbody>
 </table>
 {% else %}<p class="muted">لم تُجرِ أي امتحان بعد.</p>{% endif %}
+
+{% if grid %}
+<div style="margin-top:1.5rem">
+{% include "quiz/timetable/_style.html" %}
+{% include "quiz/timetable/_grid.html" %}
+</div>
+{% endif %}
 {% endblock %}

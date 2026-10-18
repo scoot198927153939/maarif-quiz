@@ -41,6 +41,7 @@ ACTIONS = {
     "students_import": (A.IMPORT, "استيراد التلاميذ من Excel"),
     "roster_import": (A.IMPORT, "استيراد لائحة التلاميذ"),
     "teachers_import": (A.IMPORT, "استيراد لائحة الأساتذة"),
+    "timetable_import": (A.IMPORT, "استيراد الجدول الزمني"),
     "section_roll": (A.EDIT, "تسجيل حضور التلاميذ"),
     "student_file": (A.ADD, "إضافة ملاحظة على تلميذ"),
     "note_delete": (A.DELETE, "حذف ملاحظة"),

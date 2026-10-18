@@ -21,6 +21,7 @@
       <a href="{% url 'teacher_dashboard' %}">الامتحانات</a>
       <a href="{% url 'class_results' %}">النتائج</a>
       <a href="{% url 'attendance_home' %}">الحضور</a>
+      <a href="{% url 'timetable_home' %}">الجدول الزمني</a>
       <a href="{% url 'students_list' %}">لائحة التلاميذ</a>
       <a href="{% url 'library_home' %}">المكتبة</a>
       <a href="{% url 'activity_report' %}">النشاط</a>
@@ -30,14 +31,17 @@
       <a href="{% url 'students_list' %}">لائحة التلاميذ</a>
       <a href="{% url 'teacher_roll' %}">حضور الأساتذة</a>
       <a href="{% url 'teacher_monthly' %}">الحضور الشهري</a>
+      <a href="{% url 'timetable_home' %}">الجدول الزمني</a>
     {% elif user.is_librarian %}
       <a href="{% url 'library_home' %}">توزيع الكتب</a>
     {% elif user.is_teacher %}
       <a href="{% url 'teacher_dashboard' %}">امتحاناتي</a>
       <a href="{% url 'exam_create' %}">امتحان جديد</a>
       <a href="{% url 'class_results' %}">النقاط حسب القسم</a>
+      <a href="{% url 'timetable_home' %}">الجدول الزمني</a>
     {% else %}
       <a href="{% url 'student_dashboard' %}">امتحاناتي</a>
+      <a href="{% url 'my_timetable' %}">جدول الحصص</a>
     {% endif %}
   </nav>
   <div class="who">
