@@ -721,7 +721,7 @@ class TimetableTests(TestCase):
         self.assertEqual((e.subject, e.teacher), ("الرياضيات", "احمد اسحاق / حرمه بن حمود"))
         e = TimetableEntry.objects.get(section_code="5MA1", day=0, slot="8-10")
         self.assertEqual((e.subject, e.teacher), ("الفيزياء والكيمياء", "أستاذ الفيزياء"))
-        self.assertEqual(TimetableEntry.objects.get(section_code="7SN9").subject, "Ti")
+        self.assertEqual(TimetableEntry.objects.get(section_code="7SN9").subject, "المعلوماتية والتكنولوجيا")
         self.assertFalse(TimetableEntry.objects.filter(code="IR9").exists())
         self.assertContains(resp, "7SN9")  # فصل غير موجود في التطبيق
         # إعادة الاستيراد تحلّ محلّ الجدول القديم
