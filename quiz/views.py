@@ -98,8 +98,10 @@ def student_dashboard(request):
             available.append(exam)
         elif exam.available_from and not exam.attempt:
             upcoming.append(exam)
+    from .timetable import student_grid
     return render(request, "quiz/student_dashboard.html", {
         "available": available, "finished": finished, "upcoming": upcoming,
+        "grid": student_grid(student),
     })
 
 

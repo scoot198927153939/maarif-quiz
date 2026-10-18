@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}جدول الحصص{% endblock %}
+{% block content %}
+{% include "quiz/timetable/_style.html" %}
+<div class="page-head">
+  <h1>جدول الحصص</h1>
+  {% if grid %}<div class="actions no-print"><button class="btn" onclick="window.print()">🖨️ طباعة</button></div>{% endif %}
+</div>
+{% if not section %}
+  <div class="msg error">لم يُحدَّد فصلك بعد. تواصل مع الإدارة.</div>
+{% elif grid %}
+  {% include "quiz/timetable/_grid.html" %}
+{% else %}
+  <p class="card muted">لم يُنشر جدول الحصص لفصلك {{ section }} بعد.</p>
+{% endif %}
+{% endblock %}
