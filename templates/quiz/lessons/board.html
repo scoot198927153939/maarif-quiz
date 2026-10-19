@@ -1,45 +1,70 @@
 {% extends "base.html" %}
-{% block title %}دروس {{ section }} · {{ subject_label }}{% endblock %}
+{% block title %}دفتر {{ subject_label }} · {{ section }}{% endblock %}
 {% block content %}
-{% include "quiz/lessons/_style.html" %}
-<div class="page-head">
-  <h1>{{ subject_label }} · <span dir="ltr">{{ section }}</span></h1>
-  <div class="actions">{% if user.is_recorder %}<a class="btn" href="{% url 'lessons_home' %}">رجوع</a>{% else %}<a class="btn" href="{% url 'lessons_overview' %}">رجوع</a>{% endif %}</div>
+<style>
+  .nb-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; }
+  .nb-head h1 { margin:0; }
+  .nb-head .code { display:inline-block; background:#1f6f54; color:#fff; border-radius:8px; padding:.05rem .7rem; direction:ltr; font-size:1rem; vertical-align:middle; }
+  .nb-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+  .nb-range { margin:.75rem 0 1.25rem; }
+  .nb-range summary { cursor:pointer; color:#1f6f54; font-weight:600; }
+  .nb-range form { display:flex; flex-wrap:wrap; gap:.5rem; align-items:end; margin-top:.6rem; }
+  .nb-index { display:flex; flex-wrap:wrap; gap:.4rem; margin:0 0 1.25rem; }
+  .nb-index a { padding:.25rem .7rem; border-radius:999px; border:1px solid #cfd8d3; background:#fff; text-decoration:none; color:inherit; font-size:.85rem; }
+  .nb-paper { max-width:820px; margin:0 auto; background:#fffdf7; border:1px solid #e5dfcf; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:1rem; }
+  .nb-lesson { padding:1rem 0 1.5rem; border-bottom:2px dashed #e5dfcf; scroll-margin-top:1rem; }
+  .nb-lesson:last-child { border-bottom:0; }
+  .nb-lesson-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.6rem; }
+  .nb-lesson-head h2 { margin:0; font-size:1.1rem; }
+  .nb-date { background:#1f6f54; color:#fff; border-radius:999px; padding:.1rem .7rem; font-size:.85rem; margin-inline-start:.4rem; }
+  .nb-page { display:block; margin:.6rem auto; max-width:100%; border:1px solid #e5dfcf; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .nb-small { font-size:.8rem; color:#5c6b65; }
+  @media print { .nb-paper { box-shadow:none; border:0; } .nb-lesson { break-inside:avoid-page; } }
+</style>
+
+<div class="nb-head">
+  <h1>📒 دفتر {{ subject_label }} <span class="code">{{ section }}</span></h1>
+  <div class="nb-actions no-print">
+    {% if lessons %}
+      <a class="btn primary" href="{% url 'lesson_pdf' section.id subject %}" target="_blank">📄 فتح الدفتر PDF</a>
+      <a class="btn" href="{% url 'lesson_pdf' section.id subject %}?download=1">⬇️ تحميل</a>
+    {% endif %}
+    <a class="btn" href="{% if user.is_recorder %}{% url 'lessons_home' %}{% else %}{% url 'lessons_overview' %}{% endif %}">رجوع</a>
+  </div>
 </div>
-<p class="muted">{{ lessons|length }} درس · {{ n_pages }} صفحة{% if lessons %} · آخر درس {{ lessons.0.date|date:"d/m/Y" }}{% endif %}</p>
+<p class="muted">{{ lessons|length }} درس · {{ n_pages }} صفحة{% if last %} · آخر درس {{ last.date|date:"d/m/Y" }}{% if last.title %} ({{ last.title }}){% endif %}{% endif %}</p>
 
 {% if lessons %}
-<div class="card">
-  <h3 style="margin-top:0">ملف PDF</h3>
-  <p class="muted">كل الدروس في ملف واحد مرتبة حسب التاريخ. لتلميذ متغيّب اختر أيام غيابه فقط.</p>
-  <form method="get" action="{% url 'lesson_pdf' section.id subject %}" class="filters-form" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:end">
-    <label>من <input type="date" name="from"></label>
-    <label>إلى <input type="date" name="to"></label>
-    <button class="btn primary" name="view" value="1">📄 فتح PDF</button>
-    <button class="btn" name="download" value="1">⬇️ تحميل</button>
+<details class="nb-range no-print">
+  <summary>لتلميذ متغيّب: تحميل دروس أيام محددة فقط</summary>
+  <form method="get" action="{% url 'lesson_pdf' section.id subject %}" target="_blank">
+    <label>من <input type="date" name="from" required></label>
+    <label>إلى <input type="date" name="to" required></label>
+    <button class="btn primary">📄 PDF هذه الأيام</button>
   </form>
-</div>
-{% endif %}
+</details>
 
-<div class="table-wrap">
-<table class="table">
-  <thead><tr><th>التاريخ</th><th>الدرس</th><th>الصفحات</th><th>سجّله</th><th></th></tr></thead>
-  <tbody>
-  {% for l in lessons %}
-    <tr>
-      <td style="white-space:nowrap">{{ l.date|date:"d/m/Y" }}</td>
-      <td>{{ l.title|default:"—" }}</td>
-      <td><div class="ls-thumbs">{% for p in l.pages.all %}<a href="{{ p.image.url }}" target="_blank"><img src="{{ p.image.url }}" alt="صفحة {{ forloop.counter }}" loading="lazy"></a>{% endfor %}</div></td>
-      <td>{{ l.uploaded_by|default:"—" }}<br><small class="muted">{{ l.created_at|date:"d/m H:i" }}</small></td>
-      <td>
-        <a class="btn" href="{% url 'lesson_pdf' section.id subject %}?from={{ l.date|date:'Y-m-d' }}&to={{ l.date|date:'Y-m-d' }}">PDF</a>
-        {% if user.is_admin_role or l.uploaded_by_id == user.id %}
-        <form method="post" action="{% url 'lesson_delete' l.id %}" style="display:inline" onsubmit="return confirm('حذف هذا الدرس وصوره؟')">{% csrf_token %}<button class="btn">حذف</button></form>
-        {% endif %}
-      </td>
-    </tr>
-  {% empty %}<tr><td colspan="5" class="muted center">لم يُسجَّل أي درس بعد.</td></tr>{% endfor %}
-  </tbody>
-</table>
+<div class="nb-index no-print">
+  {% for l in lessons %}<a href="#l{{ l.id }}">{{ l.number }}. {{ l.date|date:"d/m" }}</a>{% endfor %}
 </div>
+
+<div class="nb-paper">
+  {% for l in lessons %}
+  <article class="nb-lesson" id="l{{ l.id }}">
+    <div class="nb-lesson-head">
+      <h2>الدرس {{ l.number }}<span class="nb-date">{{ l.date|date:"d/m/Y" }}</span>{% if l.title %} · {{ l.title }}{% endif %}</h2>
+      <span class="nb-small no-print">
+        {{ l.uploaded_by|default:"" }} · {{ l.pages.all|length }} صفحة
+        {% if user.is_admin_role or l.uploaded_by_id == user.id %}
+          <form method="post" action="{% url 'lesson_delete' l.id %}" style="display:inline" onsubmit="return confirm('حذف هذا الدرس وصوره؟')">{% csrf_token %}<button class="btn" style="padding:.15rem .6rem">حذف</button></form>
+        {% endif %}
+      </span>
+    </div>
+    {% for p in l.pages.all %}<img class="nb-page" src="{{ p.image.url }}" alt="الدرس {{ l.number }} صفحة {{ forloop.counter }}" loading="lazy">{% endfor %}
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<p class="card muted">الدفتر فارغ: لم يُسجَّل أي درس بعد.</p>
+{% endif %}
 {% endblock %}

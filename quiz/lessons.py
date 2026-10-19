@@ -2,13 +2,15 @@
 في ملف PDF واحد يتابع به المشرف تقدّم الأستاذ ويطبعه للتلاميذ المتغيبين."""
 import datetime
 import io
+import tempfile
+import zipfile
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -21,6 +23,10 @@ lessons_required = role_required("admin", "supervisor", "recorder")
 recorder_required = role_required("recorder")
 
 SUBJECT_LABELS = dict(LESSON_SUBJECTS)
+# أسماء الملفات داخل الملف المضغوط بحروف لاتينية: مستخرج ويندوز يشوّه الأسماء العربية
+FILE_NAMES = {"AR": "Arabe", "FR": "Francais", "AN": "Anglais", "M": "Maths", "PC": "Physique-Chimie",
+              "SN": "Sciences-naturelles", "HG": "Histoire-Geo", "IR": "Education-islamique",
+              "IC": "Education-civique", "PH": "Philosophie", "TI": "Informatique"}
 MAX_PAGES = 12
 MAX_SIDE = 1600  # بكسل: يكفي للقراءة ويُبقي الملف صغيراً
 
@@ -205,45 +211,89 @@ def lesson_delete(request, lesson_id):
 
 # ---------------------------------------------------------------- المتابعة (المشرف والمراقب)
 
-@role_required("admin", "supervisor")
-def lessons_overview(request):
-    sections = list(request.user.allowed_sections().select_related("classe"))
+def _notebooks(sections):
+    """دفاتر كل فصل: دفتر لكل مادة فيها دروس أو مسجّل مكلَّف بها."""
     stats = _stats(Lesson.objects.filter(section__in=sections))
     latest = {}
     for l in Lesson.objects.filter(section__in=sections).order_by("date", "created_at"):
         latest[(l.section_id, l.subject)] = l  # يبقى آخر درس
+    pages = {}
+    for sec, sub, n in (LessonPage.objects.filter(lesson__section__in=sections).order_by()
+                        .values("lesson__section", "lesson__subject").annotate(n=Count("id"))
+                        .values_list("lesson__section", "lesson__subject", "n")):
+        pages[(sec, sub)] = n
     scoped = set(LessonScope.objects.filter(section__in=sections).values_list("section", "subject"))
-    used = {sub for (_, sub) in list(stats) + list(scoped)}
-    subjects = [(c, l) for c, l in LESSON_SUBJECTS if c in used]
-    rows = []
+    shelves = []
     for s in sections:
-        cells = []
-        for code, _ in subjects:
-            st = stats.get((s.id, code))
-            cells.append({"subject": code, "n": st["n"] if st else 0, "last": latest.get((s.id, code)),
-                          "assigned": (s.id, code) in scoped})
-        if any(c["n"] or c["assigned"] for c in cells):
-            rows.append({"section": s, "cells": cells})
+        books = []
+        for code, label in LESSON_SUBJECTS:
+            key = (s.id, code)
+            if key in stats or key in scoped:
+                books.append({"subject": code, "label": label, "n": stats.get(key, {}).get("n", 0),
+                              "pages": pages.get(key, 0), "last": latest.get(key)})
+        if books:
+            shelves.append({"section": s, "books": books, "has_lessons": any(b["n"] for b in books)})
+    return shelves
+
+
+@role_required("admin", "supervisor")
+def lessons_overview(request):
+    sections = list(request.user.allowed_sections().select_related("classe"))
+    shelves = _notebooks(sections)
     recorders = []
     if request.user.is_admin_role:
         recorders = list(User.objects.filter(role=User.RECORDER).prefetch_related("lesson_scopes__section"))
     return render(request, "quiz/lessons/overview.html", {
-        "rows": rows, "subjects": subjects, "recorders": recorders, "today": timezone.localdate(),
+        "shelves": shelves, "recorders": recorders, "any_lessons": any(sh["has_lessons"] for sh in shelves),
     })
 
 
 @lessons_required
 def lesson_board(request, section_id, subject):
+    """الدفتر: كل دروس المادة في الفصل بالترتيب، تُقرأ صفحة بعد صفحة."""
     section = get_object_or_404(Section, pk=section_id)
     subject = _subject(subject)
     if not can_view(request.user, section, subject):
         raise PermissionDenied
     lessons = list(Lesson.objects.filter(section=section, subject=subject)
-                   .select_related("uploaded_by").prefetch_related("pages").order_by("-date", "-created_at"))
+                   .select_related("uploaded_by").prefetch_related("pages").order_by("date", "created_at"))
+    for i, l in enumerate(lessons, start=1):
+        l.number = i
     return render(request, "quiz/lessons/board.html", {
         "section": section, "subject": subject, "subject_label": SUBJECT_LABELS[subject],
         "lessons": lessons, "n_pages": sum(len(l.pages.all()) for l in lessons),
+        "last": lessons[-1] if lessons else None,
     })
+
+
+@role_required("admin", "supervisor")
+def lessons_zip(request):
+    """كل الدفاتر (أو دفاتر فصل واحد) في ملف مضغوط: ملف PDF لكل مادة داخل مجلد الفصل."""
+    sections = request.user.allowed_sections()
+    one = request.GET.get("section")
+    if one:
+        sections = sections.filter(pk=one)
+    sections = list(sections)
+    tmp = tempfile.SpooledTemporaryFile(max_size=20 * 1024 * 1024)
+    count = 0
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_STORED) as zf:  # الصور مضغوطة أصلاً
+        for s in sections:
+            for code, _ in LESSON_SUBJECTS:
+                lessons = list(Lesson.objects.filter(section=s, subject=code)
+                               .prefetch_related("pages").order_by("date", "created_at"))
+                if not lessons:
+                    continue
+                data, n = build_pdf(lessons, f"{s.code} - {code}")
+                if n:
+                    zf.writestr(f"{s.code}/{s.code}_{FILE_NAMES.get(code, code)}.pdf", data)
+                    count += 1
+    if not count:
+        messages.error(request, "لا توجد دروس مصوّرة لتحميلها.")
+        return redirect("lessons_overview")
+    tmp.seek(0)
+    name = f"lessons_{sections[0].code}" if one and sections else "lessons_all"
+    resp = FileResponse(tmp, as_attachment=True, filename=f"{name}_{timezone.localdate():%Y-%m-%d}.zip")
+    return resp
 
 
 @lessons_required
