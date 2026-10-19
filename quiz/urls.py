@@ -37,6 +37,7 @@ urlpatterns = [
     path("manage/users/import/", views.students_import, name="students_import"),
     path("manage/activity/", activity.activity_report, name="activity_report"),
     path("evening/", evening.evening_home, name="evening_home"),
+    path("evening/import/", evening.evening_import, name="evening_import"),
     path("evening/template/", evening.evening_template, name="evening_template"),
     path("evening/<int:group_id>/", evening.evening_roll, name="evening_roll"),
     path("evening/<int:group_id>/absent/", evening.evening_absent, name="evening_absent"),

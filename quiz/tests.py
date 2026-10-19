@@ -943,6 +943,14 @@ class EveningTests(TestCase):
         self.assertEqual((ahmed.full_name, ahmed.guardian_phone), ("أحمد محمد", "22999999"))
         self.assertEqual(self.g.students.count(), 2)
 
+    def test_import_from_home_page(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("evening_home"))
+        self.assertContains(resp, "استيراد لائحة التلاميذ")
+        resp = self.client.post(reverse("evening_import"), {"group": self.g.id, "file": self.roster([("5", "سالم", "", "", "", "")])})
+        self.assertRedirects(resp, reverse("evening_students", args=[self.g.id]))
+        self.assertEqual(self.g.students.count(), 1)
+
     def test_bad_group_rejects_whole_file(self):
         self.client.force_login(self.admin)
         self.client.post(reverse("evening_students", args=[self.g.id]),

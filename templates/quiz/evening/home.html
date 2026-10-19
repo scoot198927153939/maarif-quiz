@@ -6,6 +6,23 @@
 </div>
 <p class="muted">{{ today_label }} · هذه الصفحة يراها المدير فقط.</p>
 
+{% if groups %}
+<div class="card">
+  <h3 style="margin-top:0">📥 استيراد لائحة التلاميذ من Excel</h3>
+  <form method="post" enctype="multipart/form-data" action="{% url 'evening_import' %}" class="inline-form">
+    {% csrf_token %}
+    <label>القسم
+      <select name="group" required>{% for g in groups %}<option value="{{ g.id }}">{{ g.code }}</option>{% endfor %}</select>
+    </label>
+    <input type="file" name="file" accept=".xlsx" required>
+    <button class="btn primary">استيراد</button>
+  </form>
+  <a href="{% url 'evening_template' %}">⬇️ تحميل نموذج الملف</a>
+  <small class="muted d-block">الأعمدة: رقم القيد، اسم التلميذ، تاريخ التسجيل، هاتف الوكيل، الواتساب، والقسم (اختياري: إن كُتب فيه قسم مسائي يوضع التلميذ فيه).
+    التلميذ الموجود تُحدَّث بياناته ولا يُحذف أحد.</small>
+</div>
+{% endif %}
+
 <div class="grid sections-grid">
 {% for g in groups %}
   <div class="card section-card">
