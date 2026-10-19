@@ -51,6 +51,7 @@ ACTIONS = {
     "evening_group_delete": (A.DELETE, "حذف قسم من الحصص المسائية"),
     "evening_roll": (A.EDIT, "تسجيل غياب الحصص المسائية"),
     "evening_students": (A.IMPORT, "استيراد تلاميذ الحصص المسائية"),
+    "evening_teachers": (A.EDIT, "تسجيل حضور أساتذة الحصص المسائية"),
     "evening_student_add": (A.ADD, "إضافة تلميذ للحصص المسائية"),
     "evening_import": (A.IMPORT, "استيراد تلاميذ الحصص المسائية"),
     "evening_student_remove": (A.DELETE, "حذف تلميذ من الحصص المسائية"),

@@ -13,11 +13,12 @@ from django.views.decorators.http import require_POST
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font
 
-from .attendance import _date, _day_label
+from .attendance import _date, _day_label, _month, _month_nav
 from .excel import HEADER_FILL, HEADER_FONT, _clean, _header_columns, _norm_header, _style_header
 from .forms import ImportFileForm
 from .models import (
-    ABSENT, ATTENDANCE_CHOICES, LATE, PRESENT, EveningAttendance, EveningGroup, EveningStudent, User,
+    ABSENT, ATTENDANCE_CHOICES, EVENING_HOURS, LATE, PRESENT, EveningAttendance, EveningGroup, EveningStudent,
+    EveningTeacher, EveningTeacherAttendance, User,
 )
 from .views import admin_required, xlsx_response
 
@@ -351,3 +352,111 @@ def evening_template(request):
     ws.append(["12346", "فاطمة سيدي", "2026-10-20", "44556677", "", ""])
     _style_header(ws, [14, 30, 16, 16, 16, 12])
     return xlsx_response(wb, "evening_students_template.xlsx")
+
+
+# ---------------------------------------------------------------- حضور الأساتذة
+
+@admin_required
+def evening_teachers(request):
+    """حضور أساتذة الحصص المسائية اليومي: لكل أستاذ مجموعة واحدة وأربع ساعات متتالية."""
+    day = _date(request.POST.get("date") or request.GET.get("date"))
+    here = f"{reverse('evening_teachers')}?date={day.isoformat()}"
+    teachers = list(EveningTeacher.objects.filter(is_active=True).select_related("group"))
+    groups = {str(g.id): g for g in EveningGroup.objects.all()}
+    if request.method == "POST":
+        if "add_teacher" in request.POST:
+            name = " ".join(request.POST.get("name", "").split())[:150]
+            if name:
+                t, created = EveningTeacher.objects.get_or_create(name=name)
+                t.is_active = True
+                t.group = groups.get(request.POST.get("group", "")) or t.group
+                t.save()
+                messages.success(request, f"تمت إضافة الأستاذ «{t}»." if created else f"الأستاذ «{t}» موجود في اللائحة.")
+            return redirect(here)
+        if "remove_teacher" in request.POST:
+            EveningTeacher.objects.filter(pk=request.POST.get("remove_teacher")).update(is_active=False)
+            messages.success(request, "تم حذف الأستاذ من اللائحة (يبقى سجل حضوره).")
+            return redirect(here)
+        if day > timezone.localdate():
+            messages.error(request, "لا يمكن تسجيل الحضور ليوم لم يأتِ بعد.")
+            return redirect(here)
+        saved = 0
+        for t in teachers:
+            status = request.POST.get(f"s_{t.id}", "")
+            group = groups.get(request.POST.get(f"g_{t.id}", ""))
+            if status in STATUS_LABELS:
+                try:
+                    hours = max(0, min(12, int(request.POST.get(f"h_{t.id}") or EVENING_HOURS)))
+                except ValueError:
+                    hours = EVENING_HOURS
+                if status == ABSENT:
+                    hours = 0
+                EveningTeacherAttendance.objects.update_or_create(
+                    teacher=t, date=day,
+                    defaults={"status": status, "group": group, "hours": hours,
+                              "note": request.POST.get(f"n_{t.id}", "").strip()[:255]},
+                )
+                saved += 1
+            else:  # «لا حصة»
+                EveningTeacherAttendance.objects.filter(teacher=t, date=day).delete()
+            if group and t.group_id != group.id:  # نتذكّر مجموعة الأستاذ للأيام القادمة
+                t.group = group
+                t.save(update_fields=["group"])
+        messages.success(request, f"تم حفظ حضور {saved} أستاذ ليوم {_day_label(day)}.")
+        return redirect(here)
+
+    records = {a.teacher_id: a for a in EveningTeacherAttendance.objects.filter(date=day)}
+    rows = []
+    for t in teachers:
+        rec = records.get(t.id)
+        rows.append({"teacher": t, "status": rec.status if rec else "", "note": rec.note if rec else "",
+                     "group": (rec.group_id if rec else None) or t.group_id,
+                     "hours": rec.hours if rec else EVENING_HOURS})
+    return render(request, "quiz/evening/teachers.html", {
+        "rows": rows, "groups": list(groups.values()), "day": day, "day_label": _day_label(day),
+        "taken": bool(records), "choices": ATTENDANCE_CHOICES, "is_future": day > timezone.localdate(),
+        "month": day.strftime("%Y-%m"), **_nav(day),
+    })
+
+
+@admin_required
+def evening_teachers_monthly(request):
+    """الحضور والغياب الشهري لكل أستاذ: أيام الحضور والغياب والتأخر ومجموع الساعات."""
+    start, end = _month(request.GET.get("month"))
+    records = list(EveningTeacherAttendance.objects.filter(date__gte=start, date__lt=end)
+                   .select_related("group").order_by("date"))
+    stats = {}
+    for a in records:
+        st = stats.setdefault(a.teacher_id, {"P": 0, "A": 0, "L": 0, "hours": 0, "absent_days": [], "groups": set()})
+        st[a.status] += 1
+        st["hours"] += a.hours
+        if a.status == ABSENT:
+            st["absent_days"].append(a.date)
+        if a.group:
+            st["groups"].add(a.group.code)
+    teachers = [t for t in EveningTeacher.objects.select_related("group") if t.is_active or t.id in stats]
+    rows = []
+    for t in teachers:
+        st = stats.get(t.id, {"P": 0, "A": 0, "L": 0, "hours": 0, "absent_days": [], "groups": set()})
+        rows.append({"teacher": t, "present": st["P"], "absent": st["A"], "late": st["L"], "hours": st["hours"],
+                     "absent_days": st["absent_days"],
+                     "groups": sorted(st["groups"]) or ([t.group.code] if t.group else [])})
+    n_days = len({a.date for a in records})
+    nav = _month_nav(start)
+    if request.GET.get("export") == "xlsx":
+        wb = Workbook()
+        ws = wb.active
+        ws.title = start.strftime("%Y-%m")
+        ws.sheet_view.rightToLeft = True
+        ws.append([f"حضور أساتذة الحصص المسائية · {nav['month_label']} · {n_days} يوم مسجّل"])
+        ws.append(["#", "الأستاذ", "المجموعة", "حاضر", "متأخر", "غائب", "مجموع الساعات", "أيام الغياب"])
+        for i, r in enumerate(rows, start=1):
+            ws.append([i, r["teacher"].name, "، ".join(r["groups"]), r["present"], r["late"], r["absent"], r["hours"],
+                       "، ".join(d.strftime("%d/%m") for d in r["absent_days"])])
+        ws["A1"].font = Font(bold=True, size=13)
+        for cell in ws[2]:
+            cell.fill, cell.font, cell.alignment = HEADER_FILL, HEADER_FONT, Alignment(horizontal="center")
+        for col, w in zip("ABCDEFGH", [5, 26, 14, 8, 8, 8, 14, 30]):
+            ws.column_dimensions[col].width = w
+        return xlsx_response(wb, f"evening_teachers_{nav['month']}.xlsx")
+    return render(request, "quiz/evening/teachers_monthly.html", {"rows": rows, "n_days": n_days, **nav})

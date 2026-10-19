@@ -657,3 +657,39 @@ class EveningAttendance(models.Model):
         ordering = ["-date"]
         verbose_name = "حضور مسائي"
         verbose_name_plural = "حضور الحصص المسائية"
+
+
+class EveningTeacher(models.Model):
+    """أستاذ في الحصص المسائية: له مجموعة واحدة وأربع ساعات متتالية معها."""
+
+    name = models.CharField("اسم الأستاذ", max_length=150, unique=True)
+    group = models.ForeignKey(EveningGroup, null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name="teachers", verbose_name="المجموعة")
+    is_active = models.BooleanField("في اللائحة", default=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "أستاذ مسائي"
+        verbose_name_plural = "أساتذة الحصص المسائية"
+
+    def __str__(self):
+        return self.name
+
+
+EVENING_HOURS = 4
+
+
+class EveningTeacherAttendance(models.Model):
+    teacher = models.ForeignKey(EveningTeacher, on_delete=models.CASCADE, related_name="attendance")
+    date = models.DateField("التاريخ")
+    status = models.CharField("الحالة", max_length=1, choices=ATTENDANCE_CHOICES, default=PRESENT)
+    group = models.ForeignKey(EveningGroup, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    hours = models.PositiveSmallIntegerField("عدد الساعات", default=EVENING_HOURS)
+    note = models.CharField("ملاحظة", max_length=255, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("teacher", "date")]
+        ordering = ["-date"]
+        verbose_name = "حضور أستاذ مسائي"
+        verbose_name_plural = "حضور أساتذة الحصص المسائية"
