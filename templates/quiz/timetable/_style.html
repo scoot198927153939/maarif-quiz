@@ -43,3 +43,38 @@
     table.tt tr.today th.day { background:#f2f5f4; color:#44524c; }
   }
 </style>
+<style id="tt-print-css">
+  @page { size:A4 landscape; margin:1cm; }
+  body.tt-print-page { font-family:Tahoma, Arial, sans-serif; margin:0; direction:rtl; }
+  body.tt-print-page .tt-card { border:0; box-shadow:none; padding:0; margin:0; }
+  body.tt-print-page .no-print { display:none !important; }
+  body.tt-print-page .muted { color:#666; }
+  body.tt-print-page table.tt td { height:4.5rem; }
+  body.tt-print-page table.tt td b { font-size:1.05rem; }
+  body.tt-print-page table.tt tr.today td { outline:0; }
+  body.tt-print-page table.tt tr.today th.day { background:#f2f5f4; color:#44524c; }
+  body.tt-print-page * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+</style>
+<script>
+// يسحب جدول قسم واحد فقط: ينسخ بطاقته في إطار مخفي ويطبعه
+function ttPrint(btn) {
+  var card = btn.closest(".tt-card");
+  var css = Array.prototype.map.call(document.querySelectorAll("style"), function (s) {
+    return s.textContent.indexOf(".tt-") >= 0 ? s.outerHTML : "";
+  }).join("");
+  var f = document.createElement("iframe");
+  f.style.cssText = "position:fixed;width:0;height:0;border:0;left:-9999px";
+  document.body.appendChild(f);
+  var d = f.contentWindow.document;
+  d.open();
+  d.write('<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>' +
+          card.querySelector(".code").textContent + '</title>' + css +
+          '</head><body class="tt-print-page">' + card.outerHTML + '</body></html>');
+  d.close();
+  setTimeout(function () {
+    f.contentWindow.focus();
+    f.contentWindow.print();
+    setTimeout(function () { f.remove(); }, 1000);
+  }, 300);
+}
+</script>

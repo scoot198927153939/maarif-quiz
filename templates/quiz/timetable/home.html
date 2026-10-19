@@ -4,7 +4,7 @@
 {% include "quiz/timetable/_style.html" %}
 <div class="page-head">
   <h1>الجدول الزمني</h1>
-  {% if grids %}<div class="actions no-print"><button class="btn" onclick="window.print()">🖨️ طباعة</button></div>{% endif %}
+  {% if show_all and grids %}<div class="actions no-print"><button class="btn" onclick="window.print()">🖨️ سحب كل الجداول</button></div>{% endif %}
 </div>
 
 {% if user.is_admin_role or user.is_supervisor %}
