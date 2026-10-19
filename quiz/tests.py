@@ -687,7 +687,7 @@ class TimetableTests(TestCase):
         ws["J5"] = "6D3"  # ملاحظة جانبية بعد فراغ: ليست فصلاً
         rows = [
             ("Lun", "8-10", "AR3", "M10-M8", "PC(3,5)", "Ti"),
-            (None, "10-12", "Fr1", None, "SN1", None),
+            (None, "10-12", "Fr1", None, "SN1", "CH"),
             (None, None, None, None, None, None),
             ("Mar", "8-10", "M1", "HG1", None, None),
         ]
@@ -721,7 +721,8 @@ class TimetableTests(TestCase):
         self.assertEqual((e.subject, e.teacher), ("الرياضيات", "احمد اسحاق / حرمه بن حمود"))
         e = TimetableEntry.objects.get(section_code="5MA1", day=0, slot="8-10")
         self.assertEqual((e.subject, e.teacher), ("الفيزياء والكيمياء", "أستاذ الفيزياء"))
-        self.assertEqual(TimetableEntry.objects.get(section_code="7SN9").subject, "المعلوماتية والتكنولوجيا")
+        self.assertEqual(TimetableEntry.objects.get(section_code="7SN9", slot="8-10").subject, "المعلوماتية والتكنولوجيا")
+        self.assertEqual(TimetableEntry.objects.get(section_code="7SN9", slot="10-12").subject, "الكيمياء")
         self.assertFalse(TimetableEntry.objects.filter(code="IR9").exists())
         self.assertContains(resp, "7SN9")  # فصل غير موجود في التطبيق
         # إعادة الاستيراد تحلّ محلّ الجدول القديم
