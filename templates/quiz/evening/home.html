@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}الحصص المسائية{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🌙 الحصص المسائية</h1>
+</div>
+<p class="muted">{{ today_label }} · هذه الصفحة يراها المدير فقط.</p>
+
+<div class="grid sections-grid">
+{% for g in groups %}
+  <div class="card section-card">
+    <div class="section-head">
+      <a href="{% url 'evening_roll' g.id %}"><h3 dir="ltr">{{ g.code }}</h3></a>
+      {% if g.taken %}<span class="badge ok">غياب اليوم مسجّل</span>{% endif %}
+    </div>
+    <p class="muted">{{ g.n_students }} تلميذ{% if g.taken %} · غائبون اليوم: <b>{{ g.n_absent }}</b>{% endif %}</p>
+    <div class="actions">
+      <a class="btn primary" href="{% url 'evening_roll' g.id %}">تسجيل الغياب</a>
+      <a class="btn" href="{% url 'evening_absent' g.id %}">الغائبون</a>
+      <a class="btn" href="{% url 'evening_students' g.id %}">التلاميذ</a>
+      {% if not g.n_students %}
+      <form method="post" action="{% url 'evening_group_delete' g.id %}" style="display:inline" onsubmit="return confirm('حذف القسم {{ g.code }}؟')">
+        {% csrf_token %}<button class="btn danger">🗑️ حذف</button></form>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">➕ إضافة قسم</h3>
+  <form method="post" class="inline-form">
+    {% csrf_token %}
+    <input type="text" name="code" placeholder="G2_7MA" dir="ltr" required maxlength="30">
+    <button class="btn primary">إضافة</button>
+  </form>
+  <small class="muted d-block">حروف لاتينية وأرقام و _ فقط، مثل G1_7MA.</small>
+</div>
+{% endblock %}

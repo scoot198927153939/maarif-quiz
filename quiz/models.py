@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models.functions import Length
 from django.utils import timezone
 
 
@@ -594,3 +595,65 @@ class LessonPage(models.Model):
 
     class Meta:
         ordering = ["order", "id"]
+
+
+# ---------------------------------------------------------------- الحصص المسائية
+
+def wa_link_for(number):
+    digits = "".join(ch for ch in (number or "") if ch.isdigit())
+    if not digits:
+        return ""
+    if len(digits) == 8:  # رقم موريتاني بدون رمز الدولة
+        digits = "222" + digits
+    return f"https://wa.me/{digits}"
+
+
+class EveningGroup(models.Model):
+    """قسم من أقسام الحصص المسائية (مثل G1_7MA)، مستقل عن فصول النهار."""
+
+    code = models.CharField("اسم القسم", max_length=30, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["code"]
+        verbose_name = "قسم مسائي"
+        verbose_name_plural = "أقسام الحصص المسائية"
+
+    def __str__(self):
+        return self.code
+
+
+class EveningStudent(models.Model):
+    group = models.ForeignKey(EveningGroup, on_delete=models.CASCADE, related_name="students", verbose_name="القسم")
+    matricule = models.CharField("رقم القيد", max_length=30)
+    full_name = models.CharField("الاسم", max_length=150)
+    registered_on = models.DateField("تاريخ التسجيل", null=True, blank=True)
+    guardian_phone = models.CharField("هاتف الوكيل", max_length=30, blank=True)
+    whatsapp = models.CharField("الواتساب", max_length=30, blank=True)
+    is_active = models.BooleanField("مسجّل", default=True)
+
+    class Meta:
+        unique_together = [("group", "matricule")]
+        ordering = [Length("matricule"), "matricule", "full_name"]
+        verbose_name = "تلميذ مسائي"
+        verbose_name_plural = "تلاميذ الحصص المسائية"
+
+    def __str__(self):
+        return self.full_name
+
+    @property
+    def wa_link(self):
+        return wa_link_for(self.whatsapp)
+
+
+class EveningAttendance(models.Model):
+    student = models.ForeignKey(EveningStudent, on_delete=models.CASCADE, related_name="attendance")
+    date = models.DateField("التاريخ")
+    status = models.CharField("الحالة", max_length=1, choices=ATTENDANCE_CHOICES, default=PRESENT)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("student", "date")]
+        ordering = ["-date"]
+        verbose_name = "حضور مسائي"
+        verbose_name_plural = "حضور الحصص المسائية"

@@ -869,3 +869,82 @@ class TimetableEditTests(TimetableTests):
         self.assertEqual((e.day, e.slot, e.subject), (2, "12-14", "العلوم الطبيعية"))
         self.client.login(username="s1", password="x")
         self.assertEqual(self.client.get(reverse("timetable_edit", args=["1AS1"])).status_code, 403)
+
+
+class EveningTests(TestCase):
+    def setUp(self):
+        from .models import EveningGroup, Section
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN)
+        self.sup = User.objects.create_user("sup", password="x", role=User.SUPERVISOR)
+        self.g = EveningGroup.objects.get(code="G1_7MA")
+        User.objects.create_user("777", password="x", role=User.STUDENT, matricule="777", full_name="تلميذ نهاري",
+                                 guardian_phone="22000000", guardian_phone2="36000000",
+                                 section=Section.objects.get(code="7MA1"))
+
+    def roster(self, rows):
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["رقم القيد", "اسم التلميذ", "تاريخ التسجيل", "هاتف الوكيل", "الواتساب", "القسم"])
+        for r in rows:
+            ws.append(r)
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        buf.name = "evening.xlsx"
+        return buf
+
+    def test_admin_only_and_default_groups(self):
+        self.client.force_login(self.sup)
+        self.assertEqual(self.client.get(reverse("evening_home")).status_code, 403)
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("evening_home"))
+        self.assertContains(resp, "G1_7MA")
+        self.assertContains(resp, "G1_7SN")
+        self.client.post(reverse("evening_home"), {"code": "g2_7ma"})
+        self.assertContains(self.client.get(reverse("evening_home")), "G2_7MA")
+
+    def test_import_roll_and_absentees(self):
+        import datetime
+        from .models import EveningAttendance, EveningStudent
+        self.client.force_login(self.admin)
+        today = datetime.date.today()
+        later = today + datetime.timedelta(days=5)
+        f = self.roster([
+            ("101", "أحمد", today.strftime("%d/%m/%Y"), "22111111", "36111111", ""),
+            ("102", "مريم", later, "22222222", "", ""),
+            ("777", "", "", "", "", "G1_7SN"),
+        ])
+        resp = self.client.post(reverse("evening_students", args=[self.g.id]), {"file": f}, follow=True)
+        self.assertContains(resp, "3 تلميذ جديد")
+        self.assertEqual(self.g.students.count(), 2)
+        day_st = EveningStudent.objects.get(matricule="777")
+        self.assertEqual(day_st.group.code, "G1_7SN")
+        self.assertEqual((day_st.full_name, day_st.guardian_phone, day_st.whatsapp), ("تلميذ نهاري", "22000000", "36000000"))
+        self.assertEqual(EveningStudent.objects.get(matricule="102").registered_on, later)
+
+        # مريم سُجّلت بعد اليوم فلا تظهر في غياب اليوم
+        roll = self.client.get(reverse("evening_roll", args=[self.g.id]))
+        self.assertContains(roll, "أحمد")
+        self.assertNotContains(roll, "مريم")
+        ahmed = EveningStudent.objects.get(matricule="101")
+        self.client.post(reverse("evening_roll", args=[self.g.id]), {"date": today.isoformat(), f"s_{ahmed.id}": "A"})
+        self.assertEqual(EveningAttendance.objects.get(student=ahmed, date=today).status, "A")
+        absent = self.client.get(reverse("evening_absent", args=[self.g.id]))
+        self.assertContains(absent, "22111111")
+        self.assertContains(absent, "wa.me/22236111111")
+        xlsx = self.client.get(reverse("evening_absent", args=[self.g.id]) + "?export=xlsx")
+        self.assertEqual(xlsx.status_code, 200)
+
+        # إعادة الاستيراد تحدّث ولا تكرّر
+        self.client.post(reverse("evening_students", args=[self.g.id]),
+                         {"file": self.roster([("101", "أحمد محمد", "", "22999999", "", "")])})
+        ahmed.refresh_from_db()
+        self.assertEqual((ahmed.full_name, ahmed.guardian_phone), ("أحمد محمد", "22999999"))
+        self.assertEqual(self.g.students.count(), 2)
+
+    def test_bad_group_rejects_whole_file(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse("evening_students", args=[self.g.id]),
+                         {"file": self.roster([("1", "أ", "", "", "", ""), ("2", "ب", "", "", "", "XX")])})
+        self.assertEqual(self.g.students.count(), 0)

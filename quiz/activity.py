@@ -15,7 +15,7 @@ from openpyxl.styles import Font
 
 from .attendance import MONTHS, _date, _day_label, _month, _month_nav
 from .models import (
-    ActivityLog, Attempt, Classe, Exam, Question, Section, StudentNote, Teacher, User,
+    ActivityLog, Attempt, Classe, EveningGroup, Exam, Question, Section, StudentNote, Teacher, User,
 )
 from .views import admin_required, xlsx_response
 
@@ -47,6 +47,11 @@ ACTIONS = {
     "lesson_delete": (A.DELETE, "حذف درس مصوّر"),
     "lesson_scopes": (A.EDIT, "تحديد مواد مسجّل الدروس"),
     "section_roll": (A.EDIT, "تسجيل حضور التلاميذ"),
+    "evening_home": (A.ADD, "إضافة قسم للحصص المسائية"),
+    "evening_group_delete": (A.DELETE, "حذف قسم من الحصص المسائية"),
+    "evening_roll": (A.EDIT, "تسجيل غياب الحصص المسائية"),
+    "evening_students": (A.IMPORT, "استيراد تلاميذ الحصص المسائية"),
+    "evening_student_remove": (A.DELETE, "حذف تلميذ من الحصص المسائية"),
     "student_file": (A.ADD, "إضافة ملاحظة على تلميذ"),
     "note_delete": (A.DELETE, "حذف ملاحظة"),
     "teacher_roll": (A.EDIT, "تسجيل حضور الأساتذة"),
@@ -82,6 +87,8 @@ def _target(kwargs):
             return Classe.objects.get(pk=kwargs["classe_id"]).code
         if "teacher_id" in kwargs:
             return Teacher.objects.get(pk=kwargs["teacher_id"]).name
+        if "group_id" in kwargs:
+            return EveningGroup.objects.get(pk=kwargs["group_id"]).code
         if "code" in kwargs:
             return kwargs["code"]
         if "note_id" in kwargs:

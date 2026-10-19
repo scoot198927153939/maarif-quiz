@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}غائبو {{ group.code }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🌙 <span dir="ltr">{{ group.code }}</span> · الغائبون</h1>
+  <div class="actions no-print">
+    <a class="btn primary" href="?from={{ start|date:'Y-m-d' }}&to={{ end|date:'Y-m-d' }}&export=xlsx">⬇️ تحميل Excel</a>
+    <button class="btn" onclick="window.print()">🖨️ طباعة</button>
+  </div>
+</div>
+{% include "quiz/evening/_tabs.html" with day=None %}
+<form method="get" class="card filters-form no-print">
+  {% if one_day %}<a class="btn" href="?date={{ prev_day }}">→ اليوم السابق</a>{% endif %}
+  <label>من <input type="date" name="from" value="{{ start|date:'Y-m-d' }}"></label>
+  <label>إلى <input type="date" name="to" value="{{ end|date:'Y-m-d' }}"></label>
+  <button class="btn">عرض</button>
+  {% if one_day %}<a class="btn" href="?date={{ next_day }}">اليوم التالي ←</a>{% endif %}
+</form>
+<h2>الغائبون · {{ title }}</h2>
+{% if not taken %}
+  <p class="msg error no-print">لم يُسجَّل الغياب{% if one_day %} في هذا اليوم{% else %} في هذه الفترة{% endif %} بعد.
+    {% if one_day %}<a href="{% url 'evening_roll' group.id %}?date={{ start|date:'Y-m-d' }}">سجّله الآن</a>{% endif %}</p>
+{% elif rows %}
+<p class="muted">عدد الغائبين: <b>{{ rows|length }}</b></p>
+<div class="table-wrap">
+<table class="table students-list">
+  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الواتساب</th>
+    {% if not one_day %}<th>عدد الغيابات</th><th>أيام الغياب</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for r in rows %}{% with s=r.student %}
+    <tr>
+      <td>{{ forloop.counter }}</td><td>{{ s.matricule }}</td><td>{{ s.full_name }}</td>
+      <td dir="ltr">{% if s.guardian_phone %}<a href="tel:{{ s.guardian_phone }}">{{ s.guardian_phone }}</a>{% endif %}</td>
+      <td dir="ltr">{% if s.wa_link %}<a class="wa" href="{{ s.wa_link }}" target="_blank" rel="noopener">💬 {{ s.whatsapp }}</a>{% endif %}</td>
+      {% if not one_day %}<td><b>{{ r.absent|length }}</b></td>
+        <td dir="ltr" style="font-size:.85rem">{% for d in r.absent %}{{ d|date:"d/m" }}{% if not forloop.last %}، {% endif %}{% endfor %}</td>{% endif %}
+    </tr>
+  {% endwith %}{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="muted">لا غائبين. 🎉</p>{% endif %}
+{% endblock %}
