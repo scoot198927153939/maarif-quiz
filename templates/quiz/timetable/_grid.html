@@ -2,6 +2,7 @@
   <div class="tt-head">
     <h2>جدول الحصص<span class="code">{{ grid.code }}</span></h2>
     <span class="muted">مدارس المعارف الحرة · {{ grid.count }} حصة في الأسبوع</span>
+    <button type="button" class="btn primary no-print tt-print" onclick="ttPrint(this)">🖨️ سحب جدول {{ grid.code }}</button>
   </div>
   <div class="tt-wrap">
   <table class="tt">
