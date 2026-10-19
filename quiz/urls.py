@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import activity, attendance, library, timetable, views
+from . import activity, attendance, lessons, library, timetable, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -39,6 +39,13 @@ urlpatterns = [
     path("timetable/", timetable.timetable_home, name="timetable_home"),
     path("timetable/import/", timetable.timetable_import, name="timetable_import"),
     path("my-timetable/", timetable.my_timetable, name="my_timetable"),
+    path("lessons/", lessons.lessons_home, name="lessons_home"),
+    path("lessons/new/<int:scope_id>/", lessons.lesson_new, name="lesson_new"),
+    path("lessons/<int:lesson_id>/delete/", lessons.lesson_delete, name="lesson_delete"),
+    path("lessons/overview/", lessons.lessons_overview, name="lessons_overview"),
+    path("lessons/<int:section_id>/<str:subject>/", lessons.lesson_board, name="lesson_board"),
+    path("lessons/<int:section_id>/<str:subject>/pdf/", lessons.lesson_pdf, name="lesson_pdf"),
+    path("manage/users/<int:user_id>/lessons/", lessons.lesson_scopes, name="lesson_scopes"),
     path("manage/students-template.xlsx", views.students_template, name="students_template"),
     # الحضور والملاحظات (المراقب والمشرف)
     path("attendance/", attendance.attendance_home, name="attendance_home"),
