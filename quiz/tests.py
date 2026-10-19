@@ -951,6 +951,19 @@ class EveningTests(TestCase):
         self.assertRedirects(resp, reverse("evening_students", args=[self.g.id]))
         self.assertEqual(self.g.students.count(), 1)
 
+    def test_add_one_student_by_hand(self):
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("evening_students", args=[self.g.id])), "إضافة تلميذ")
+        url = reverse("evening_student_add", args=[self.g.id])
+        self.client.post(url, {"matricule": "900", "full_name": "خديجة", "registered_on": "2026-10-01",
+                               "guardian_phone": "22333333", "whatsapp": ""})
+        self.client.post(url, {"matricule": "777", "full_name": "", "registered_on": ""})
+        self.assertEqual(self.g.students.count(), 2)
+        st = self.g.students.get(matricule="777")
+        self.assertEqual((st.full_name, st.whatsapp), ("تلميذ نهاري", "36000000"))
+        self.client.post(url, {"matricule": "901", "full_name": ""})  # لا اسم ولا تلميذ بهذا الرقم
+        self.assertEqual(self.g.students.count(), 2)
+
     def test_bad_group_rejects_whole_file(self):
         self.client.force_login(self.admin)
         self.client.post(reverse("evening_students", args=[self.g.id]),

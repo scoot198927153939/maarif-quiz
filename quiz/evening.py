@@ -304,6 +304,35 @@ def evening_import(request):
 
 @admin_required
 @require_POST
+def evening_student_add(request, group_id):
+    """إضافة تلميذ واحد يدوياً بدون Excel (أو تحديث بياناته إن كان رقم قيده موجوداً)."""
+    group = get_object_or_404(EveningGroup, pk=group_id)
+    mat = _clean(request.POST.get("matricule"))
+    name = _clean(request.POST.get("full_name"))
+    day = _parse_date(request.POST.get("registered_on")) or timezone.localdate()
+    if not mat:
+        messages.error(request, "اكتب رقم القيد.")
+        return redirect("evening_students", group_id=group.id)
+    day_student = User.objects.filter(matricule=mat, role=User.STUDENT).first()
+    name = name or (day_student.full_name if day_student else "")
+    if not name:
+        messages.error(request, "اكتب اسم التلميذ.")
+        return redirect("evening_students", group_id=group.id)
+    st, created = EveningStudent.objects.get_or_create(group=group, matricule=mat, defaults={"full_name": name})
+    st.full_name = name
+    st.registered_on = day
+    st.guardian_phone = (_clean(request.POST.get("guardian_phone")) or st.guardian_phone
+                         or (day_student.guardian_phone if day_student else ""))
+    st.whatsapp = (_clean(request.POST.get("whatsapp")) or st.whatsapp
+                   or (day_student.wa_number if day_student else ""))
+    st.is_active = True
+    st.save()
+    messages.success(request, f"{'تمت إضافة' if created else 'تم تحديث'} {st.full_name} في القسم {group}.")
+    return redirect("evening_students", group_id=group.id)
+
+
+@admin_required
+@require_POST
 def evening_student_remove(request, es_id):
     st = get_object_or_404(EveningStudent, pk=es_id)
     st.is_active = False

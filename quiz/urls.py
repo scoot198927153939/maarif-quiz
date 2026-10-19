@@ -42,6 +42,7 @@ urlpatterns = [
     path("evening/<int:group_id>/", evening.evening_roll, name="evening_roll"),
     path("evening/<int:group_id>/absent/", evening.evening_absent, name="evening_absent"),
     path("evening/<int:group_id>/students/", evening.evening_students, name="evening_students"),
+    path("evening/<int:group_id>/add/", evening.evening_student_add, name="evening_student_add"),
     path("evening/<int:group_id>/delete/", evening.evening_group_delete, name="evening_group_delete"),
     path("evening/student/<int:es_id>/remove/", evening.evening_student_remove, name="evening_student_remove"),
     path("timetable/", timetable.timetable_home, name="timetable_home"),
