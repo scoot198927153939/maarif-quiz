@@ -6,6 +6,19 @@
 </div>
 {% include "quiz/evening/_tabs.html" %}
 <div class="card no-print">
+  <h3 style="margin-top:0">➕ إضافة تلميذ (بدون Excel)</h3>
+  <form method="post" action="{% url 'evening_student_add' group.id %}" class="inline-form" style="flex-wrap:wrap;gap:.5rem">
+    {% csrf_token %}
+    <label>رقم القيد <input type="text" name="matricule" required dir="ltr" style="width:8rem"></label>
+    <label>اسم التلميذ <input type="text" name="full_name" style="width:14rem"></label>
+    <label>تاريخ التسجيل <input type="date" name="registered_on" value="{% now 'Y-m-d' %}"></label>
+    <label>هاتف الوكيل <input type="text" name="guardian_phone" dir="ltr" style="width:8rem"></label>
+    <label>الواتساب <input type="text" name="whatsapp" dir="ltr" style="width:8rem"></label>
+    <button class="btn primary">إضافة</button>
+  </form>
+  <small class="muted d-block">إن كان التلميذ من تلاميذ المدرسة يكفي رقم القيد: يؤخذ اسمه وأرقام وكيله من لائحة المدرسة.</small>
+</div>
+<div class="card no-print">
   <h3 style="margin-top:0">📥 إضافة تلاميذ من Excel</h3>
   <form method="post" enctype="multipart/form-data" class="inline-form">
     {% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button class="btn primary">استيراد</button>
