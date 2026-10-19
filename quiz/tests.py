@@ -969,3 +969,32 @@ class EveningTests(TestCase):
         self.client.post(reverse("evening_students", args=[self.g.id]),
                          {"file": self.roster([("1", "أ", "", "", "", ""), ("2", "ب", "", "", "", "XX")])})
         self.assertEqual(self.g.students.count(), 0)
+
+
+class EveningTeacherTests(TestCase):
+    def setUp(self):
+        from .models import EveningGroup
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN)
+        self.g = EveningGroup.objects.get(code="G1_7MA")
+
+    def test_seeded_roll_and_monthly(self):
+        import datetime
+        from .models import EveningTeacher, EveningTeacherAttendance
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("evening_teachers"))
+        for name in ["احمد كييه", "النم حمدن", "محمد الامين", "حرمه محمد يحي", "فاضل", "سليمان"]:
+            self.assertContains(resp, name)
+        a, b = EveningTeacher.objects.get(name="احمد كييه"), EveningTeacher.objects.get(name="فاضل")
+        day = datetime.date.today().replace(day=1)
+        self.client.post(reverse("evening_teachers"), {"date": day.isoformat(), f"s_{a.id}": "P", f"g_{a.id}": self.g.id,
+                                                      f"h_{a.id}": "4", f"s_{b.id}": "A", f"h_{b.id}": "4"})
+        self.assertEqual(EveningTeacherAttendance.objects.get(teacher=a).hours, 4)
+        self.assertEqual(EveningTeacherAttendance.objects.get(teacher=b).hours, 0)
+        a.refresh_from_db()
+        self.assertEqual(a.group, self.g)  # المجموعة تُحفظ للأيام القادمة
+        month = self.client.get(reverse("evening_teachers_monthly") + f"?month={day:%Y-%m}")
+        self.assertContains(month, "سحب الورقة")
+        row = next(r for r in month.context["rows"] if r["teacher"] == b)
+        self.assertEqual((row["absent"], row["hours"]), (1, 0))
+        xlsx = self.client.get(reverse("evening_teachers_monthly") + f"?month={day:%Y-%m}&export=xlsx")
+        self.assertEqual(xlsx.status_code, 200)
