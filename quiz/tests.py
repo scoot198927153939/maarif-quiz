@@ -841,3 +841,31 @@ class LessonTests(TestCase):
         r = self.client.post(reverse("user_create"), {"username": "rec2", "full_name": "x", "role": "recorder",
                                                       "password": "pw12345", "is_active": "on"})
         self.assertRedirects(r, reverse("lesson_scopes", args=[User.objects.get(username="rec2").id]))
+
+
+class TimetableEditTests(TimetableTests):
+    def test_supervisor_imports_and_edits_cells(self):
+        from .models import TimetableEntry
+        sup = User.objects.create_user("sup", password="x", role=User.SUPERVISOR)
+        self.client.login(username="sup", password="x")
+        self.client.post(reverse("timetable_import"), {"file": self.general_file()})
+        self.assertTrue(TimetableEntry.objects.filter(section_code="1AS1").exists())
+        url = reverse("timetable_edit", args=["1AS1"])
+        r = self.client.get(url)
+        self.assertContains(r, 'value="AR" selected')
+        # الاثنين 8-10: العربية ← الرياضيات، والثلاثاء 8-10 يصبح فارغاً، وخانة جديدة للفلسفة
+        r = self.client.post(url, {"c_0_0": "M", "c_0_1": "FR", "c_1_0": "", "c_1_1": "PH"})
+        self.assertRedirects(r, reverse("timetable_home") + "?s=1AS1")
+        got = {(e.day, e.slot): e.subject for e in TimetableEntry.objects.filter(section_code="1AS1")}
+        self.assertEqual(got, {(0, "8-10"): "الرياضيات", (0, "10-12"): "اللغة الفرنسية", (1, "10-12"): "الفلسفة"})
+        self.assertEqual(TimetableEntry.objects.filter(section_code="1AS2").count(), 2)  # الفصول الأخرى لم تتغير
+        self.assertIsNotNone(sup)
+
+    def test_edit_creates_timetable_for_section_without_one(self):
+        from .models import TimetableEntry
+        self.client.login(username="boss", password="x")
+        self.client.post(reverse("timetable_edit", args=["2AS1"]), {"c_2_2": "SN"})
+        e = TimetableEntry.objects.get(section_code="2AS1")
+        self.assertEqual((e.day, e.slot, e.subject), (2, "12-14", "العلوم الطبيعية"))
+        self.client.login(username="s1", password="x")
+        self.assertEqual(self.client.get(reverse("timetable_edit", args=["1AS1"])).status_code, 403)

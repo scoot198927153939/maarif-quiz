@@ -7,7 +7,7 @@
   {% if grids %}<div class="actions no-print"><button class="btn" onclick="window.print()">🖨️ طباعة</button></div>{% endif %}
 </div>
 
-{% if user.is_admin_role %}
+{% if user.is_admin_role or user.is_supervisor %}
 <form method="post" action="{% url 'timetable_import' %}" enctype="multipart/form-data" class="card no-print">
   {% csrf_token %}
   <h3 style="margin-top:0">استيراد الجدول العام</h3>
@@ -25,17 +25,22 @@
     {% for c in codes %}<a href="?s={{ c }}" class="{% if c == selected %}on{% endif %}">{{ c }}</a>{% endfor %}
     <a href="?all=1" class="{% if show_all %}on{% endif %}" style="direction:rtl">كل الفصول</a>
   </div>
+  {% if can_edit and selected and not show_all %}
+    <p style="margin:.75rem 0 0"><a class="btn primary" href="{% url 'timetable_edit' selected %}">✏️ تعديل جدول {{ selected }}</a></p>
+  {% endif %}
   {% if user.is_admin_role and missing %}
     <p class="msg error" style="margin:.75rem 0 0">فصول في الجدول غير موجودة في التطبيق (لن يراها أي تلميذ حتى تُضاف): <span dir="ltr">{{ missing|join:", " }}</span></p>
   {% endif %}
-  {% if user.is_admin_role and no_timetable %}
-    <p class="muted" style="margin:.5rem 0 0">فصول في التطبيق ليس لها جدول: <span dir="ltr">{{ no_timetable|join:", " }}</span></p>
+  {% if can_edit and no_timetable %}
+    <p class="muted" style="margin:.5rem 0 0">فصول في التطبيق ليس لها جدول (اضغط لإنشاء جدولها):
+      {% for c in no_timetable %}<a href="{% url 'timetable_edit' c %}" dir="ltr">{{ c }}</a> {% endfor %}</p>
   {% endif %}
 </div>
 {% for grid in grids %}{% include "quiz/timetable/_grid.html" %}{% empty %}
   <p class="muted no-print">اختر فصلاً لعرض جدوله.</p>
 {% endfor %}
 {% else %}
-  <p class="card muted">لم يُستورد أي جدول بعد.</p>
+  <p class="card muted">لم يُستورد أي جدول بعد.{% if can_edit and no_timetable %} يمكنك استيراد الجدول العام أعلاه، أو إنشاء جدول فصل:
+    {% for c in no_timetable %}<a href="{% url 'timetable_edit' c %}" dir="ltr">{{ c }}</a> {% endfor %}{% endif %}</p>
 {% endif %}
 {% endblock %}

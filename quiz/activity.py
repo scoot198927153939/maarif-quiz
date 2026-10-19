@@ -42,6 +42,7 @@ ACTIONS = {
     "roster_import": (A.IMPORT, "استيراد لائحة التلاميذ"),
     "teachers_import": (A.IMPORT, "استيراد لائحة الأساتذة"),
     "timetable_import": (A.IMPORT, "استيراد الجدول الزمني"),
+    "timetable_edit": (A.EDIT, "تعديل الجدول الزمني"),
     "lesson_new": (A.ADD, "تصوير درس"),
     "lesson_delete": (A.DELETE, "حذف درس مصوّر"),
     "lesson_scopes": (A.EDIT, "تحديد مواد مسجّل الدروس"),
@@ -81,6 +82,8 @@ def _target(kwargs):
             return Classe.objects.get(pk=kwargs["classe_id"]).code
         if "teacher_id" in kwargs:
             return Teacher.objects.get(pk=kwargs["teacher_id"]).name
+        if "code" in kwargs:
+            return kwargs["code"]
         if "note_id" in kwargs:
             return str(StudentNote.objects.select_related("student").get(pk=kwargs["note_id"]).student)
     except Exception:  # noqa: BLE001 — الوصف ثانوي، لا يجب أن يوقف الطلب

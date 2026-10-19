@@ -38,6 +38,7 @@ urlpatterns = [
     path("manage/activity/", activity.activity_report, name="activity_report"),
     path("timetable/", timetable.timetable_home, name="timetable_home"),
     path("timetable/import/", timetable.timetable_import, name="timetable_import"),
+    path("timetable/<str:code>/edit/", timetable.timetable_edit, name="timetable_edit"),
     path("my-timetable/", timetable.my_timetable, name="my_timetable"),
     path("lessons/", lessons.lessons_home, name="lessons_home"),
     path("lessons/new/<int:scope_id>/", lessons.lesson_new, name="lesson_new"),

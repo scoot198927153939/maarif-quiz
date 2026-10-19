@@ -4,15 +4,19 @@ import re
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from openpyxl import load_workbook
 
 from .forms import ImportFileForm
 from .models import Section, TimetableEntry
-from .views import admin_required, role_required, student_required
+from .views import role_required, student_required
 
 timetable_viewer_required = role_required("admin", "supervisor", "teacher")
+timetable_editor_required = role_required("admin", "supervisor")
+DEFAULT_SLOTS = ["8-10", "10-12", "12-14"]
+DEFAULT_DAYS = [0, 1, 2, 3, 4, 5]
 
 SUBJECTS = {
     "AR": "اللغة العربية",
@@ -251,10 +255,11 @@ def timetable_home(request):
         "missing": [c for c in codes if c not in known],
         "no_timetable": sorted(known - set(codes), key=_section_sort),
         "import_form": ImportFileForm(),
+        "can_edit": request.user.is_admin_role or request.user.is_supervisor,
     })
 
 
-@admin_required
+@timetable_editor_required
 @require_POST
 def timetable_import(request):
     form = ImportFileForm(request.POST, request.FILES)
@@ -269,6 +274,62 @@ def timetable_import(request):
         messages.success(request, f"تم استيراد الجدول الزمني لـ {len(codes)} قسماً: {'، '.join(codes)}. "
                                   "حلّ محلّ الجدول السابق.")
     return redirect("timetable_home")
+
+
+def _layout():
+    """التوقيتات والأيام المستعملة في الجدول (أو الافتراضية إن لم يُستورد شيء)."""
+    slots = []
+    for _, label in TimetableEntry.objects.values_list("slot_order", "slot").order_by("slot_order").distinct():
+        if label not in slots:
+            slots.append(label)
+    days = sorted(set(TimetableEntry.objects.values_list("day", flat=True)))
+    return slots or DEFAULT_SLOTS, days or DEFAULT_DAYS
+
+
+@timetable_editor_required
+def timetable_edit(request, code):
+    """تعديل جدول فصل واحد خانةً خانةً: لكل يوم وتوقيت مادة أو لا شيء."""
+    known = set(Section.objects.values_list("code", flat=True)) | set(_codes())
+    if code not in known:
+        messages.error(request, "هذا الفصل غير موجود.")
+        return redirect("timetable_home")
+    slots, days = _layout()
+    current = {(e.day, e.slot): e for e in TimetableEntry.objects.filter(section_code=code)}
+    if request.method == "POST":
+        objs, now = [], timezone.now()
+        for d in days:
+            for i, slot in enumerate(slots):
+                value = request.POST.get(f"c_{d}_{i}", "").strip()
+                if not value:
+                    continue
+                old = current.get((d, slot))
+                if value in SUBJECTS:
+                    key, label, raw = value, SUBJECTS[value], value
+                elif old and value == f"raw:{old.code}":
+                    key, label, raw = old.subject_key, old.subject, old.code
+                else:
+                    continue
+                teacher = old.teacher if old and old.subject_key == key else ""
+                objs.append(TimetableEntry(section_code=code, day=d, slot=slot, slot_order=i, code=raw,
+                                           subject_key=key, subject=label, teacher=teacher, created_at=now))
+        with transaction.atomic():
+            TimetableEntry.objects.filter(section_code=code).delete()
+            TimetableEntry.objects.bulk_create(objs)
+        messages.success(request, f"تم حفظ جدول {code} ({len(objs)} حصة).")
+        return redirect(f"{reverse('timetable_home')}?s={code}")
+    rows = []
+    for d in days:
+        cells = []
+        for i, slot in enumerate(slots):
+            e = current.get((d, slot))
+            value = ""
+            if e:
+                value = e.subject_key if e.subject_key in SUBJECTS and e.subject == SUBJECTS[e.subject_key] else f"raw:{e.code}"
+            cells.append({"name": f"c_{d}_{i}", "value": value, "entry": e})
+        rows.append({"day": TimetableEntry.DAYS[d], "cells": cells})
+    return render(request, "quiz/timetable/edit.html", {
+        "code": code, "slots": slots, "rows": rows, "subjects": list(SUBJECTS.items()),
+    })
 
 
 @student_required
