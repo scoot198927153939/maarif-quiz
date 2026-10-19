@@ -296,6 +296,14 @@ def evening_students(request, group_id):
 
 @admin_required
 @require_POST
+def evening_import(request):
+    """استيراد اللائحة من الصفحة الرئيسية: يُختار القسم من القائمة."""
+    group = get_object_or_404(EveningGroup, pk=request.POST.get("group") or 0)
+    return evening_students(request, group.id)
+
+
+@admin_required
+@require_POST
 def evening_student_remove(request, es_id):
     st = get_object_or_404(EveningStudent, pk=es_id)
     st.is_active = False
