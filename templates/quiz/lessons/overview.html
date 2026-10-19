@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}الدروس المصوّرة{% endblock %}
+{% block content %}
+{% include "quiz/lessons/_style.html" %}
+<h1>الدروس المصوّرة</h1>
+<p class="muted">آخر درس سُجّل في كل مادة لكل قسم، لتعرف أين وصل الأستاذ. اضغط على الخانة لرؤية الدروس وملف PDF.</p>
+
+{% if rows %}
+<div class="table-wrap">
+<table class="table ls-grid">
+  <thead><tr><th>القسم</th>{% for c, l in subjects %}<th>{{ l }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <th dir="ltr">{{ r.section }}</th>
+      {% for c in r.cells %}
+        <td>
+          {% if c.n %}
+            <a class="ls-cell" href="{% url 'lesson_board' r.section.id c.subject %}">
+              <b>{{ c.n }} درس</b>
+              <small>آخره {{ c.last.date|date:"d/m" }}</small>
+              {% if c.last.title %}<small>{{ c.last.title|truncatechars:28 }}</small>{% endif %}
+            </a>
+          {% elif c.assigned %}
+            <span class="ls-cell empty"><small>لم يُسجَّل بعد</small></span>
+          {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="card muted">لا توجد دروس مصوّرة بعد.{% if user.is_admin_role %} أنشئ حساب «مسجّل الدروس» من صفحة المستخدمين وحدّد له المواد والأقسام.{% endif %}</p>
+{% endif %}
+
+{% if user.is_admin_role %}
+<h2>مسجّلو الدروس</h2>
+<p><a class="btn primary" href="{% url 'user_create' %}?role=recorder">+ مسجّل دروس جديد</a></p>
+{% if recorders %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>الاسم</th><th>المواد والأقسام</th><th></th></tr></thead>
+  <tbody>
+  {% for u in recorders %}
+    <tr>
+      <td>{{ u }}<br><small class="muted" dir="ltr">{{ u.username }}</small></td>
+      <td>{% for sc in u.lesson_scopes.all %}<span class="tag">{{ sc.section }} · {{ sc.get_subject_display }}</span> {% empty %}<span class="muted">لم تُحدَّد بعد</span>{% endfor %}</td>
+      <td><a class="btn" href="{% url 'lesson_scopes' u.id %}">تحديد المواد والأقسام</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

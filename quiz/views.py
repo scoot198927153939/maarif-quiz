@@ -35,6 +35,7 @@ def role_required(*roles):
                 or ("student" in roles and u.is_student)
                 or ("supervisor" in roles and u.is_supervisor)
                 or ("librarian" in roles and u.is_librarian)
+                or ("recorder" in roles and u.is_recorder)
             )
             if not ok:
                 raise PermissionDenied
@@ -75,6 +76,8 @@ def home(request):
         return redirect("attendance_home")
     if u.is_librarian:
         return redirect("library_home")
+    if u.is_recorder:
+        return redirect("lessons_home")
     return redirect("teacher_dashboard")
 
 
@@ -543,6 +546,9 @@ def user_create(request):
     if request.method == "POST" and form.is_valid():
         user = form.save()
         messages.success(request, f"تم إنشاء الحساب «{user.username}».")
+        if user.is_recorder:
+            messages.info(request, "اختر الآن المواد والأقسام التي يصوّر دروسها.")
+            return redirect("lesson_scopes", user_id=user.id)
         return redirect("user_list")
     return render(request, "quiz/user_form.html", {"form": form})
 

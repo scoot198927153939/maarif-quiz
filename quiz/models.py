@@ -53,12 +53,14 @@ class User(AbstractUser):
     STUDENT = "student"
     SUPERVISOR = "supervisor"
     LIBRARIAN = "librarian"
+    RECORDER = "recorder"
     ROLE_CHOICES = [
         (ADMIN, "مشرف"),
         (TEACHER, "أستاذ"),
         (STUDENT, "تلميذ"),
         (SUPERVISOR, "مراقب"),
         (LIBRARIAN, "مسؤول المكتبة"),
+        (RECORDER, "مسجّل الدروس"),
     ]
 
     role = models.CharField("الدور", max_length=10, choices=ROLE_CHOICES, default=STUDENT)
@@ -125,6 +127,10 @@ class User(AbstractUser):
     @property
     def is_librarian(self):
         return self.role == self.LIBRARIAN and not self.is_superuser
+
+    @property
+    def is_recorder(self):
+        return self.role == self.RECORDER and not self.is_superuser
 
     @property
     def wa_number(self):
@@ -533,3 +539,58 @@ class TimetableEntry(models.Model):
 
     def __str__(self):
         return f"{self.section_code} {self.DAYS[self.day]} {self.slot}: {self.subject}"
+
+
+# مواد الدروس المصوّرة: نفس رموز الجدول الزمني
+LESSON_SUBJECTS = [
+    ("AR", "اللغة العربية"), ("FR", "اللغة الفرنسية"), ("AN", "اللغة الإنجليزية"),
+    ("M", "الرياضيات"), ("PC", "الفيزياء والكيمياء"), ("SN", "العلوم الطبيعية"),
+    ("HG", "التاريخ والجغرافيا"), ("IR", "التربية الإسلامية"), ("IC", "التربية المدنية"),
+    ("PH", "الفلسفة"), ("TI", "المعلوماتية والتكنولوجيا"),
+]
+
+
+class LessonScope(models.Model):
+    """مادة في فصل يحق لمسجّل الدروس تصوير دروسها (يحددها المشرف)."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="lesson_scopes")
+    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="lesson_scopes")
+    subject = models.CharField("المادة", max_length=5, choices=LESSON_SUBJECTS)
+
+    class Meta:
+        unique_together = [("user", "section", "subject")]
+        ordering = ["section__order", "section__code", "subject"]
+        verbose_name = "صلاحية تسجيل درس"
+        verbose_name_plural = "صلاحيات تسجيل الدروس"
+
+    def __str__(self):
+        return f"{self.user}: {self.section} {self.get_subject_display()}"
+
+
+class Lesson(models.Model):
+    """درس مصوّر: تاريخه وصفحاته. دروس نفس المادة والفصل تُجمع في ملف PDF واحد."""
+
+    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="lessons", verbose_name="الفصل")
+    subject = models.CharField("المادة", max_length=5, choices=LESSON_SUBJECTS)
+    date = models.DateField("تاريخ الدرس")
+    title = models.CharField("عنوان الدرس", max_length=200, blank=True)
+    uploaded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="lessons_uploaded", verbose_name="سجّله")
+    created_at = models.DateTimeField("وقت التسجيل", default=timezone.now)
+
+    class Meta:
+        ordering = ["date", "created_at"]
+        verbose_name = "درس مصوّر"
+        verbose_name_plural = "الدروس المصوّرة"
+
+    def __str__(self):
+        return f"{self.section} {self.get_subject_display()} {self.date}"
+
+
+class LessonPage(models.Model):
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="pages")
+    image = models.ImageField("صورة الصفحة", upload_to="lessons/%Y/%m/")
+    order = models.PositiveSmallIntegerField("الترتيب", default=0)
+
+    class Meta:
+        ordering = ["order", "id"]

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}دروس {{ section }} · {{ subject_label }}{% endblock %}
+{% block content %}
+{% include "quiz/lessons/_style.html" %}
+<div class="page-head">
+  <h1>{{ subject_label }} · <span dir="ltr">{{ section }}</span></h1>
+  <div class="actions">{% if user.is_recorder %}<a class="btn" href="{% url 'lessons_home' %}">رجوع</a>{% else %}<a class="btn" href="{% url 'lessons_overview' %}">رجوع</a>{% endif %}</div>
+</div>
+<p class="muted">{{ lessons|length }} درس · {{ n_pages }} صفحة{% if lessons %} · آخر درس {{ lessons.0.date|date:"d/m/Y" }}{% endif %}</p>
+
+{% if lessons %}
+<div class="card">
+  <h3 style="margin-top:0">ملف PDF</h3>
+  <p class="muted">كل الدروس في ملف واحد مرتبة حسب التاريخ. لتلميذ متغيّب اختر أيام غيابه فقط.</p>
+  <form method="get" action="{% url 'lesson_pdf' section.id subject %}" class="filters-form" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:end">
+    <label>من <input type="date" name="from"></label>
+    <label>إلى <input type="date" name="to"></label>
+    <button class="btn primary" name="view" value="1">📄 فتح PDF</button>
+    <button class="btn" name="download" value="1">⬇️ تحميل</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>التاريخ</th><th>الدرس</th><th>الصفحات</th><th>سجّله</th><th></th></tr></thead>
+  <tbody>
+  {% for l in lessons %}
+    <tr>
+      <td style="white-space:nowrap">{{ l.date|date:"d/m/Y" }}</td>
+      <td>{{ l.title|default:"—" }}</td>
+      <td><div class="ls-thumbs">{% for p in l.pages.all %}<a href="{{ p.image.url }}" target="_blank"><img src="{{ p.image.url }}" alt="صفحة {{ forloop.counter }}" loading="lazy"></a>{% endfor %}</div></td>
+      <td>{{ l.uploaded_by|default:"—" }}<br><small class="muted">{{ l.created_at|date:"d/m H:i" }}</small></td>
+      <td>
+        <a class="btn" href="{% url 'lesson_pdf' section.id subject %}?from={{ l.date|date:'Y-m-d' }}&to={{ l.date|date:'Y-m-d' }}">PDF</a>
+        {% if user.is_admin_role or l.uploaded_by_id == user.id %}
+        <form method="post" action="{% url 'lesson_delete' l.id %}" style="display:inline" onsubmit="return confirm('حذف هذا الدرس وصوره؟')">{% csrf_token %}<button class="btn">حذف</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% empty %}<tr><td colspan="5" class="muted center">لم يُسجَّل أي درس بعد.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

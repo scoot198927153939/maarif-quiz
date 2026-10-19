@@ -1,3 +1,4 @@
+import datetime
 import io
 import json
 
@@ -763,3 +764,72 @@ class TimetableTests(TestCase):
         resp = self.client.post(reverse("timetable_import"), {"file": buf}, follow=True)
         self.assertContains(resp, "لم يتغيّر الجدول السابق")
         self.assertTrue(TimetableEntry.objects.exists())
+
+
+@override_settings(MEDIA_ROOT="/tmp/claude-0/test-media")
+class LessonTests(TestCase):
+    def setUp(self):
+        from .models import LessonScope, Section
+        self.sec = Section.objects.get(code="2AS1")
+        self.other = Section.objects.get(code="2AS2")
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN)
+        self.rec = User.objects.create_user("rec", password="x", role=User.RECORDER, full_name="المسجّل")
+        self.scope = LessonScope.objects.create(user=self.rec, section=self.sec, subject="M")
+        self.s1 = User.objects.create_user("s1", password="x", role=User.STUDENT, section=self.sec)
+
+    def photo(self, w=1200, h=1600):
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", (w, h), "white").save(buf, "JPEG")
+        buf.seek(0)
+        buf.name = "p.jpg"
+        return buf
+
+    def test_recorder_saves_lesson_and_pdf_grows(self):
+        from .models import Lesson
+        self.client.login(username="rec", password="x")
+        self.assertContains(self.client.get(reverse("lessons_home")), "تصوير درس جديد")
+        url = reverse("lesson_new", args=[self.scope.id])
+        r = self.client.post(url, {"date": "2026-10-12", "title": "الدرس 1", "pages": [self.photo(), self.photo(3000, 4000)]})
+        self.assertRedirects(r, reverse("lessons_home"))
+        lesson = Lesson.objects.get()
+        self.assertEqual((lesson.subject, lesson.section, lesson.pages.count()), ("M", self.sec, 2))
+        self.assertLessEqual(max(lesson.pages.last().image.width, lesson.pages.last().image.height), 1600)
+        self.client.post(url, {"date": "2026-10-14", "pages": [self.photo()]})
+        pdf = self.client.get(reverse("lesson_pdf", args=[self.sec.id, "M"]))
+        self.assertEqual(pdf["Content-Type"], "application/pdf")
+        self.assertTrue(pdf.content.startswith(b"%PDF"))
+        self.assertIn(b"/Count 3", pdf.content)
+        one_day = self.client.get(reverse("lesson_pdf", args=[self.sec.id, "M"]) + "?from=2026-10-14&to=2026-10-14")
+        self.assertIn(b"/Count 1", one_day.content)
+
+    def test_recorder_limited_to_assigned_scopes(self):
+        from .models import LessonScope
+        other_scope = LessonScope.objects.create(user=self.admin, section=self.other, subject="AR")
+        self.client.login(username="rec", password="x")
+        self.assertEqual(self.client.get(reverse("lesson_new", args=[other_scope.id])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("lesson_board", args=[self.other.id, "AR"])).status_code, 403)
+        self.assertEqual(self.client.get(reverse("lessons_overview")).status_code, 403)
+        r = self.client.post(reverse("lesson_new", args=[self.scope.id]), {"date": "2026-10-12"})
+        self.assertContains(r, "صوّر صفحة واحدة على الأقل")
+
+    def test_admin_overview_and_scopes(self):
+        from .models import Lesson, LessonScope
+        Lesson.objects.create(section=self.sec, subject="M", date=datetime.date(2026, 10, 15),
+                              title="المعادلات", uploaded_by=self.rec)
+        self.client.login(username="boss", password="x")
+        r = self.client.get(reverse("lessons_overview"))
+        self.assertContains(r, "المعادلات")
+        self.assertContains(r, "15/10")
+        self.client.post(reverse("lesson_scopes", args=[self.rec.id]),
+                         {"scope": [f"{self.other.id}:AR", f"{self.sec.id}:M"]})
+        self.assertEqual(set(LessonScope.objects.filter(user=self.rec).values_list("section__code", "subject")),
+                         {("2AS2", "AR"), ("2AS1", "M")})
+        self.client.login(username="s1", password="x")
+        self.assertEqual(self.client.get(reverse("lessons_overview")).status_code, 403)
+
+    def test_new_recorder_account_goes_to_scopes(self):
+        self.client.login(username="boss", password="x")
+        r = self.client.post(reverse("user_create"), {"username": "rec2", "full_name": "x", "role": "recorder",
+                                                      "password": "pw12345", "is_active": "on"})
+        self.assertRedirects(r, reverse("lesson_scopes", args=[User.objects.get(username="rec2").id]))

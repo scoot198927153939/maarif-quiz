@@ -22,6 +22,7 @@
       <a href="{% url 'class_results' %}">النتائج</a>
       <a href="{% url 'attendance_home' %}">الحضور</a>
       <a href="{% url 'timetable_home' %}">الجدول الزمني</a>
+      <a href="{% url 'lessons_overview' %}">الدروس</a>
       <a href="{% url 'students_list' %}">لائحة التلاميذ</a>
       <a href="{% url 'library_home' %}">المكتبة</a>
       <a href="{% url 'activity_report' %}">النشاط</a>
@@ -32,6 +33,9 @@
       <a href="{% url 'teacher_roll' %}">حضور الأساتذة</a>
       <a href="{% url 'teacher_monthly' %}">الحضور الشهري</a>
       <a href="{% url 'timetable_home' %}">الجدول الزمني</a>
+      <a href="{% url 'lessons_overview' %}">الدروس</a>
+    {% elif user.is_recorder %}
+      <a href="{% url 'lessons_home' %}">دروسي</a>
     {% elif user.is_librarian %}
       <a href="{% url 'library_home' %}">توزيع الكتب</a>
     {% elif user.is_teacher %}
