@@ -43,6 +43,7 @@ urlpatterns = [
     path("lessons/new/<int:scope_id>/", lessons.lesson_new, name="lesson_new"),
     path("lessons/<int:lesson_id>/delete/", lessons.lesson_delete, name="lesson_delete"),
     path("lessons/overview/", lessons.lessons_overview, name="lessons_overview"),
+    path("lessons/download/", lessons.lessons_zip, name="lessons_zip"),
     path("lessons/<int:section_id>/<str:subject>/", lessons.lesson_board, name="lesson_board"),
     path("lessons/<int:section_id>/<str:subject>/pdf/", lessons.lesson_pdf, name="lesson_pdf"),
     path("manage/users/<int:user_id>/lessons/", lessons.lesson_scopes, name="lesson_scopes"),

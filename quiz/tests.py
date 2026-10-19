@@ -802,6 +802,14 @@ class LessonTests(TestCase):
         self.assertIn(b"/Count 3", pdf.content)
         one_day = self.client.get(reverse("lesson_pdf", args=[self.sec.id, "M"]) + "?from=2026-10-14&to=2026-10-14")
         self.assertIn(b"/Count 1", one_day.content)
+        self.client.login(username="boss", password="x")
+        r = self.client.get(reverse("lesson_board", args=[self.sec.id, "M"]))
+        self.assertContains(r, "الدرس 2")
+        self.assertEqual(r.content.count(b'class="nb-page"'), 3)
+        z = self.client.get(reverse("lessons_zip"))
+        import zipfile
+        names = zipfile.ZipFile(io.BytesIO(b"".join(z.streaming_content))).namelist()
+        self.assertEqual(names, ["2AS1/2AS1_Maths.pdf"])
 
     def test_recorder_limited_to_assigned_scopes(self):
         from .models import LessonScope
@@ -820,7 +828,7 @@ class LessonTests(TestCase):
         self.client.login(username="boss", password="x")
         r = self.client.get(reverse("lessons_overview"))
         self.assertContains(r, "المعادلات")
-        self.assertContains(r, "15/10")
+        self.assertContains(r, "15/10/2026")
         self.client.post(reverse("lesson_scopes", args=[self.rec.id]),
                          {"scope": [f"{self.other.id}:AR", f"{self.sec.id}:M"]})
         self.assertEqual(set(LessonScope.objects.filter(user=self.rec).values_list("section__code", "subject")),
