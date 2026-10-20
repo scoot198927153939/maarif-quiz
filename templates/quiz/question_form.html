@@ -21,6 +21,10 @@
         <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}</div>
       {% endfor %}
     </div>
+    <div class="field">
+      <label for="id_written_answer">✍️ {{ form.written_answer.label }} <small class="muted">(بدلاً من الخيارات: التلميذ يكتب الجواب)</small></label>
+      {{ form.written_answer }}<small class="muted">{{ form.written_answer.help_text }}</small>{{ form.written_answer.errors }}
+    </div>
     <div class="grid two">
       <div class="field"><label for="id_correct_answer">{{ form.correct_answer.label }}</label>{{ form.correct_answer }}{{ form.correct_answer.errors }}</div>
       <div class="field"><label for="id_points">{{ form.points.label }}</label>{{ form.points }}{{ form.points.errors }}</div>

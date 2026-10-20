@@ -51,11 +51,32 @@
     var total = form.querySelectorAll('.question').length;
     var answered = new Set();
     form.querySelectorAll('input[type=radio]:checked').forEach(function (i) { answered.add(i.name); });
+    form.querySelectorAll('input.written-input').forEach(function (i) { if (i.value.trim()) answered.add(i.name); });
     document.getElementById('progress').textContent = 'أجبت على ' + answered.size + ' من ' + total;
     return total - answered.size;
   }
+  // الجواب المكتوب: يُحفظ بعد التوقف عن الكتابة بثانية، وعند مغادرة الخانة
+  var typingTimers = {};
+  function saveWritten(input) {
+    clearTimeout(typingTimers[input.name]);
+    post(form.dataset.saveUrl, { question: input.dataset.question, text: input.value })
+      .then(function (res) { if (res.submitted) { submitting = true; location.reload(); } })
+      .catch(function () {});
+    updateProgress();
+  }
+  form.addEventListener('input', function (e) {
+    var input = e.target;
+    if (!input.classList.contains('written-input')) return;
+    clearTimeout(typingTimers[input.name]);
+    typingTimers[input.name] = setTimeout(function () { saveWritten(input); }, 1000);
+  });
+  form.addEventListener('keydown', function (e) {
+    // زر Enter في خانة الجواب لا يسلّم الامتحان
+    if (e.target.classList && e.target.classList.contains('written-input') && e.key === 'Enter') e.preventDefault();
+  });
   form.addEventListener('change', function (e) {
     var input = e.target;
+    if (input.classList.contains('written-input')) { saveWritten(input); return; }
     if (input.type !== 'radio') return;
     post(form.dataset.saveUrl, { question: input.dataset.question, selected: input.value })
       .then(function (res) { if (res.submitted) { submitting = true; location.reload(); } })

@@ -30,6 +30,10 @@
     <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }}</span><span class="tag">{{ q.points|floatformat:"-2" }} ن</span></div>
     <p class="q-text" dir="auto">{{ q.text|linebreaksbr }}</p>
     {% if q.image %}<img class="q-image" src="{{ q.image.url }}" alt="صورة السؤال" draggable="false">{% endif %}
+    {% if q.is_written %}
+    <input type="text" class="written-input" name="q_{{ q.id }}" data-question="{{ q.id }}" value="{{ q.saved_text }}"
+           maxlength="300" dir="auto" autocomplete="off" spellcheck="false" placeholder="اكتب جوابك هنا">
+    {% else %}
     <div class="choices">
       {% for c in q.choices.all %}
       <label class="choice">
@@ -38,6 +42,7 @@
       </label>
       {% endfor %}
     </div>
+    {% endif %}
   </div>
   {% endfor %}
   <div class="submit-row">

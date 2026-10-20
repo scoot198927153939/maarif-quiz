@@ -2,6 +2,7 @@
 import re
 from decimal import Decimal, InvalidOperation
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -10,7 +11,8 @@ from .models import Choice, Classe, Question, Section, Teacher, User
 from .topics import guess_topic
 
 ARABIC_LETTERS = {"أ": "A", "ا": "A", "ب": "B", "ج": "C", "د": "D", "ه": "E", "هـ": "E", "و": "F"}
-QUESTION_HEADERS = ["السؤال", "A", "B", "C", "D", "الإجابة الصحيحة", "النقاط", "المستوى", "صورة", "المحور"]
+QUESTION_HEADERS = ["السؤال", "A", "B", "C", "D", "الإجابة الصحيحة", "النقاط", "المستوى", "صورة", "المحور",
+                    "الجواب المكتوب"]
 LEVEL_CODES = {"بسيط": "E", "متوسط": "M", "صعب": "H", "E": "E", "M": "M", "H": "H"}
 STUDENT_HEADERS = ["اسم المستخدم", "الاسم الكامل", "كلمة المرور", "القسم"]
 ROSTER_HEADERS = ["رقم قيد الطالب", "القسم", "اسم الطالب", "رقم هاتف الوكيل", "رقم الواتساب", "رقم هاتف الوكيل2", "Retiré"]
@@ -57,7 +59,8 @@ def questions_template():
     ws.append(["كم يساوي 5 + 7 ؟", "10", "12", "13", "15", "B", 2, "بسيط", "", "العمليات"])
     ws.append(["ما عاصمة موريتانيا؟", "نواذيبو", "روصو", "نواكشوط", "", "C", 1])
     ws.append(["أيّ عدد أوّلي؟", "9", "15", "21", "7", "د", 1])
-    _style_header(ws, [50, 20, 20, 20, 20, 18, 10, 10, 14, 22])
+    ws.append(["Comment s'appelle le gamète mâle ?", "", "", "", "", "", 1, "بسيط", "", "", "spermatozoïde"])
+    _style_header(ws, [50, 20, 20, 20, 20, 18, 10, 10, 14, 22, 26])
     notes = wb.create_sheet("طريقة الاستعمال")
     notes.sheet_view.rightToLeft = True
     for line in [
@@ -65,9 +68,13 @@ def questions_template():
         "الأعمدة A و B و C و D هي الخيارات. يمكن ترك خيار فارغاً إذا كان للسؤال خياران أو ثلاثة فقط.",
         "عمود «الإجابة الصحيحة»: اكتب رمز الخيار الصحيح: A أو B أو C أو D (أو أ / ب / ج / د، أو 1 / 2 / 3 / 4).",
         "عمود «النقاط»: عدد نقاط السؤال (إذا تُرك فارغاً تُحسب نقطة واحدة).",
+        "عمود «الجواب المكتوب» (اختياري): لسؤال يكتب فيه التلميذ الجواب بنفسه، اترك الخيارات والإجابة الصحيحة فارغة "
+        "واكتب الجواب هنا. يمكن وضع أكثر من جواب مقبول مفصولة بـ | مثل: queue | flagelle. "
+        "التصحيح تلقائي ولا يهتم بالحروف الكبيرة والحركات وأدوات التعريف (le, la, l', ال).",
         "عمود «المستوى» (اختياري): بسيط أو متوسط أو صعب. عمود «المحور» (اختياري): الدرس الذي يقيسه السؤال. "
         "يُستعملان في تقرير التلميذ؛ إذا تُرك المحور فارغاً يحدده التطبيق تلقائياً.",
-        "لإضافة صورة لسؤال: بعد الاستيراد افتح السؤال من صفحة الامتحان واضغط «تعديل» ثم ارفع الصورة.",
+        "لإضافة صورة لسؤال: الصق الصورة في سطر السؤال نفسه داخل ملف Excel (عمود «صورة») فتُضاف مع السؤال، "
+        "أو بعد الاستيراد افتح السؤال من صفحة الامتحان واضغط «تعديل» ثم ارفع الصورة.",
     ]:
         notes.append([line])
     notes.column_dimensions["A"].width = 110
@@ -107,9 +114,10 @@ def import_questions(exam, file, replace=False):
     parsed = []
     start_order = exam.questions.count()
     for idx, row in enumerate(rows[1:], start=2):
-        row = list(row) + [None] * 10
+        row = list(row) + [None] * 11
         text = _clean(row[0])
         options = [_clean(v) for v in row[1:5]]
+        written = _clean(row[10])[:300]
         if not text and not any(options):
             continue  # سطر فارغ
         correct = normalize_letter(row[5])
@@ -118,10 +126,12 @@ def import_questions(exam, file, replace=False):
         if not text:
             errors.append(f"السطر {idx}: نص السؤال فارغ.")
             continue
-        if len(choices) < 2:
-            errors.append(f"السطر {idx}: يجب وضع خيارين على الأقل.")
+        if written:
+            choices, correct = [], ""
+        elif len(choices) < 2:
+            errors.append(f"السطر {idx}: يجب وضع خيارين على الأقل (أو ملء عمود «الجواب المكتوب»).")
             continue
-        if correct not in [c[0] for c in choices]:
+        elif correct not in [c[0] for c in choices]:
             errors.append(f"السطر {idx}: رمز الإجابة الصحيحة «{_clean(row[5])}» لا يطابق أي خيار.")
             continue
         try:
@@ -133,13 +143,14 @@ def import_questions(exam, file, replace=False):
             continue
         level = LEVEL_CODES.get(_clean(row[7]), "")
         topic = _clean(row[9])[:100]
-        parsed.append((text, choices, correct, points, level, topic))
+        parsed.append((text, choices, correct, points, level, topic, idx, written))
 
     if errors:
         return 0, errors
     if not parsed:
         return 0, ["لم يتم العثور على أي سؤال في الملف."]
 
+    embedded = _embedded_images(file)
     with transaction.atomic():
         images = {}
         if replace:
@@ -152,14 +163,38 @@ def import_questions(exam, file, replace=False):
             else:
                 exam.questions.all().delete()
             start_order = 0
-        for n, (text, choices, correct, points, level, topic) in enumerate(parsed, start=1):
-            q = Question.objects.create(
-                exam=exam, text=text, correct_answer=correct, points=points, order=start_order + n, level=level,
+        for n, (text, choices, correct, points, level, topic, row, written) in enumerate(parsed, start=1):
+            q = Question(
+                exam=exam, text=text, correct_answer=correct, written_answer=written,
+                points=points, order=start_order + n, level=level,
                 topic=topic or guess_topic(exam.subject.name, text, [t for _, t in choices]),
                 image=images.get(_norm(text)) or None,
             )
+            if row in embedded:
+                data, ext = embedded[row]
+                q.image.save(f"exam{exam.id}_row{row}.{ext}", ContentFile(data), save=False)
+            q.save()
             Choice.objects.bulk_create([Choice(question=q, letter=l, text=t) for l, t in choices])
     return len(parsed), []
+
+
+def _embedded_images(file):
+    """الصور الملصقة داخل ملف Excel: {رقم السطر: (البيانات، الامتداد)}. تُلصق الصورة في سطر سؤالها."""
+    try:
+        file.seek(0)
+        ws = load_workbook(file).worksheets[0]
+    except Exception:
+        return {}
+    found = {}
+    for img in getattr(ws, "_images", []):
+        try:
+            row = img.anchor._from.row + 1
+            data = img._data()
+        except Exception:
+            continue
+        ext = (getattr(img, "format", "") or "png").lower().replace("jpeg", "jpg")
+        found.setdefault(row, (data, ext))
+    return found
 
 
 def import_students(file):
