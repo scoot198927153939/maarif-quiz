@@ -13,7 +13,7 @@ ARABIC_LETTERS = {"أ": "A", "ا": "A", "ب": "B", "ج": "C", "د": "D", "ه": "
 QUESTION_HEADERS = ["السؤال", "A", "B", "C", "D", "الإجابة الصحيحة", "النقاط", "المستوى", "صورة", "المحور"]
 LEVEL_CODES = {"بسيط": "E", "متوسط": "M", "صعب": "H", "E": "E", "M": "M", "H": "H"}
 STUDENT_HEADERS = ["اسم المستخدم", "الاسم الكامل", "كلمة المرور", "القسم"]
-ROSTER_HEADERS = ["رقم قيد الطالب", "القسم", "اسم الطالب", "رقم هاتف الوكيل", "رقم الواتساب", "رقم هاتف الوكيل2"]
+ROSTER_HEADERS = ["رقم قيد الطالب", "القسم", "اسم الطالب", "رقم هاتف الوكيل", "رقم الواتساب", "رقم هاتف الوكيل2", "Retiré"]
 TEACHER_HEADERS = ["اسم الأستاذ", "المادة"]
 
 HEADER_FILL = PatternFill("solid", fgColor="1F6F5C")
@@ -240,7 +240,8 @@ def roster_template():
     ws.append(ROSTER_HEADERS)
     ws.append(["1001", "1AS1", "أحمد محمد", "22000001", "22000001", ""])
     ws.append(["1002", "7SN2", "فاطمة سيدي", "33000002", "46000002", "44000002"])
-    _style_header(ws, [16, 10, 30, 18, 18, 18])
+    ws.append(["1003", "7SN2", "تلميذ منسحب", "33000003", "", "", 1])
+    _style_header(ws, [16, 10, 30, 18, 18, 18, 10])
     return wb
 
 
@@ -262,6 +263,11 @@ def _norm_header(value):
     return h
 
 
+def is_retired(value):
+    """عمود Retiré: 1 (أو oui / x / نعم) يعني أن التلميذ انسحب."""
+    return _clean(value).lower() in {"1", "oui", "yes", "x", "نعم", "منسحب", "retiré", "retire"}
+
+
 def _section_code(value):
     return "".join(ch for ch in _clean(value).upper() if ch.isalnum())
 
@@ -271,7 +277,9 @@ def _header_columns(header):
     for i, h in enumerate(_norm_header(v) for v in header):
         if not h:
             continue
-        if "قيد" in h or "matricule" in h or "matr" in h:
+        if "retir" in h or "منسحب" in h or "انسحاب" in h:
+            cols.setdefault("retired", i)
+        elif "قيد" in h or "matricule" in h or "matr" in h:
             cols.setdefault("matricule", i)
         elif "واتس" in h or "whats" in h:
             cols.setdefault("whatsapp", i)
@@ -409,7 +417,8 @@ def import_roster(file):
             if not section:
                 errors.append(f"{where}السطر {idx}: القسم «{get(row, 'section') or code}» غير موجود. الأقسام المقبولة مثل 1AS1 و 7SN2.")
                 continue
-            parsed.append((mat, section, name, get(row, "phone1"), get(row, "whatsapp"), get(row, "phone2")))
+            retired = is_retired(get(row, "retired")) if "retired" in cols else None
+            parsed.append((mat, section, name, get(row, "phone1"), get(row, "whatsapp"), get(row, "phone2"), retired))
     if errors:
         return 0, 0, errors
     if not parsed:
@@ -417,7 +426,7 @@ def import_roster(file):
 
     created = updated = 0
     with transaction.atomic():
-        for mat, section, name, p1, wa, p2 in parsed:
+        for mat, section, name, p1, wa, p2, retired in parsed:
             user = User.objects.filter(matricule=mat).first() or User.objects.filter(username=mat).first()
             if user and not user.is_student:
                 errors.append(f"رقم القيد {mat} مستعمل كاسم مستخدم لحساب غير تلميذ، تم تجاهله.")
@@ -432,6 +441,8 @@ def import_roster(file):
             user.section = section
             user.full_name = name or user.full_name
             user.guardian_phone, user.whatsapp, user.guardian_phone2 = p1, wa, p2
+            if retired is not None:  # المنسحب لا يظهر في قسمه ولا في الغياب ولا يدخل الموقع
+                user.is_active = not retired
             user.save()
     return created, updated, errors
 

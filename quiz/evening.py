@@ -14,7 +14,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font
 
 from .attendance import _date, _day_label, _month, _month_nav
-from .excel import HEADER_FILL, HEADER_FONT, _clean, _header_columns, _norm_header, _style_header
+from .excel import HEADER_FILL, HEADER_FONT, _clean, _header_columns, _norm_header, _style_header, is_retired
 from .forms import ImportFileForm
 from .models import (
     ABSENT, ATTENDANCE_CHOICES, EVENING_HOURS, LATE, PRESENT, EveningAttendance, EveningGroup, EveningStudent,
@@ -113,7 +113,8 @@ def import_students(file, default_group):
                 continue
             phone = _clean(get(row, "phone1"))
             wa = _clean(get(row, "whatsapp")) or _clean(get(row, "phone2"))
-            parsed.append((group, mat, name, day or today, phone, wa))
+            retired = is_retired(get(row, "retired")) if "retired" in cols else False
+            parsed.append((group, mat, name, day or today, phone, wa, retired))
     if errors:
         return 0, 0, errors
     if not parsed:
@@ -121,7 +122,7 @@ def import_students(file, default_group):
 
     created = updated = 0
     with transaction.atomic():
-        for group, mat, name, day, phone, wa in parsed:
+        for group, mat, name, day, phone, wa, retired in parsed:
             st = EveningStudent.objects.filter(group=group, matricule=mat).first()
             day_student = User.objects.filter(matricule=mat, role=User.STUDENT).first()
             if st is None:
@@ -134,7 +135,7 @@ def import_students(file, default_group):
             # إن لم يكن الرقم في الملف نأخذه من لائحة تلاميذ المدرسة
             st.guardian_phone = phone or st.guardian_phone or (day_student.guardian_phone if day_student else "")
             st.whatsapp = wa or st.whatsapp or (day_student.wa_number if day_student else "")
-            st.is_active = True
+            st.is_active = not retired
             st.save()
     return created, updated, []
 
