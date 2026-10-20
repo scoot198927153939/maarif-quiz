@@ -45,21 +45,21 @@ class ExamForm(forms.ModelForm):
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
-        fields = ["text", "image", "points", "correct_answer", "level", "topic"]
+        fields = ["text", "image", "points", "correct_answer", "written_answer", "level", "topic"]
         widgets = {"text": forms.Textarea(attrs={"rows": 3})}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         letters = Question.LETTERS[:N_CHOICES]
         self.fields["correct_answer"] = forms.ChoiceField(
-            label="رمز الإجابة الصحيحة", choices=[(l, l) for l in letters],
+            label="رمز الإجابة الصحيحة", choices=[("", "—")] + [(l, l) for l in letters], required=False,
         )
         existing = {}
         if self.instance.pk:
             existing = {c.letter: c.text for c in self.instance.choices.all()}
         for l in letters:
             self.fields[f"choice_{l}"] = forms.CharField(
-                label=f"الخيار {l}", required=l in ("A", "B"), max_length=500,
+                label=f"الخيار {l}", required=False, max_length=500,
                 initial=existing.get(l, ""),
             )
         if self.instance.pk:
@@ -70,8 +70,19 @@ class QuestionForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if (data.get("written_answer") or "").strip():
+            # سؤال يكتب فيه التلميذ الجواب: لا خيارات
+            data["correct_answer"] = ""
+            for l in Question.LETTERS[:N_CHOICES]:
+                data[f"choice_{l}"] = ""
+            return data
         correct = data.get("correct_answer")
-        if correct and not data.get(f"choice_{correct}"):
+        filled = [l for l in Question.LETTERS[:N_CHOICES] if data.get(f"choice_{l}")]
+        if len(filled) < 2:
+            self.add_error("choice_B", "ضع خيارين على الأقل، أو اكتب «الجواب المكتوب» لسؤال يكتب فيه التلميذ الجواب.")
+        if not correct:
+            self.add_error("correct_answer", "اختر رمز الإجابة الصحيحة.")
+        elif correct not in filled:
             self.add_error("correct_answer", "الخيار المحدد كإجابة صحيحة فارغ.")
         return data
 

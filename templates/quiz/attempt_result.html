@@ -18,6 +18,12 @@
   <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }} {% if d.correct %}✅{% else %}❌{% endif %}</span><span class="tag">{{ d.q.points|floatformat:"-2" }} ن</span></div>
   <p class="q-text" dir="auto">{{ d.q.text|linebreaksbr }}</p>
   {% if d.q.image %}<img class="q-image" src="{{ d.q.image.url }}" alt="">{% endif %}
+  {% if d.q.is_written %}
+  <div class="choices">
+    {% if d.text %}<div class="choice static {% if d.correct %}right{% else %}wrong{% endif %}"><span class="c-text" dir="auto">{{ d.text }}</span><em class="muted"> (إجابتك)</em></div>{% endif %}
+    {% if not d.correct %}<div class="choice static right"><span class="c-text" dir="auto">{{ d.q.written_display }}</span><em class="muted"> (الجواب الصحيح)</em></div>{% endif %}
+  </div>
+  {% else %}
   <div class="choices">
   {% for c in d.q.choices.all %}
     <div class="choice static {% if c.letter == d.q.correct_answer %}right{% elif c.letter == d.selected %}wrong{% endif %}">
@@ -26,7 +32,8 @@
     </div>
   {% endfor %}
   </div>
-  {% if not d.selected %}<p class="muted">لم تُجب على هذا السؤال.</p>{% endif %}
+  {% endif %}
+  {% if not d.selected and not d.text %}<p class="muted">لم تُجب على هذا السؤال.</p>{% endif %}
 </div>
 {% endfor %}
 {% endif %}

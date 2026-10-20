@@ -88,8 +88,8 @@
     <tr>
       <td>{{ w.pos }}</td><td dir="auto">{{ w.topic }}</td>
       <td>{{ w.level_name }}</td>
-      <td>{% if w.answered %}{{ w.selected }}{% else %}<span class="muted">{{ r.L.no_answer }}</span>{% endif %}</td>
-      <td><strong>{{ w.q.correct_answer }}</strong></td>
+      <td dir="auto">{% if w.answered %}{{ w.text|default:w.selected }}{% else %}<span class="muted">{{ r.L.no_answer }}</span>{% endif %}</td>
+      <td dir="auto"><strong>{% if w.q.is_written %}{{ w.q.written_display }}{% else %}{{ w.q.correct_answer }}{% endif %}</strong></td>
     </tr>
     {% endfor %}
     </tbody>

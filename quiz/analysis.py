@@ -183,13 +183,14 @@ def analyze(attempt, lang="ar"):
         q = questions[qid]
         a = answers.get(qid)
         sel = (a.selected if a else "").upper()
+        text = a.text if a else ""
         n_choices = q.choices.count() or 4
         rows.append({
-            "pos": pos, "q": q, "selected": sel, "answered": bool(sel),
-            "correct": bool(sel) and sel == q.correct_answer.upper(),
+            "pos": pos, "q": q, "selected": sel, "text": text, "answered": bool(sel or text),
+            "correct": q.is_right(sel, text),
             "level": q.level, "level_name": m["level_short"].get(q.level, "—"),
             "topic": q.topic or guess_topic(subject, q.text, [c.text for c in q.choices.all()]),
-            "p_random": 1 / n_choices, "time": a.answered_at if a else None,
+            "p_random": 0 if q.is_written else 1 / n_choices, "time": a.answered_at if a else None,
             "changes": a.changes if a else 0,
         })
 
@@ -234,14 +235,15 @@ def analyze(attempt, lang="ar"):
     if all(lvl.get(k) is not None for k in LEVEL_CODES):
         if lvl["E"] <= lvl["M"] + 5 and lvl["E"] < 60:
             indicators.append(m["ind_levels"])
-    letters = Counter(r["selected"] for r in rows if r["answered"])
-    if n_answered >= 10:
+    letters = Counter(r["selected"] for r in rows if r["selected"])
+    if sum(letters.values()) >= 10:
         letter, cnt = letters.most_common(1)[0]
-        if cnt / n_answered >= 0.5:
-            indicators.append(m["ind_letter"].format(l=letter, c=cnt, n=n_answered, p=_pct(cnt, n_answered)))
+        n_letters = sum(letters.values())
+        if cnt / n_letters >= 0.5:
+            indicators.append(m["ind_letter"].format(l=letter, c=cnt, n=n_letters, p=_pct(cnt, n_letters)))
     run, best = 1, 1
     for prev, cur in zip(rows, rows[1:]):
-        run = run + 1 if cur["answered"] and cur["selected"] == prev["selected"] else 1
+        run = run + 1 if cur["selected"] and cur["selected"] == prev["selected"] else 1
         best = max(best, run)
     if best >= 6:
         indicators.append(m["ind_run"].format(k=best))

@@ -93,9 +93,11 @@ class QuizFlowTests(TestCase):
         buf.seek(0)
         count, errors = excel.import_questions(self.exam, buf)
         self.assertEqual(errors, [])
-        self.assertEqual(count, 3)
-        last = self.exam.questions.last()
-        self.assertEqual(last.correct_answer, "D")  # «د» تحولت إلى D
+        self.assertEqual(count, 4)
+        q3, last = list(self.exam.questions.all())[-2:]
+        self.assertEqual(q3.correct_answer, "D")  # «د» تحولت إلى D
+        self.assertTrue(last.is_written)
+        self.assertEqual(last.choices.count(), 0)
 
     def _template_file(self):
         buf = io.BytesIO()
@@ -110,13 +112,13 @@ class QuizFlowTests(TestCase):
         old.image = "questions/fig.png"
         old.save()
         count, errors = excel.import_questions(self.exam, self._template_file(), replace=True)
-        self.assertEqual((count, errors), (3, []))
-        self.assertEqual(self.exam.questions.count(), 3)  # الأسئلة القديمة حُذفت
+        self.assertEqual((count, errors), (4, []))
+        self.assertEqual(self.exam.questions.count(), 4)  # الأسئلة القديمة حُذفت
         q = self.exam.questions.get(text="كم يساوي 5 + 7 ؟")
         self.assertEqual(q.image.name, "questions/fig.png")
         # استيراد نفس الملف مرة ثانية لا يكرر الأسئلة
         excel.import_questions(self.exam, self._template_file(), replace=True)
-        self.assertEqual(self.exam.questions.count(), 3)
+        self.assertEqual(self.exam.questions.count(), 4)
 
     def test_import_view_replace_keeps_past_results(self):
         qs = list(self.exam.questions.all())
@@ -129,7 +131,7 @@ class QuizFlowTests(TestCase):
         url = reverse("exam_import", args=[self.exam.id])
         with self.settings(BASE_DIR=self._tmp()):
             self.client.post(url, {"file": self._template_file(), "replace": "1"})
-        self.assertEqual(self.exam.questions.count(), 3)  # الأسئلة القديمة لا تظهر في الامتحان
+        self.assertEqual(self.exam.questions.count(), 4)  # الأسئلة القديمة لا تظهر في الامتحان
         a.refresh_from_db()
         self.assertEqual((a.score, a.total), (old_score, old_total))  # النتيجة محفوظة
         self.assertEqual(a.answers.count(), 1)
@@ -138,7 +140,7 @@ class QuizFlowTests(TestCase):
         self.assertEqual(r.status_code, 200)
         # بدون الاستبدال تُضاف الأسئلة
         self.client.post(url, {"file": self._template_file()})
-        self.assertEqual(self.exam.questions.count(), 6)
+        self.assertEqual(self.exam.questions.count(), 8)
 
     def test_excel_import_rejects_bad_answer(self):
         from openpyxl import Workbook
@@ -1084,3 +1086,65 @@ class PasswordChangeTests(TestCase):
         form.save()
         self.student.refresh_from_db()
         self.assertTrue(self.student.must_change_password)
+
+
+class ExcelEmbeddedImageTests(TestCase):
+    def test_image_pasted_in_row_is_attached(self):
+        import tempfile
+        from openpyxl import Workbook
+        from openpyxl.drawing.image import Image as XLImage
+        from PIL import Image
+        teacher = User.objects.create_user("p", password="x", role=User.TEACHER)
+        exam = Exam.objects.create(title="T", classe=Classe.objects.get(code="7SN"),
+                                   subject=Subject.objects.first(), teacher=teacher)
+        png = io.BytesIO()
+        Image.new("RGB", (20, 10), "red").save(png, "PNG")
+        wb = Workbook()
+        ws = wb.active
+        ws.append(excel.QUESTION_HEADERS)
+        ws.append(["sans image", "a", "b", "", "", "A", 1])
+        ws.append(["avec image", "a", "b", "", "", "B", 1])
+        png.seek(0)
+        ws.add_image(XLImage(png), "I3")
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        with tempfile.TemporaryDirectory() as media, self.settings(MEDIA_ROOT=media):
+            n, errors = excel.import_questions(exam, buf)
+            self.assertEqual((n, errors), (2, []))
+            self.assertFalse(exam.questions.get(text="sans image").image)
+            self.assertTrue(exam.questions.get(text="avec image").image.name.endswith(".png"))
+
+
+class WrittenAnswerTests(TestCase):
+    def test_matching_is_lenient(self):
+        from .models import written_matches
+        self.assertTrue(written_matches("Les Mitochondries", "mitochondries"))
+        self.assertTrue(written_matches("l'acrosome", "acrosome"))
+        self.assertTrue(written_matches("flagele", "queue | flagelle"))
+        self.assertTrue(written_matches("spermatocyte I", "spermatocyte I"))
+        self.assertFalse(written_matches("spermatocyte II", "spermatocyte I"))
+        self.assertFalse(written_matches("noyau", "acrosome"))
+        self.assertFalse(written_matches("", "acrosome"))
+
+    def test_student_writes_answer(self):
+        classe = Classe.objects.get(code="7SN")
+        teacher = User.objects.create_user("p", password="x", role=User.TEACHER)
+        student = User.objects.create_user("s", password="x", role=User.STUDENT, classe=classe)
+        exam = Exam.objects.create(title="T", classe=classe, subject=Subject.objects.first(),
+                                   teacher=teacher, is_published=True)
+        q = Question.objects.create(exam=exam, text="Le n° 3 ?", written_answer="acrosome", points=2)
+        q2 = Question.objects.create(exam=exam, text="Le n° 1 ?", written_answer="noyau", points=2)
+        self.client.force_login(student)
+        self.client.post(reverse("exam_intro", args=[exam.id]))
+        r = self.client.get(reverse("take_exam", args=[exam.id]))
+        self.assertContains(r, 'class="written-input"')
+        r = self.client.post(reverse("save_answer", args=[exam.id]),
+                             json.dumps({"question": q.id, "text": "L'Acrosome"}), content_type="application/json")
+        self.assertEqual(r.json(), {"ok": True})
+        self.client.post(reverse("submit_exam", args=[exam.id]), {f"q_{q2.id}": "centriole"})
+        a = Attempt.objects.get(exam=exam, student=student)
+        self.assertEqual((a.status, a.score, a.total), (Attempt.SUBMITTED, 2, 4))
+        r = self.client.get(reverse("attempt_result", args=[exam.id]))
+        self.assertContains(r, "L&#x27;Acrosome")
+        self.assertContains(r, "noyau")

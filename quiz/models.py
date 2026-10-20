@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models import Q
@@ -239,6 +241,43 @@ class Exam(models.Model):
         return True
 
 
+def normalize_written(text):
+    """يبسّط الجواب المكتوب للمقارنة: بدون حركات ولا تشكيل ولا علامات، وبدون أدوات التعريف الفرنسية."""
+    import unicodedata
+    text = unicodedata.normalize("NFKD", str(text or "").lower())
+    text = "".join(c for c in text if not unicodedata.combining(c) and not "\u064b" <= c <= "\u0652")
+    text = text.replace("œ", "oe").replace("æ", "ae").replace("’", "'")
+    for a, b in (("أ", "ا"), ("إ", "ا"), ("آ", "ا"), ("ة", "ه"), ("ى", "ي")):
+        text = text.replace(a, b)
+    text = re.sub(r"[^\w']+", " ", text)
+    words = [w for w in re.split(r"[\s']+", text) if w]
+    stop = {"le", "la", "les", "l", "un", "une", "des", "du", "de", "d", "ال"}
+    words = [w for w in words if w not in stop] or words
+    # الجمع: «mitochondries» = «mitochondrie»
+    words = [w[:-1] if len(w) > 3 and w.endswith(("s", "x")) else w for w in words]
+    words = [{"i": "1", "ii": "2", "iii": "3"}.get(w, w) for w in words]
+    return " ".join(words)
+
+
+def written_matches(answer, accepted):
+    """هل الجواب المكتوب يطابق أحد الأجوبة المقبولة (مفصولة بـ |)؟ يُتسامح مع خطأ إملائي صغير."""
+    from difflib import SequenceMatcher
+    got = normalize_written(answer)
+    if not got:
+        return False
+    for option in str(accepted or "").split("|"):
+        want = normalize_written(option)
+        if not want:
+            continue
+        if got == want:
+            return True
+        # خطأ إملائي صغير مقبول، لكن الكلمات القصيرة والأرقام (I و II) يجب أن تكون نفسها
+        short = lambda t: [w for w in t.split() if len(w) <= 3 or any(c.isdigit() for c in w)]
+        if len(want) >= 5 and short(got) == short(want) and SequenceMatcher(None, got, want).ratio() >= 0.85:
+            return True
+    return False
+
+
 class ActiveQuestionManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(archived=False)
@@ -252,8 +291,14 @@ class Question(models.Model):
     image = models.ImageField("صورة توضيحية", upload_to="questions/", blank=True, null=True)
     points = models.DecimalField("النقاط", max_digits=6, decimal_places=2, default=1)
     correct_answer = models.CharField(
-        "رمز الإجابة الصحيحة", max_length=1,
+        "رمز الإجابة الصحيحة", max_length=1, blank=True,
         help_text="حرف الخيار الصحيح: A أو B أو C أو D ...",
+    )
+    # سؤال يكتب فيه التلميذ الجواب بنفسه: الأجوبة المقبولة مفصولة بـ |
+    written_answer = models.CharField(
+        "الجواب المكتوب", max_length=300, blank=True,
+        help_text="للسؤال الذي يكتب فيه التلميذ الجواب بنفسه (بدون خيارات). "
+                  "يمكن وضع أكثر من جواب مقبول مفصولة بـ | مثل: queue | flagelle",
     )
     order = models.PositiveIntegerField("الترتيب", default=0)
     LEVEL_CHOICES = [("E", "بسيط"), ("M", "متوسط"), ("H", "صعب")]
@@ -274,6 +319,19 @@ class Question(models.Model):
 
     def __str__(self):
         return self.text[:60]
+
+    @property
+    def is_written(self):
+        return bool(self.written_answer.strip())
+
+    @property
+    def written_display(self):
+        return " / ".join(p.strip() for p in self.written_answer.split("|") if p.strip())
+
+    def is_right(self, selected="", text=""):
+        if self.is_written:
+            return written_matches(text, self.written_answer)
+        return bool(selected) and selected.upper() == self.correct_answer.upper()
 
     def save(self, *args, **kwargs):
         if not self.topic and self.exam_id:
@@ -343,12 +401,13 @@ class Attempt(models.Model):
         return active
 
     def grade(self):
-        answers = {a.question_id: a.selected for a in self.answers.all()}
+        answers = {a.question_id: a for a in self.answers.all()}
         score = 0
         total = 0
         for q in self.graded_questions():
             total += q.points
-            if answers.get(q.id, "").upper() == q.correct_answer.upper():
+            a = answers.get(q.id)
+            if a and q.is_right(a.selected, a.text):
                 score += q.points
         self.score = score
         self.total = total
@@ -368,6 +427,7 @@ class Answer(models.Model):
     attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE, related_name="answers")
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     selected = models.CharField(max_length=1, blank=True)
+    text = models.CharField("الجواب المكتوب", max_length=300, blank=True)
     answered_at = models.DateTimeField(null=True, blank=True)
     changes = models.PositiveIntegerField(default=0)
 
