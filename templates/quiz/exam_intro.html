@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card narrow">
-  <span class="tag">{{ exam.subject }} · {{ exam.classe }}</span>
+  <span class="tag">{{ exam.subject }} · {{ exam.target_label }}</span>
   <h1>{{ exam.title }}</h1>
   <p>{{ n_questions }} سؤال · المدة: <strong>{{ exam.duration_minutes }} دقيقة</strong></p>
   {% if exam.instructions %}<div class="instructions">{{ exam.instructions|linebreaks }}</div>{% endif %}

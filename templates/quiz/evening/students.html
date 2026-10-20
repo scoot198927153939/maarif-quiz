@@ -27,12 +27,13 @@
   <small class="muted d-block">الأعمدة: رقم القيد، اسم التلميذ، تاريخ التسجيل، هاتف الوكيل، الواتساب، والقسم (اختياري).
     يُضاف التلاميذ إلى القسم <b dir="ltr">{{ group.code }}</b> إلا إذا كُتب قسم مسائي آخر في عمود القسم.
     التلميذ الموجود (نفس رقم القيد) تُحدَّث بياناته ولا يُحذف أحد. إن لم يُكتب تاريخ التسجيل يُعتبر اليوم.
-    إن كان رقم الوكيل فارغاً يؤخذ من لائحة تلاميذ المدرسة. التلميذ لا يظهر في الغياب قبل تاريخ تسجيله.</small>
+    إن كان رقم الوكيل فارغاً يؤخذ من لائحة تلاميذ المدرسة. التلميذ لا يظهر في الغياب قبل تاريخ تسجيله.<br>
+    <b>الحساب:</b> كل تلميذ له حساب لإنجاز امتحانات مجموعته. إن كان من تلاميذ المدرسة يدخل بحسابه المعتاد، وإلا فاسم المستخدم وكلمة المرور هما رقم القيد.</small>
 </div>
 {% if students %}
 <div class="table-wrap">
 <table class="table students-list">
-  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>تاريخ التسجيل</th><th>هاتف الوكيل</th><th>الواتساب</th><th>الغيابات</th><th class="no-print"></th></tr></thead>
+  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>تاريخ التسجيل</th><th>هاتف الوكيل</th><th>الواتساب</th><th>الحساب</th><th>الغيابات</th><th class="no-print"></th></tr></thead>
   <tbody>
   {% for s in students %}
     <tr>
@@ -40,6 +41,7 @@
       <td dir="ltr">{{ s.registered_on|date:"Y-m-d"|default:"—" }}</td>
       <td dir="ltr">{% if s.guardian_phone %}<a href="tel:{{ s.guardian_phone }}">{{ s.guardian_phone }}</a>{% endif %}</td>
       <td dir="ltr">{% if s.wa_link %}<a class="wa" href="{{ s.wa_link }}" target="_blank" rel="noopener">💬 {{ s.whatsapp }}</a>{% endif %}</td>
+      <td dir="ltr">{{ s.user.username|default:"—" }}</td>
       <td>{{ s.n_absent }}</td>
       <td class="no-print"><form method="post" action="{% url 'evening_student_remove' s.id %}" onsubmit="return confirm('حذف {{ s.full_name }} من القسم؟')">
         {% csrf_token %}<button class="btn small danger">حذف</button></form></td>

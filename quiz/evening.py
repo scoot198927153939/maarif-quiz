@@ -137,6 +137,7 @@ def import_students(file, default_group):
             st.whatsapp = wa or st.whatsapp or (day_student.wa_number if day_student else "")
             st.is_active = not retired
             st.save()
+            st.ensure_account()
     return created, updated, []
 
 
@@ -289,7 +290,7 @@ def evening_students(request, group_id):
         else:
             messages.error(request, "اختر ملف Excel أولاً.")
         return redirect("evening_students", group_id=group.id)
-    students = group.students.filter(is_active=True).annotate(
+    students = group.students.filter(is_active=True).select_related("user").annotate(
         n_absent=Count("attendance", filter=Q(attendance__status=ABSENT)))
     return render(request, "quiz/evening/students.html", {
         "group": group, "tab": "students", "students": students, "import_form": ImportFileForm(),
@@ -329,6 +330,7 @@ def evening_student_add(request, group_id):
                    or (day_student.wa_number if day_student else ""))
     st.is_active = True
     st.save()
+    st.ensure_account()
     messages.success(request, f"{'تمت إضافة' if created else 'تم تحديث'} {st.full_name} في القسم {group}.")
     return redirect("evening_students", group_id=group.id)
 

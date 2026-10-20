@@ -87,7 +87,7 @@ def home(request):
 def student_dashboard(request):
     student = request.user
     exams = (
-        Exam.objects.filter(classe=student.classe, is_published=True)
+        Exam.for_student(student).filter(is_published=True)
         .select_related("subject", "teacher")
         .annotate(n_questions=Count("questions", filter=Q(questions__archived=False)))
     )
@@ -105,13 +105,14 @@ def student_dashboard(request):
     return render(request, "quiz/student_dashboard.html", {
         "available": available, "finished": finished, "upcoming": upcoming,
         "grid": student_grid(student),
+        "evening_groups": [r.group.code for r in student.evening_records.filter(is_active=True).select_related("group")],
     })
 
 
 def _student_exam(request, exam_id):
     """الامتحان يجب أن يكون لقسم التلميذ نفسه."""
     exam = get_object_or_404(Exam, pk=exam_id, is_published=True)
-    if exam.classe_id != request.user.classe_id:
+    if not Exam.for_student(request.user).filter(pk=exam.pk).exists():
         raise PermissionDenied
     return exam
 
@@ -442,7 +443,7 @@ def exam_results(request, exam_id):
     exam = get_managed_exam(request.user, exam_id)
     attempts = {a.student_id: a for a in exam.attempts.all()}
     rows = []
-    for s in exam.classe.students.filter(role=User.STUDENT, is_active=True).order_by(*STUDENT_ORDER):
+    for s in exam.target_students().order_by(*STUDENT_ORDER):
         rows.append((s, attempts.get(s.id)))
     submitted = [a for a in attempts.values() if a.status == Attempt.SUBMITTED]
     avg = sum(a.score for a in submitted) / len(submitted) if submitted else None
@@ -484,7 +485,7 @@ def class_results(request):
         classe = form.cleaned_data["classe"]
         subject = form.cleaned_data["subject"]
     if classe:
-        qs = Exam.objects.filter(classe=classe).select_related("subject").order_by("subject__name", "created_at")
+        qs = Exam.objects.filter(classe=classe, evening_group__isnull=True).select_related("subject").order_by("subject__name", "created_at")
         if not u.is_admin_role:
             qs = qs.filter(teacher=u)
         if subject:

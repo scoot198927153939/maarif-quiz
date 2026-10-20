@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
 from django.db.models.functions import Length
 from django.utils import timezone
 
@@ -189,6 +190,12 @@ class Exam(models.Model):
     is_published = models.BooleanField("منشور للتلاميذ", default=False)
     show_result = models.BooleanField("إظهار النتيجة للتلميذ بعد التسليم", default=True)
     shuffle_questions = models.BooleanField("خلط ترتيب الأسئلة", default=False)
+    # امتحان خاص بمجموعة من الحصص المسائية: لا يراه إلا تلاميذها (ولا يراه تلاميذ المستوى في النهار)
+    evening_group = models.ForeignKey(
+        "EveningGroup", null=True, blank=True, on_delete=models.SET_NULL, related_name="exams",
+        verbose_name="المجموعة المسائية (اختياري)",
+        help_text="اتركها فارغة لامتحان المستوى كله. إن اخترت مجموعة مسائية فلا يراه إلا تلاميذها.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -197,7 +204,23 @@ class Exam(models.Model):
         verbose_name_plural = "الامتحانات"
 
     def __str__(self):
-        return f"{self.title} ({self.classe} - {self.subject})"
+        return f"{self.title} ({self.target_label} - {self.subject})"
+
+    @property
+    def target_label(self):
+        return self.evening_group.code if self.evening_group_id else str(self.classe)
+
+    def target_students(self):
+        """التلاميذ المعنيون بالامتحان: تلاميذ المجموعة المسائية، أو تلاميذ المستوى."""
+        if self.evening_group_id:
+            return User.objects.filter(role=User.STUDENT, is_active=True, evening_records__group=self.evening_group_id,
+                                       evening_records__is_active=True).distinct()
+        return self.classe.students.filter(role=User.STUDENT, is_active=True)
+
+    @classmethod
+    def for_student(cls, student):
+        groups = student.evening_records.filter(is_active=True).values_list("group_id", flat=True)
+        return cls.objects.filter(Q(classe=student.classe_id, evening_group__isnull=True) | Q(evening_group__in=list(groups)))
 
     @property
     def total_points(self):
@@ -359,7 +382,6 @@ ATTENDANCE_CHOICES = [(PRESENT, "حاضر"), (ABSENT, "غائب"), (LATE, "مت�
 def student_order(prefix=""):
     """ترتيب التلاميذ برقم القيد تصاعدياً (10 بعد 9 وليس بعد 1)، ومن لا رقم له في الآخر."""
     from django.db.models import F
-    from django.db.models.functions import Length
     return [Length(f"{prefix}matricule").asc(nulls_last=True), F(f"{prefix}matricule").asc(nulls_last=True),
             f"{prefix}full_name", f"{prefix}username"]
 
@@ -631,6 +653,9 @@ class EveningStudent(models.Model):
     guardian_phone = models.CharField("هاتف الوكيل", max_length=30, blank=True)
     whatsapp = models.CharField("الواتساب", max_length=30, blank=True)
     is_active = models.BooleanField("مسجّل", default=True)
+    # حساب الدخول لإنجاز امتحانات المجموعة: حساب التلميذ في المدرسة إن وُجد، وإلا حساب جديد برقم القيد
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="evening_records",
+                             verbose_name="الحساب")
 
     class Meta:
         unique_together = [("group", "matricule")]
@@ -644,6 +669,22 @@ class EveningStudent(models.Model):
     @property
     def wa_link(self):
         return wa_link_for(self.whatsapp)
+
+    def ensure_account(self):
+        """يربط التلميذ بحساب: حسابه في المدرسة (نفس رقم القيد)، وإلا يُنشأ حساب
+        اسم المستخدم وكلمة المرور فيه رقم القيد (بدون مستوى ولا فصل، فلا يظهر في لوائح النهار)."""
+        if self.user_id:
+            return self.user
+        user = User.objects.filter(matricule=self.matricule).first() or User.objects.filter(username=self.matricule).first()
+        if user and not user.is_student:
+            return None
+        if user is None:
+            user = User(username=self.matricule, matricule=self.matricule, role=User.STUDENT, full_name=self.full_name)
+            user.set_password(self.matricule)
+            user.save()
+        self.user = user
+        self.save(update_fields=["user"])
+        return user
 
 
 class EveningAttendance(models.Model):

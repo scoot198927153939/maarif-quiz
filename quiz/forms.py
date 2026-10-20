@@ -16,7 +16,7 @@ class ExamForm(forms.ModelForm):
     class Meta:
         model = Exam
         fields = [
-            "title", "classe", "subject", "duration_minutes", "available_from", "available_until",
+            "title", "classe", "evening_group", "subject", "duration_minutes", "available_from", "available_until",
             "instructions", "is_published", "show_result", "shuffle_questions",
         ]
         widgets = {
