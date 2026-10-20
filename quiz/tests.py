@@ -1002,6 +1002,9 @@ class EveningTests(TestCase):
         self.assertEqual(set(Exam.for_student(day_user)), {ev, day})
         self.client.force_login(other)
         self.assertEqual(self.client.get(reverse("exam_intro", args=[ev.id])).status_code, 403)
+        self.assertTrue(new.must_change_password)
+        new.must_change_password = False
+        new.save()
         self.client.force_login(new)
         self.assertContains(self.client.get(reverse("student_dashboard")), "امتحان مسائي")
         self.assertEqual(self.client.get(reverse("exam_intro", args=[ev.id])).status_code, 200)
@@ -1043,3 +1046,41 @@ class EveningTeacherTests(TestCase):
         self.assertEqual((row["absent"], row["hours"]), (1, 0))
         xlsx = self.client.get(reverse("evening_teachers_monthly") + f"?month={day:%Y-%m}&export=xlsx")
         self.assertEqual(xlsx.status_code, 200)
+
+
+class PasswordChangeTests(TestCase):
+    def setUp(self):
+        self.classe = Classe.objects.get(code="7MA")
+        self.student = User.objects.create_user(
+            "s1", password="s1", role=User.STUDENT, classe=self.classe, must_change_password=True)
+
+    def test_forced_then_free(self):
+        self.client.login(username="s1", password="s1")
+        r = self.client.get(reverse("student_dashboard"))
+        self.assertRedirects(r, reverse("password_change"))
+        r = self.client.post(reverse("password_change"), {
+            "old_password": "s1", "new_password1": "s1", "new_password2": "s1"})
+        self.assertEqual(r.status_code, 200)  # نفس القديمة مرفوضة
+        r = self.client.post(reverse("password_change"), {
+            "old_password": "s1", "new_password1": "abcd9", "new_password2": "abcd9"})
+        self.assertRedirects(r, reverse("home"), target_status_code=302)
+        self.student.refresh_from_db()
+        self.assertFalse(self.student.must_change_password)
+        self.assertTrue(self.student.check_password("abcd9"))
+        # الجلسة باقية بعد التغيير
+        self.assertEqual(self.client.get(reverse("student_dashboard")).status_code, 200)
+
+    def test_admin_reset_asks_again(self):
+        self.student.must_change_password = False
+        self.student.save()
+        admin = User.objects.create_user("adm", password="x", role=User.ADMIN)
+        self.client.force_login(admin)
+        r = self.client.get(reverse("password_change"))
+        self.assertEqual(r.status_code, 200)
+        from .forms import UserForm
+        form = UserForm({"username": "s1", "role": User.STUDENT, "classe": self.classe.pk,
+                         "password": "new1", "is_active": True}, instance=self.student)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.student.refresh_from_db()
+        self.assertTrue(self.student.must_change_password)

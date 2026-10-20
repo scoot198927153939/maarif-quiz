@@ -93,6 +93,8 @@ class User(AbstractUser):
     )
     # آخر طلب من هذا المستخدم: يُعرف به من هو متصل الآن
     last_seen = models.DateTimeField("آخر نشاط", null=True, blank=True)
+    # التلميذ يُطلب منه تغيير كلمة المرور عند الدخول ما دامت هي التي وضعتها الإدارة
+    must_change_password = models.BooleanField("يجب تغيير كلمة المرور", default=False)
 
     class Meta:
         verbose_name = "مستخدم"
@@ -679,7 +681,8 @@ class EveningStudent(models.Model):
         if user and not user.is_student:
             return None
         if user is None:
-            user = User(username=self.matricule, matricule=self.matricule, role=User.STUDENT, full_name=self.full_name)
+            user = User(username=self.matricule, matricule=self.matricule, role=User.STUDENT, full_name=self.full_name,
+                        must_change_password=True)
             user.set_password(self.matricule)
             user.save()
         self.user = user

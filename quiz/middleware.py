@@ -61,3 +61,30 @@ class ActivityMiddleware:
         if event and response.status_code < 400:
             activity.record(request, user, **event)
         return response
+
+
+# الصفحات المسموح بها للتلميذ قبل أن يغيّر كلمة المرور
+PASSWORD_URL_NAMES = {"password_change", "logout"}
+
+
+class ForcePasswordChangeMiddleware:
+    """يرسل التلميذ إلى صفحة تغيير كلمة المرور ما دام يستعمل كلمة المرور التي وضعتها الإدارة."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        path = request.path
+        if (
+            user is not None and user.is_authenticated and user.is_student
+            and user.must_change_password
+            and not path.startswith((settings.STATIC_URL, settings.MEDIA_URL))
+        ):
+            try:
+                name = resolve(path).url_name
+            except Resolver404:
+                name = None
+            if name not in PASSWORD_URL_NAMES:
+                return redirect("password_change")
+        return self.get_response(request)

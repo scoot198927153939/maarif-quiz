@@ -214,9 +214,11 @@ def import_students(file):
             user.classe = classe
             if section:
                 user.section = section
-            # كلمة مرور جديدة فقط إن تغيّرت، وإلا يخرج التلميذ من حسابه بعد كل استيراد
-            if password and (user.pk is None or not user.check_password(password)):
+            # كلمة مرور جديدة فقط إن تغيّرت، وإلا يخرج التلميذ من حسابه بعد كل استيراد.
+            # ولا نمسّ كلمة مرور غيّرها التلميذ بنفسه (يعيدها المشرف من صفحة المستخدم إن نسيها).
+            if password and (user.pk is None or (user.must_change_password and not user.check_password(password))):
                 user.set_password(password)
+                user.must_change_password = True
             user.save()
     return created, updated, errors
 
@@ -432,7 +434,7 @@ def import_roster(file):
                 errors.append(f"رقم القيد {mat} مستعمل كاسم مستخدم لحساب غير تلميذ، تم تجاهله.")
                 continue
             if user is None:
-                user = User(username=mat, role=User.STUDENT)
+                user = User(username=mat, role=User.STUDENT, must_change_password=True)
                 user.set_password(mat)
                 created += 1
             else:

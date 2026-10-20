@@ -65,6 +65,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "quiz.middleware.ActivityMiddleware",
     "quiz.middleware.ExamLockMiddleware",
+    "quiz.middleware.ForcePasswordChangeMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
