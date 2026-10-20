@@ -27,6 +27,7 @@ SEEN_EVERY = datetime.timedelta(seconds=60)
 A = ActivityLog
 # اسم الصفحة (url name) ← (نوع الحدث، وصفه). تُسجَّل طلبات POST الناجحة فقط.
 ACTIONS = {
+    "password_change": (A.EDIT, "تغيير كلمة المرور"),
     "exam_create": (A.ADD, "إنشاء امتحان"),
     "exam_edit": (A.EDIT, "تعديل امتحان"),
     "exam_delete": (A.DELETE, "حذف امتحان"),

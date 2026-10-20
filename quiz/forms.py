@@ -136,6 +136,7 @@ class UserForm(forms.ModelForm):
         user = super().save(commit=False)
         if self.cleaned_data.get("password"):
             user.set_password(self.cleaned_data["password"])
+            user.must_change_password = True
         if user.role != User.STUDENT:
             user.classe = None
             user.section = None
@@ -160,3 +161,40 @@ class ResultsFilterForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["classe"].queryset = user.allowed_classes()
         self.fields["subject"].queryset = user.allowed_subjects()
+
+
+class PasswordChangeForm(forms.Form):
+    """تغيير كلمة المرور: الحالية ثم الجديدة مرتين. قاعدة بسيطة تناسب التلاميذ."""
+
+    old_password = forms.CharField(label="كلمة المرور الحالية", widget=forms.PasswordInput)
+    new_password1 = forms.CharField(label="كلمة المرور الجديدة", widget=forms.PasswordInput,
+                                    help_text="4 أحرف أو أرقام على الأقل.")
+    new_password2 = forms.CharField(label="أعد كتابة كلمة المرور الجديدة", widget=forms.PasswordInput)
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_old_password(self):
+        old = self.cleaned_data["old_password"]
+        if not self.user.check_password(old):
+            raise forms.ValidationError("كلمة المرور الحالية غير صحيحة.")
+        return old
+
+    def clean(self):
+        data = super().clean()
+        new1, new2 = data.get("new_password1"), data.get("new_password2")
+        if new1 and new2:
+            if new1 != new2:
+                self.add_error("new_password2", "كلمتا المرور غير متطابقتين.")
+            elif len(new1) < 4:
+                self.add_error("new_password1", "كلمة المرور قصيرة: 4 أحرف أو أرقام على الأقل.")
+            elif new1 == data.get("old_password") or new1 == self.user.username or new1 == (self.user.matricule or ""):
+                self.add_error("new_password1", "اختر كلمة مرور جديدة تختلف عن القديمة وعن اسم المستخدم.")
+        return data
+
+    def save(self):
+        self.user.set_password(self.cleaned_data["new_password1"])
+        self.user.must_change_password = False
+        self.user.save(update_fields=["password", "must_change_password"])
+        return self.user

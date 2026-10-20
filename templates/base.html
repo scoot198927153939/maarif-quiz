@@ -51,6 +51,7 @@
   </nav>
   <div class="who">
     <span>{{ user }}{% if user.is_student and user.classe %} · {{ user.section|default:user.classe }}{% endif %}</span>
+    <a href="{% url 'password_change' %}" class="link" title="تغيير كلمة المرور">🔑 كلمة المرور</a>
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="link">خروج</button></form>
   </div>
 </header>

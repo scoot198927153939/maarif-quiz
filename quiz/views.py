@@ -7,6 +7,7 @@ from functools import wraps
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
@@ -17,7 +18,7 @@ from django.views.decorators.http import require_POST
 
 from . import excel
 from .analysis import analyze
-from .forms import ExamForm, ImportFileForm, QuestionForm, ResultsFilterForm, UserForm
+from .forms import ExamForm, ImportFileForm, PasswordChangeForm, QuestionForm, ResultsFilterForm, UserForm
 from .models import STUDENT_ORDER, Answer, Attempt, Classe, Exam, Question, Subject, User
 
 
@@ -79,6 +80,19 @@ def home(request):
     if u.is_recorder:
         return redirect("lessons_home")
     return redirect("teacher_dashboard")
+
+
+@login_required
+def password_change(request):
+    """تغيير كلمة المرور لأي مستخدم. التلميذ يُرسل إلى هنا إجبارياً عند أول دخول."""
+    forced = request.user.is_student and request.user.must_change_password
+    form = PasswordChangeForm(request.user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)
+        messages.success(request, "تم تغيير كلمة المرور. احفظها جيداً.")
+        return redirect("home")
+    return render(request, "quiz/password_change.html", {"form": form, "forced": forced})
 
 
 # ---------------------------------------------------------------- student

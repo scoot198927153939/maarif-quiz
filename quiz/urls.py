@@ -4,6 +4,7 @@ from . import activity, attendance, evening, lessons, library, timetable, views
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("password/", views.password_change, name="password_change"),
     # التلميذ
     path("student/", views.student_dashboard, name="student_dashboard"),
     path("exam/<int:exam_id>/", views.exam_intro, name="exam_intro"),
