@@ -371,6 +371,21 @@ class AttendanceTests(TestCase):
         self.assertEqual(User.objects.filter(matricule="1001").count(), 1)
         self.assertEqual(self.st.attendance.count(), 1)
 
+    def test_roster_import_retired_students_hidden(self):
+        self.client.login(username="boss", password="x")
+        head = ["رقم قيد الطالب", "القسم", "اسم الطالب", "رقم هاتف الوكيل", "Retiré"]
+        self.client.post(reverse("roster_import"), {"file": self._xlsx([
+            head, [6001, "1AS1", "باق في القسم", "", None], [6002, "1AS1", "منسحب من القسم", "", 1],
+        ])})
+        self.assertTrue(User.objects.get(matricule="6001").is_active)
+        self.assertFalse(User.objects.get(matricule="6002").is_active)
+        r = self.client.get(reverse("section_roll", args=[self.s1.id]))
+        self.assertContains(r, "باق في القسم")
+        self.assertNotContains(r, "منسحب من القسم")
+        # إن عاد (العمود فارغ) يرجع إلى القسم
+        self.client.post(reverse("roster_import"), {"file": self._xlsx([head, [6002, "1AS1", "منسحب من القسم", "", 0]])})
+        self.assertTrue(User.objects.get(matricule="6002").is_active)
+
     def test_roster_import_detects_columns_in_any_order(self):
         self.client.login(username="boss", password="x")
         f = self._xlsx([
