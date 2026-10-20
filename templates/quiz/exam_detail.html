@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <span class="tag">{{ exam.classe }} · {{ exam.subject }}</span>
+    <span class="tag">{{ exam.target_label }} · {{ exam.subject }}</span>
     <h1>{{ exam.title }}</h1>
     <p class="muted">{{ questions|length }} سؤال · المجموع {{ exam.total_points|floatformat:"-2" }} نقطة · {{ exam.duration_minutes }} دقيقة
       {% if exam.available_from %}· من {{ exam.available_from|date:"Y-m-d H:i" }}{% endif %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-head">
-  <div><span class="tag">{{ exam.classe }} · {{ exam.subject }}</span><h1>نتائج: {{ exam.title }}</h1></div>
+  <div><span class="tag">{{ exam.target_label }} · {{ exam.subject }}</span><h1>نتائج: {{ exam.title }}</h1></div>
   <a class="btn" href="{% url 'exam_detail' exam.id %}">رجوع للامتحان</a>
 </div>
 <div class="stats">

@@ -15,7 +15,7 @@
   {% for e in exams %}
   <tr>
     <td><a href="{% url 'exam_detail' e.id %}"><strong>{{ e.title }}</strong></a></td>
-    <td>{{ e.classe }}</td><td>{{ e.subject }}</td>
+    <td>{{ e.target_label }}</td><td>{{ e.subject }}</td>
     {% if user.is_admin_role %}<td>{{ e.teacher }}</td>{% endif %}
     <td>{{ e.n_questions }}</td><td>{{ e.n_attempts }}</td>
     <td>{% if e.is_published %}<span class="badge ok">منشور</span>{% else %}<span class="badge">مسودة</span>{% endif %}</td>

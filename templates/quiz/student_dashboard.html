@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>امتحانات القسم {{ user.classe|default:"—" }}</h1>
-{% if not user.classe %}<div class="msg error">لم يُحدَّد قسمك بعد. تواصل مع الإدارة.</div>{% endif %}
+<h1>{% if user.classe %}امتحانات القسم {{ user.classe }}{% else %}امتحاناتي{% endif %}{% for g in evening_groups %} · <span dir="ltr">{{ g }}</span>{% endfor %}</h1>
+{% if not user.classe and not evening_groups %}<div class="msg error">لم يُحدَّد قسمك بعد. تواصل مع الإدارة.</div>{% endif %}
 
 <h2>الامتحانات المتاحة الآن</h2>
 <div class="grid">

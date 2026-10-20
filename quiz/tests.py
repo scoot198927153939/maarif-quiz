@@ -979,6 +979,36 @@ class EveningTests(TestCase):
         self.client.post(url, {"matricule": "901", "full_name": ""})  # لا اسم ولا تلميذ بهذا الرقم
         self.assertEqual(self.g.students.count(), 2)
 
+    def test_evening_students_get_accounts_and_group_exams(self):
+        from .models import Section
+        self.client.force_login(self.admin)
+        url = reverse("evening_student_add", args=[self.g.id])
+        self.client.post(url, {"matricule": "950", "full_name": "سالم المسائي"})
+        self.client.post(url, {"matricule": "777"})  # تلميذ المدرسة: يحتفظ بحسابه
+        new = User.objects.get(username="950")
+        self.assertTrue(new.is_student and new.check_password("950"))
+        self.assertIsNone(new.classe)
+        day_user = User.objects.get(username="777")
+        self.assertEqual(self.g.students.get(matricule="777").user, day_user)
+        other = User.objects.create_user("888", password="x", role=User.STUDENT, classe=Classe.objects.get(code="7MA"),
+                                         section=Section.objects.get(code="7MA1"))
+        math = Subject.objects.get(name="الرياضيات")
+        ev = Exam.objects.create(title="امتحان مسائي", classe=Classe.objects.get(code="7MA"), subject=math,
+                                 teacher=self.admin, is_published=True, evening_group=self.g)
+        day = Exam.objects.create(title="امتحان النهار", classe=Classe.objects.get(code="7MA"), subject=math,
+                                  teacher=self.admin, is_published=True)
+        self.assertEqual(set(Exam.for_student(new)), {ev})
+        self.assertEqual(set(Exam.for_student(other)), {day})
+        self.assertEqual(set(Exam.for_student(day_user)), {ev, day})
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse("exam_intro", args=[ev.id])).status_code, 403)
+        self.client.force_login(new)
+        self.assertContains(self.client.get(reverse("student_dashboard")), "امتحان مسائي")
+        self.assertEqual(self.client.get(reverse("exam_intro", args=[ev.id])).status_code, 200)
+        self.client.force_login(self.admin)
+        rows = self.client.get(reverse("exam_results", args=[ev.id])).context["rows"]
+        self.assertEqual({s.username for s, _ in rows}, {"950", "777"})
+
     def test_bad_group_rejects_whole_file(self):
         self.client.force_login(self.admin)
         self.client.post(reverse("evening_students", args=[self.g.id]),

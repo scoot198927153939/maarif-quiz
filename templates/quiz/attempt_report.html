@@ -2,7 +2,7 @@
 {% block title %}{{ r.L.title }} — {{ r.attempt.student }}{% endblock %}
 {% block content %}
 <div class="page-head no-print">
-  <div><span class="tag">{{ r.exam.classe }} · {{ r.exam.subject }}</span><h1>تقرير التلميذ</h1></div>
+  <div><span class="tag">{{ r.exam.target_label }} · {{ r.exam.subject }}</span><h1>تقرير التلميذ</h1></div>
   <div class="actions">
     {% if "fr" in r.languages %}
     <span class="report-langs">
@@ -22,7 +22,7 @@
   <div class="report-head">
     <div>
       <h2 style="margin:0">{{ r.L.title }} : {{ r.attempt.student }} <small class="muted">({{ r.attempt.student.username }})</small></h2>
-      <div class="muted"><bdi>{{ r.exam_title }}</bdi> — {{ r.exam.classe }} · <bdi>{{ r.subject }}</bdi></div>
+      <div class="muted"><bdi>{{ r.exam_title }}</bdi> — {{ r.exam.target_label }} · <bdi>{{ r.subject }}</bdi></div>
       <div class="muted">{{ r.L.submitted }} {{ r.attempt.submitted_at|date:"Y-m-d H:i" }}{% if r.duration_min is not None %} · {{ r.L.duration }} : {{ r.duration_min }} {{ r.L.minutes }}{% endif %}</div>
     </div>
     <div class="grade-box {{ r.grade_css }}">
