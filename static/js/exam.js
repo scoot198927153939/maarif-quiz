@@ -50,7 +50,7 @@
   function updateProgress() {
     var total = form.querySelectorAll('.question').length;
     var answered = new Set();
-    form.querySelectorAll('input[type=radio]:checked').forEach(function (i) { answered.add(i.name); });
+    form.querySelectorAll('input[type=radio]:checked, input[type=checkbox]:checked').forEach(function (i) { answered.add(i.name); });
     form.querySelectorAll('input.written-input').forEach(function (i) { if (i.value.trim()) answered.add(i.name); });
     document.getElementById('progress').textContent = 'أجبت على ' + answered.size + ' من ' + total;
     return total - answered.size;
@@ -77,8 +77,24 @@
   form.addEventListener('change', function (e) {
     var input = e.target;
     if (input.classList.contains('written-input')) { saveWritten(input); return; }
-    if (input.type !== 'radio') return;
-    post(form.dataset.saveUrl, { question: input.dataset.question, selected: input.value })
+    if (input.type !== 'radio' && input.type !== 'checkbox') return;
+    var selected = input.value;
+    if (input.type === 'checkbox') {
+      // سؤال متعدد الأجوبة: لا يُختار أكثر من عدد أجوبته الصحيحة
+      var box = input.closest('.choices');
+      var checked = box.querySelectorAll('input[type=checkbox]:checked');
+      if (input.checked && checked.length > parseInt(box.dataset.max, 10)) {
+        // تنبيه داخل الصفحة (نافذة alert قد تُخرج من ملء الشاشة فتُحسب خروجاً)
+        input.checked = false;
+        var note = box.previousElementSibling;
+        note.classList.add('warn');
+        setTimeout(function () { note.classList.remove('warn'); }, 1500);
+        return;
+      }
+      selected = Array.prototype.map.call(box.querySelectorAll('input[type=checkbox]:checked'),
+        function (i) { return i.value; }).join('');
+    }
+    post(form.dataset.saveUrl, { question: input.dataset.question, selected: selected })
       .then(function (res) { if (res.submitted) { submitting = true; location.reload(); } })
       .catch(function () {});
     updateProgress();

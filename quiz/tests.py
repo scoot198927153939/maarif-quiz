@@ -1148,3 +1148,85 @@ class WrittenAnswerTests(TestCase):
         r = self.client.get(reverse("attempt_result", args=[exam.id]))
         self.assertContains(r, "L&#x27;Acrosome")
         self.assertContains(r, "noyau")
+
+
+class MultiAnswerTests(TestCase):
+    def setUp(self):
+        classe = Classe.objects.get(code="7MA")
+        self.teacher = User.objects.create_user("p", password="x", role=User.TEACHER)
+        self.student = User.objects.create_user("s", password="x", role=User.STUDENT, classe=classe)
+        self.exam = Exam.objects.create(title="T", classe=classe, subject=Subject.objects.first(),
+                                        teacher=self.teacher, is_published=True)
+
+    def _question(self, correct, points=2):
+        q = Question.objects.create(exam=self.exam, text=f"q {correct}", correct_answer=correct, points=points)
+        for l in "ABCD":
+            Choice.objects.create(question=q, letter=l, text=l)
+        return q
+
+    def test_points_split_across_correct_answers(self):
+        q = self._question("ABD", points=3)
+        self.assertTrue(q.is_multi)
+        self.assertEqual(q.earned("ABD"), 3)
+        self.assertEqual(q.earned("AB"), 2)
+        self.assertEqual(q.earned("AC"), 1)
+        self.assertEqual(q.earned("C"), 0)
+        self.assertEqual(q.clean_selection("ABCD"), "ABC")  # لا أكثر من عدد الأجوبة الصحيحة
+        self.assertTrue(q.is_right("DBA"))
+        self.assertFalse(q.is_right("AB"))
+        single = self._question("B")
+        self.assertFalse(single.is_multi)
+        self.assertEqual((single.earned("B"), single.earned("A")), (2, 0))
+
+    def test_excel_accepts_several_letters(self):
+        self.assertEqual(excel.normalize_letters("A, D"), "AD")
+        self.assertEqual(excel.normalize_letters("da"), "AD")
+        self.assertEqual(excel.normalize_letters("أ، د"), "AD")
+        self.assertEqual(excel.normalize_letters("1;4"), "AD")
+        self.assertEqual(excel.normalize_letters("C"), "C")
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(excel.QUESTION_HEADERS)
+        ws.append(["deux bonnes", "a", "b", "c", "d", "A,D", 2])
+        ws.append(["mauvaise", "a", "b", "", "", "A,D", 2])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        n, errors = excel.import_questions(self.exam, buf)
+        self.assertEqual(n, 0)
+        self.assertIn("السطر 3", errors[0])
+        ws.delete_rows(3)
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        self.assertEqual(excel.import_questions(self.exam, buf), (1, []))
+        self.assertEqual(self.exam.questions.get().correct_answer, "AD")
+
+    def test_student_picks_several_answers(self):
+        q = self._question("AD", points=2)
+        q2 = self._question("BC", points=2)
+        self.client.force_login(self.student)
+        self.client.post(reverse("exam_intro", args=[self.exam.id]))
+        r = self.client.get(reverse("take_exam", args=[self.exam.id]))
+        self.assertContains(r, 'type="checkbox"')
+        self.assertContains(r, "عدد الأجوبة الصحيحة في هذا السؤال: 2")
+        r = self.client.post(reverse("save_answer", args=[self.exam.id]),
+                             json.dumps({"question": q.id, "selected": "DA"}), content_type="application/json")
+        self.assertEqual(r.json(), {"ok": True})
+        # الإرسال الاحتياطي مع التسليم: عدة قيم لنفس السؤال
+        self.client.post(reverse("submit_exam", args=[self.exam.id]), {f"q_{q2.id}": ["B", "D"]})
+        a = Attempt.objects.get(exam=self.exam, student=self.student)
+        self.assertEqual(a.answers.get(question=q2).selected, "BD")
+        self.assertEqual((a.score, a.total), (3, 4))
+        r = self.client.get(reverse("attempt_result", args=[self.exam.id]))
+        self.assertContains(r, "1 / 2 ن")
+
+    def test_teacher_form_saves_several_answers(self):
+        self.client.force_login(self.teacher)
+        r = self.client.post(reverse("question_add", args=[self.exam.id]), {
+            "text": "multi", "points": "2", "correct_answer": ["A", "C"],
+            "choice_A": "a", "choice_B": "b", "choice_C": "c", "save": "1",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Question.objects.get(text="multi").correct_answer, "AC")

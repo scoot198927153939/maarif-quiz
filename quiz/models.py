@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -290,9 +291,10 @@ class Question(models.Model):
     text = models.TextField("نص السؤال")
     image = models.ImageField("صورة توضيحية", upload_to="questions/", blank=True, null=True)
     points = models.DecimalField("النقاط", max_digits=6, decimal_places=2, default=1)
+    # حرف الخيار الصحيح، أو عدة حروف (مثل AD) لسؤال له أكثر من جواب صحيح
     correct_answer = models.CharField(
-        "رمز الإجابة الصحيحة", max_length=1, blank=True,
-        help_text="حرف الخيار الصحيح: A أو B أو C أو D ...",
+        "رمز الإجابة الصحيحة", max_length=6, blank=True,
+        help_text="حرف الخيار الصحيح: A أو B أو C أو D ... ، أو عدة حروف (مثل AD) إذا كان للسؤال أكثر من جواب صحيح.",
     )
     # سؤال يكتب فيه التلميذ الجواب بنفسه: الأجوبة المقبولة مفصولة بـ |
     written_answer = models.CharField(
@@ -328,10 +330,32 @@ class Question(models.Model):
     def written_display(self):
         return " / ".join(p.strip() for p in self.written_answer.split("|") if p.strip())
 
+    @property
+    def correct_letters(self):
+        return sorted({c for c in self.correct_answer.upper() if c in self.LETTERS})
+
+    @property
+    def is_multi(self):
+        return len(self.correct_letters) > 1
+
+    def clean_selection(self, raw):
+        """حروف الخيارات التي اختارها التلميذ، مرتبة وبلا تكرار، ولا تتجاوز عدد الأجوبة الصحيحة."""
+        letters = sorted({c for c in str(raw or "").upper() if c in self.LETTERS})
+        return "".join(letters[:max(1, len(self.correct_letters))])
+
     def is_right(self, selected="", text=""):
         if self.is_written:
             return written_matches(text, self.written_answer)
-        return bool(selected) and selected.upper() == self.correct_answer.upper()
+        return bool(selected) and sorted(set(selected.upper())) == self.correct_letters
+
+    def earned(self, selected="", text=""):
+        """نقاط التلميذ في السؤال. السؤال متعدد الأجوبة تُقسم نقاطه على أجوبته الصحيحة:
+        كل جواب صحيح اختاره التلميذ يأخذ نصيبه (ولا يمكن اختيار أكثر من عدد الأجوبة الصحيحة)."""
+        if not self.is_multi:
+            return self.points if self.is_right(selected, text) else 0
+        correct = set(self.correct_letters)
+        hits = len(correct & set(self.clean_selection(selected)))
+        return (Decimal(str(self.points)) * hits / len(correct)).quantize(Decimal("0.01"))
 
     def save(self, *args, **kwargs):
         if not self.topic and self.exam_id:
@@ -407,8 +431,8 @@ class Attempt(models.Model):
         for q in self.graded_questions():
             total += q.points
             a = answers.get(q.id)
-            if a and q.is_right(a.selected, a.text):
-                score += q.points
+            if a:
+                score += q.earned(a.selected, a.text)
         self.score = score
         self.total = total
         return score
@@ -426,7 +450,7 @@ class Attempt(models.Model):
 class Answer(models.Model):
     attempt = models.ForeignKey(Attempt, on_delete=models.CASCADE, related_name="answers")
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    selected = models.CharField(max_length=1, blank=True)
+    selected = models.CharField(max_length=6, blank=True)
     text = models.CharField("الجواب المكتوب", max_length=300, blank=True)
     answered_at = models.DateTimeField(null=True, blank=True)
     changes = models.PositiveIntegerField(default=0)

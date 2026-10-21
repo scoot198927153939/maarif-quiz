@@ -200,14 +200,14 @@ def save_answer(request, exam_id):
     try:
         data = json.loads(request.body)
         question = Question.objects.get(pk=int(data["question"]), exam_id=exam_id)
-        selected = str(data.get("selected", ""))[:1].upper()
+        selected = data.get("selected", "")
         text = str(data.get("text", "")).strip()[:300]
     except (ValueError, KeyError, TypeError, Question.DoesNotExist):
         return JsonResponse({"ok": False}, status=400)
     if question.is_written:
         selected = ""
     else:
-        text = ""
+        selected, text = question.clean_selection(selected), ""
     answer, created = Answer.objects.get_or_create(attempt=attempt, question=question)
     if created or answer.selected != selected or answer.text != text:
         if not created and (answer.selected or answer.text):
@@ -246,24 +246,26 @@ def submit_exam(request, exam_id):
     ).first()
     if attempt:
         # حفظ الإجابات المرسلة مع النموذج (احتياطاً إن فشل الحفظ التلقائي)
-        kinds = {q.id: q.is_written for q in attempt.exam.questions.all()}
+        questions = {q.id: q for q in attempt.exam.questions.all()}
         if not attempt.is_expired():
-            for key, value in request.POST.items():
+            for key, values in request.POST.lists():
                 if key.startswith("q_"):
                     try:
                         qid = int(key[2:])
                     except ValueError:
                         continue
-                    if qid not in kinds:
+                    q = questions.get(qid)
+                    if q is None:
                         continue
-                    if kinds[qid]:
+                    value = values[-1]
+                    if q.is_written:
                         if value.strip():
                             Answer.objects.update_or_create(
                                 attempt=attempt, question_id=qid, defaults={"text": value.strip()[:300], "selected": ""}
                             )
                     else:
                         Answer.objects.update_or_create(
-                            attempt=attempt, question_id=qid, defaults={"selected": value[:1].upper()}
+                            attempt=attempt, question_id=qid, defaults={"selected": q.clean_selection("".join(values))}
                         )
         attempt.submit(auto=request.POST.get("auto") == "1")
     return redirect("attempt_result", exam_id=exam_id)
@@ -278,7 +280,8 @@ def attempt_result(request, exam_id):
         answers = {qid: (sel, text) for qid, sel, text in attempt.answers.values_list("question_id", "selected", "text")}
         for q in attempt.graded_questions().prefetch_related("choices"):
             sel, text = answers.get(q.id, ("", ""))
-            details.append({"q": q, "selected": sel, "text": text, "correct": q.is_right(sel, text)})
+            details.append({"q": q, "selected": sel, "text": text, "correct": q.is_right(sel, text),
+                            "earned": q.earned(sel, text)})
     return render(request, "quiz/attempt_result.html", {
         "exam": exam, "attempt": attempt, "details": details,
     })
