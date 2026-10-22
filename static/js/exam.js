@@ -83,7 +83,7 @@
       // سؤال متعدد الأجوبة: لا يُختار أكثر من عدد أجوبته الصحيحة
       var box = input.closest('.choices');
       var checked = box.querySelectorAll('input[type=checkbox]:checked');
-      if (input.checked && checked.length > parseInt(box.dataset.max, 10)) {
+      if (input.checked && box.dataset.max && checked.length > parseInt(box.dataset.max, 10)) {
         // تنبيه داخل الصفحة (نافذة alert قد تُخرج من ملء الشاشة فتُحسب خروجاً)
         input.checked = false;
         var note = box.previousElementSibling;

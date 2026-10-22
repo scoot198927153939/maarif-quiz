@@ -1169,14 +1169,16 @@ class MultiAnswerTests(TestCase):
         self.assertTrue(q.is_multi)
         self.assertEqual(q.earned("ABD"), 3)
         self.assertEqual(q.earned("AB"), 2)
-        self.assertEqual(q.earned("AC"), 1)
+        self.assertEqual(q.earned("AC"), 0)  # صحيح واحد وخاطئ واحد
         self.assertEqual(q.earned("C"), 0)
-        self.assertEqual(q.clean_selection("ABCD"), "ABC")  # لا أكثر من عدد الأجوبة الصحيحة
+        self.assertEqual(q.clean_selection("ABCD"), "ABCD")  # يمكن اختيار كل الخيارات
+        self.assertEqual(q.earned("ABCD"), 2)  # لكن الخيار الخاطئ يُنقص نصيباً
         self.assertTrue(q.is_right("DBA"))
         self.assertFalse(q.is_right("AB"))
         single = self._question("B")
         self.assertFalse(single.is_multi)
         self.assertEqual((single.earned("B"), single.earned("A")), (2, 0))
+        self.assertEqual(single.clean_selection("BA"), "A")  # جواب وحيد: خيار واحد
 
     def test_excel_accepts_several_letters(self):
         self.assertEqual(excel.normalize_letters("A, D"), "AD")
@@ -1215,9 +1217,9 @@ class MultiAnswerTests(TestCase):
                              json.dumps({"question": q.id, "selected": "DA"}), content_type="application/json")
         self.assertEqual(r.json(), {"ok": True})
         # الإرسال الاحتياطي مع التسليم: عدة قيم لنفس السؤال
-        self.client.post(reverse("submit_exam", args=[self.exam.id]), {f"q_{q2.id}": ["B", "D"]})
+        self.client.post(reverse("submit_exam", args=[self.exam.id]), {f"q_{q2.id}": ["B", "C", "D"]})
         a = Attempt.objects.get(exam=self.exam, student=self.student)
-        self.assertEqual(a.answers.get(question=q2).selected, "BD")
+        self.assertEqual(a.answers.get(question=q2).selected, "BCD")
         self.assertEqual((a.score, a.total), (3, 4))
         r = self.client.get(reverse("attempt_result", args=[self.exam.id]))
         self.assertContains(r, "1 / 2 ن")

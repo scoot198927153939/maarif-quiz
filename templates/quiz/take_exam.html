@@ -35,7 +35,7 @@
            maxlength="300" dir="auto" autocomplete="off" spellcheck="false" placeholder="اكتب جوابك هنا">
     {% else %}
     {% if q.is_multi %}<p class="multi-note" dir="ltr" style="text-align:left">✔✔ Attention : plusieurs réponses peuvent être justes pour une même question.</p>{% endif %}
-    <div class="choices"{% if q.is_multi %} data-max="{{ q.correct_letters|length }}"{% endif %}>
+    <div class="choices">
       {% for c in q.choices.all %}
       <label class="choice">
         {% if q.is_multi %}
