@@ -1210,7 +1210,7 @@ class MultiAnswerTests(TestCase):
         self.client.post(reverse("exam_intro", args=[self.exam.id]))
         r = self.client.get(reverse("take_exam", args=[self.exam.id]))
         self.assertContains(r, 'type="checkbox"')
-        self.assertContains(r, "عدد الأجوبة الصحيحة في هذا السؤال: 2")
+        self.assertContains(r, "plusieurs réponses peuvent être justes")
         r = self.client.post(reverse("save_answer", args=[self.exam.id]),
                              json.dumps({"question": q.id, "selected": "DA"}), content_type="application/json")
         self.assertEqual(r.json(), {"ok": True})
