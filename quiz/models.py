@@ -821,3 +821,55 @@ class EveningTeacherAttendance(models.Model):
         ordering = ["-date"]
         verbose_name = "حضور أستاذ مسائي"
         verbose_name_plural = "حضور أساتذة الحصص المسائية"
+
+
+# ---------------------------------------------------------------- الفيديوهات التعليمية
+
+YOUTUBE_ID = re.compile(r"(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/))([\w-]{11})")
+
+
+class Video(models.Model):
+    """فيديو تعليمي لمستوى ومادة، مرتّب حسب رقم الدرس. إما ملف مرفوع أو رابط يوتيوب."""
+
+    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="videos", verbose_name="القسم")
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="videos", verbose_name="المادة")
+    lesson_number = models.PositiveSmallIntegerField("رقم الدرس", default=1)
+    lesson = models.CharField("عنوان الدرس", max_length=150)
+    title = models.CharField("عنوان الفيديو", max_length=200, blank=True,
+                             help_text="اختياري، مثل: الجزء 1، تمارين محلولة…")
+    order = models.PositiveSmallIntegerField("ترتيب الفيديو داخل الدرس", default=1)
+    youtube_url = models.URLField("رابط يوتيوب", blank=True)
+    file = models.FileField("ملف الفيديو", upload_to="videos/%Y/%m/", blank=True)
+    added_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["classe__code", "subject__name", "lesson_number", "order", "id"]
+        verbose_name = "فيديو تعليمي"
+        verbose_name_plural = "الفيديوهات التعليمية"
+
+    def __str__(self):
+        return self.display_title
+
+    @property
+    def display_title(self):
+        return self.title or self.lesson
+
+    @property
+    def youtube_id(self):
+        m = YOUTUBE_ID.search(self.youtube_url or "")
+        return m.group(1) if m else ""
+
+    @property
+    def thumbnail(self):
+        return f"https://i.ytimg.com/vi/{self.youtube_id}/mqdefault.jpg" if self.youtube_id else ""
+
+    @classmethod
+    def classes_for_student(cls, student):
+        """مستوى التلميذ، ومستوى كل مجموعة مسائية هو فيها (G1_7SN ← 7SN)."""
+        codes = set()
+        if student.classe_id:
+            codes.add(student.classe.code)
+        for r in student.evening_records.filter(is_active=True).select_related("group"):
+            codes.add(r.group.code.rsplit("_", 1)[-1].upper())
+        return Classe.objects.filter(code__in=codes)

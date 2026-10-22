@@ -24,6 +24,7 @@
       <a href="{% url 'evening_home' %}">الحصص المسائية</a>
       <a href="{% url 'timetable_home' %}">الجدول الزمني</a>
       <a href="{% url 'lessons_overview' %}">الدروس</a>
+      <a href="{% url 'videos_home' %}">الفيديوهات</a>
       <a href="{% url 'students_list' %}">لائحة التلاميذ</a>
       <a href="{% url 'library_home' %}">المكتبة</a>
       <a href="{% url 'activity_report' %}">النشاط</a>
@@ -43,10 +44,12 @@
       <a href="{% url 'teacher_dashboard' %}">امتحاناتي</a>
       <a href="{% url 'exam_create' %}">امتحان جديد</a>
       <a href="{% url 'class_results' %}">النقاط حسب القسم</a>
+      <a href="{% url 'videos_home' %}">الفيديوهات</a>
       <a href="{% url 'timetable_home' %}">الجدول الزمني</a>
     {% else %}
       <a href="{% url 'student_dashboard' %}">امتحاناتي</a>
       <a href="{% url 'my_timetable' %}">جدول الحصص</a>
+      <a href="{% url 'videos_home' %}">الفيديوهات</a>
     {% endif %}
   </nav>
   <div class="who">
