@@ -42,6 +42,17 @@ def normalize_letter(value):
     return v[:1]
 
 
+def normalize_letters(value):
+    """رمز الإجابة الصحيحة، وقد يكون عدة أجوبة: «A,D» أو «A D» أو «AD» أو «أ، د» أو «1;4» => «AD»."""
+    letters = set()
+    for token in re.split(r"[\s,;/+،؛]+", _clean(value)):
+        if re.fullmatch(r"[A-Za-z]{2,}", token):
+            letters.update(token.upper())
+        elif token:
+            letters.add(normalize_letter(token))
+    return "".join(sorted(letters))
+
+
 def _style_header(ws, widths):
     ws.sheet_view.rightToLeft = True
     for i, cell in enumerate(ws[1]):
@@ -67,6 +78,8 @@ def questions_template():
         "كل سطر في ورقة «الأسئلة» = سؤال واحد. لا تغيّر السطر الأول (العناوين).",
         "الأعمدة A و B و C و D هي الخيارات. يمكن ترك خيار فارغاً إذا كان للسؤال خياران أو ثلاثة فقط.",
         "عمود «الإجابة الصحيحة»: اكتب رمز الخيار الصحيح: A أو B أو C أو D (أو أ / ب / ج / د، أو 1 / 2 / 3 / 4).",
+        "إذا كان للسؤال أكثر من جواب صحيح اكتب رموزها مفصولة بفاصلة مثل: A,D . يُخبَر التلميذ بعدد الأجوبة الصحيحة "
+        "ولا يستطيع اختيار أكثر منها، وتُقسم نقاط السؤال عليها: كل جواب صحيح يختاره يأخذ نصيبه.",
         "عمود «النقاط»: عدد نقاط السؤال (إذا تُرك فارغاً تُحسب نقطة واحدة).",
         "عمود «الجواب المكتوب» (اختياري): لسؤال يكتب فيه التلميذ الجواب بنفسه، اترك الخيارات والإجابة الصحيحة فارغة "
         "واكتب الجواب هنا. يمكن وضع أكثر من جواب مقبول مفصولة بـ | مثل: queue | flagelle. "
@@ -120,7 +133,7 @@ def import_questions(exam, file, replace=False):
         written = _clean(row[10])[:300]
         if not text and not any(options):
             continue  # سطر فارغ
-        correct = normalize_letter(row[5])
+        correct = normalize_letters(row[5])
         points_raw = _clean(row[6]) or "1"
         choices = [(Question.LETTERS[i], o) for i, o in enumerate(options) if o]
         if not text:
@@ -131,7 +144,7 @@ def import_questions(exam, file, replace=False):
         elif len(choices) < 2:
             errors.append(f"السطر {idx}: يجب وضع خيارين على الأقل (أو ملء عمود «الجواب المكتوب»).")
             continue
-        elif correct not in [c[0] for c in choices]:
+        elif not correct or any(l not in [c[0] for c in choices] for l in correct):
             errors.append(f"السطر {idx}: رمز الإجابة الصحيحة «{_clean(row[5])}» لا يطابق أي خيار.")
             continue
         try:

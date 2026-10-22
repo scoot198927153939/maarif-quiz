@@ -51,8 +51,10 @@ class QuestionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         letters = Question.LETTERS[:N_CHOICES]
-        self.fields["correct_answer"] = forms.ChoiceField(
-            label="رمز الإجابة الصحيحة", choices=[("", "—")] + [(l, l) for l in letters], required=False,
+        self.fields["correct_answer"] = forms.MultipleChoiceField(
+            label="الإجابة الصحيحة", choices=[(l, l) for l in letters], required=False,
+            widget=forms.CheckboxSelectMultiple(attrs={"class": "inline-checks"}),
+            help_text="يمكن اختيار أكثر من جواب صحيح: تُقسم نقاط السؤال عليها.",
         )
         existing = {}
         if self.instance.pk:
@@ -63,7 +65,7 @@ class QuestionForm(forms.ModelForm):
                 initial=existing.get(l, ""),
             )
         if self.instance.pk:
-            self.initial["correct_answer"] = self.instance.correct_answer
+            self.initial["correct_answer"] = self.instance.correct_letters
 
     def choice_fields(self):
         return [self[f"choice_{l}"] for l in Question.LETTERS[:N_CHOICES]]
@@ -76,13 +78,14 @@ class QuestionForm(forms.ModelForm):
             for l in Question.LETTERS[:N_CHOICES]:
                 data[f"choice_{l}"] = ""
             return data
-        correct = data.get("correct_answer")
+        correct = "".join(sorted(data.get("correct_answer") or []))
+        data["correct_answer"] = correct
         filled = [l for l in Question.LETTERS[:N_CHOICES] if data.get(f"choice_{l}")]
         if len(filled) < 2:
             self.add_error("choice_B", "ضع خيارين على الأقل، أو اكتب «الجواب المكتوب» لسؤال يكتب فيه التلميذ الجواب.")
         if not correct:
             self.add_error("correct_answer", "اختر رمز الإجابة الصحيحة.")
-        elif correct not in filled:
+        elif any(l not in filled for l in correct):
             self.add_error("correct_answer", "الخيار المحدد كإجابة صحيحة فارغ.")
         return data
 

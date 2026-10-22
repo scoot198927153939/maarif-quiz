@@ -56,7 +56,7 @@
     <div class="choice static right"><span class="letter">✍️</span><span class="c-text" dir="auto">{{ q.written_display }}</span></div>
   {% endif %}
   {% for c in q.choices.all %}
-    <div class="choice static {% if c.letter == q.correct_answer %}right{% endif %}"><span class="letter">{{ c.letter }}</span><span class="c-text" dir="auto">{{ c.text }}</span></div>
+    <div class="choice static {% if c.letter in q.correct_answer %}right{% endif %}"><span class="letter">{{ c.letter }}</span><span class="c-text" dir="auto">{{ c.text }}</span></div>
   {% endfor %}
   </div>
 </div>

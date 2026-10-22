@@ -15,7 +15,8 @@
 <h2>التصحيح</h2>
 {% for d in details %}
 <div class="card question {% if d.correct %}ok{% else %}ko{% endif %}">
-  <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }} {% if d.correct %}✅{% else %}❌{% endif %}</span><span class="tag">{{ d.q.points|floatformat:"-2" }} ن</span></div>
+  <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }} {% if d.correct %}✅{% elif d.earned %}➗{% else %}❌{% endif %}</span><span class="tag">{% if d.q.is_multi %}{{ d.earned|floatformat:"-2" }} / {% endif %}{{ d.q.points|floatformat:"-2" }} ن</span></div>
+  {% if d.q.is_multi %}<p class="multi-note">عدد الأجوبة الصحيحة في هذا السؤال: {{ d.q.correct_letters|length }}.</p>{% endif %}
   <p class="q-text" dir="auto">{{ d.q.text|linebreaksbr }}</p>
   {% if d.q.image %}<img class="q-image" src="{{ d.q.image.url }}" alt="">{% endif %}
   {% if d.q.is_written %}
@@ -26,9 +27,9 @@
   {% else %}
   <div class="choices">
   {% for c in d.q.choices.all %}
-    <div class="choice static {% if c.letter == d.q.correct_answer %}right{% elif c.letter == d.selected %}wrong{% endif %}">
+    <div class="choice static {% if c.letter in d.q.correct_answer %}right{% elif c.letter in d.selected %}wrong{% endif %}">
       <span class="letter">{{ c.letter }}</span><span class="c-text" dir="auto">{{ c.text }}</span>
-      {% if c.letter == d.selected %}<em class="muted"> (إجابتك)</em>{% endif %}
+      {% if c.letter in d.selected %}<em class="muted"> (إجابتك)</em>{% endif %}
     </div>
   {% endfor %}
   </div>

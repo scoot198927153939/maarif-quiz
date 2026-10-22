@@ -34,10 +34,15 @@
     <input type="text" class="written-input" name="q_{{ q.id }}" data-question="{{ q.id }}" value="{{ q.saved_text }}"
            maxlength="300" dir="auto" autocomplete="off" spellcheck="false" placeholder="اكتب جوابك هنا">
     {% else %}
-    <div class="choices">
+    {% if q.is_multi %}<p class="multi-note">✔✔ عدد الأجوبة الصحيحة في هذا السؤال: {{ q.correct_letters|length }}. اختر {{ q.correct_letters|length }} من الخيارات، وكل جواب صحيح تختاره يأخذ نصيبه من نقاط السؤال.</p>{% endif %}
+    <div class="choices"{% if q.is_multi %} data-max="{{ q.correct_letters|length }}"{% endif %}>
       {% for c in q.choices.all %}
       <label class="choice">
+        {% if q.is_multi %}
+        <input type="checkbox" name="q_{{ q.id }}" value="{{ c.letter }}" data-question="{{ q.id }}" {% if c.letter in q.saved %}checked{% endif %}>
+        {% else %}
         <input type="radio" name="q_{{ q.id }}" value="{{ c.letter }}" data-question="{{ q.id }}" {% if q.saved == c.letter %}checked{% endif %}>
+        {% endif %}
         <span class="letter">{{ c.letter }}</span><span class="c-text" dir="auto">{{ c.text }}</span>
       </label>
       {% endfor %}
