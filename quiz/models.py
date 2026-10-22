@@ -339,9 +339,9 @@ class Question(models.Model):
         return len(self.correct_letters) > 1
 
     def clean_selection(self, raw):
-        """حروف الخيارات التي اختارها التلميذ، مرتبة وبلا تكرار، ولا تتجاوز عدد الأجوبة الصحيحة."""
+        """حروف الخيارات التي اختارها التلميذ، مرتبة وبلا تكرار. السؤال ذو الجواب الوحيد: خيار واحد."""
         letters = sorted({c for c in str(raw or "").upper() if c in self.LETTERS})
-        return "".join(letters[:max(1, len(self.correct_letters))])
+        return "".join(letters if self.is_multi else letters[:1])
 
     def is_right(self, selected="", text=""):
         if self.is_written:
@@ -350,12 +350,14 @@ class Question(models.Model):
 
     def earned(self, selected="", text=""):
         """نقاط التلميذ في السؤال. السؤال متعدد الأجوبة تُقسم نقاطه على أجوبته الصحيحة:
-        كل جواب صحيح اختاره التلميذ يأخذ نصيبه (ولا يمكن اختيار أكثر من عدد الأجوبة الصحيحة)."""
+        كل جواب صحيح اختاره التلميذ يأخذ نصيبه، وكل جواب خاطئ اختاره يُنقص نصيباً (ولا تنزل تحت الصفر)،
+        حتى لا يربح من يختار كل الخيارات."""
         if not self.is_multi:
             return self.points if self.is_right(selected, text) else 0
         correct = set(self.correct_letters)
-        hits = len(correct & set(self.clean_selection(selected)))
-        return (Decimal(str(self.points)) * hits / len(correct)).quantize(Decimal("0.01"))
+        chosen = set(self.clean_selection(selected))
+        net = max(0, len(correct & chosen) - len(chosen - correct))
+        return (Decimal(str(self.points)) * net / len(correct)).quantize(Decimal("0.01"))
 
     def save(self, *args, **kwargs):
         if not self.topic and self.exam_id:
