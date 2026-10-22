@@ -45,6 +45,9 @@ ACTIONS = {
     "timetable_import": (A.IMPORT, "استيراد الجدول الزمني"),
     "timetable_edit": (A.EDIT, "تعديل الجدول الزمني"),
     "lesson_new": (A.ADD, "تصوير درس"),
+    "video_new": (A.ADD, "إضافة فيديو تعليمي"),
+    "video_edit": (A.EDIT, "تعديل فيديو تعليمي"),
+    "video_delete": (A.DELETE, "حذف فيديو تعليمي"),
     "lesson_delete": (A.DELETE, "حذف درس مصوّر"),
     "lesson_scopes": (A.EDIT, "تحديد مواد مسجّل الدروس"),
     "section_roll": (A.EDIT, "تسجيل حضور التلاميذ"),
@@ -95,6 +98,10 @@ def _target(kwargs):
             return EveningGroup.objects.get(pk=kwargs["group_id"]).code
         if "code" in kwargs:
             return kwargs["code"]
+        if "video_id" in kwargs:
+            from .models import Video
+            v = Video.objects.select_related("classe").get(pk=kwargs["video_id"])
+            return f"{v.display_title} ({v.classe})"
         if "note_id" in kwargs:
             return str(StudentNote.objects.select_related("student").get(pk=kwargs["note_id"]).student)
     except Exception:  # noqa: BLE001 — الوصف ثانوي، لا يجب أن يوقف الطلب

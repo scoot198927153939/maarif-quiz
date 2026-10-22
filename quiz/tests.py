@@ -1230,3 +1230,63 @@ class MultiAnswerTests(TestCase):
         })
         self.assertEqual(r.status_code, 302)
         self.assertEqual(Question.objects.get(text="multi").correct_answer, "AC")
+
+
+class VideoTests(TestCase):
+    def setUp(self):
+        import tempfile
+        self.media = tempfile.mkdtemp()
+        self.c7 = Classe.objects.get(code="7SN")
+        self.c5 = Classe.objects.get(code="5SN")
+        self.sci = self.c7.subjects.first()
+        self.teacher = User.objects.create_user("prof", password="x", role=User.TEACHER)
+        self.teacher.teaching_classes.set([self.c7])
+        self.teacher.teaching_subjects.set([self.sci])
+        self.s7 = User.objects.create_user("s7", password="x", role=User.STUDENT, classe=self.c7)
+        self.s5 = User.objects.create_user("s5", password="x", role=User.STUDENT, classe=self.c5)
+
+    def test_teacher_adds_and_students_see_own_class(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .models import EveningGroup, EveningStudent, Video
+        self.client.force_login(self.teacher)
+        with self.settings(MEDIA_ROOT=self.media):
+            r = self.client.post(reverse("video_new"), {
+                "classe": self.c7.id, "subject": self.sci.id, "lesson_number": 2, "lesson": "La reproduction",
+                "order": 1, "youtube_url": "https://youtu.be/dQw4w9WgXcQ"})
+            self.assertEqual(r.status_code, 302)
+            self.client.post(reverse("video_new"), {
+                "classe": self.c7.id, "subject": self.sci.id, "lesson_number": 1, "lesson": "La cellule",
+                "order": 1, "file": SimpleUploadedFile("a.mp4", b"0123456789", content_type="video/mp4")})
+            # بلا رابط ولا ملف: مرفوض
+            r = self.client.post(reverse("video_new"), {
+                "classe": self.c7.id, "subject": self.sci.id, "lesson_number": 1, "lesson": "x", "order": 1})
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(Video.objects.count(), 2)
+            yt, f = Video.objects.get(lesson_number=2), Video.objects.get(lesson_number=1)
+            self.assertEqual(yt.youtube_id, "dQw4w9WgXcQ")
+
+            self.client.force_login(self.s7)
+            r = self.client.get(reverse("videos_home"))
+            content = r.content.decode()
+            self.assertLess(content.index("La cellule"), content.index("La reproduction"))
+            self.assertContains(self.client.get(reverse("video_watch", args=[yt.id])), "youtube-nocookie.com/embed/dQw4w9WgXcQ")
+            r = self.client.get(reverse("video_file", args=[f.id]), HTTP_RANGE="bytes=2-5")
+            self.assertEqual(r.status_code, 206)
+            self.assertEqual(b"".join(r.streaming_content), b"2345")
+            self.assertEqual(r["Content-Range"], "bytes 2-5/10")
+
+            self.client.force_login(self.s5)
+            self.assertEqual(self.client.get(reverse("video_watch", args=[yt.id])).status_code, 403)
+            self.assertNotContains(self.client.get(reverse("videos_home")), "La reproduction")
+
+            # تلميذ الحصص المسائية G1_7SN يرى فيديوهات 7SN
+            g = EveningGroup.objects.get_or_create(code="G1_7SN")[0]
+            ev = User.objects.create_user("ev", password="x", role=User.STUDENT)
+            EveningStudent.objects.create(group=g, matricule="900", full_name="ev", user=ev,
+                                          registered_on=datetime.date.today())
+            self.client.force_login(ev)
+            self.assertEqual(self.client.get(reverse("video_watch", args=[yt.id])).status_code, 200)
+
+            self.client.force_login(self.teacher)
+            self.client.post(reverse("video_delete", args=[f.id]))
+            self.assertEqual(Video.objects.count(), 1)

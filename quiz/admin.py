@@ -80,3 +80,12 @@ class AttemptAdmin(admin.ModelAdmin):
     list_display = ("student", "exam", "status", "score", "total", "violations", "submitted_at")
     list_filter = ("status", "exam__classe", "exam__subject")
     inlines = [AnswerInline]
+
+
+from .models import Video  # noqa: E402
+
+
+@admin.register(Video)
+class VideoAdmin(admin.ModelAdmin):
+    list_display = ("lesson", "title", "classe", "subject", "lesson_number", "order")
+    list_filter = ("classe", "subject")
