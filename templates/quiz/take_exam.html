@@ -34,7 +34,7 @@
     <input type="text" class="written-input" name="q_{{ q.id }}" data-question="{{ q.id }}" value="{{ q.saved_text }}"
            maxlength="300" dir="auto" autocomplete="off" spellcheck="false" placeholder="اكتب جوابك هنا">
     {% else %}
-    {% if q.is_multi %}<p class="multi-note">✔✔ عدد الأجوبة الصحيحة في هذا السؤال: {{ q.correct_letters|length }}. اختر {{ q.correct_letters|length }} من الخيارات، وكل جواب صحيح تختاره يأخذ نصيبه من نقاط السؤال.</p>{% endif %}
+    {% if q.is_multi %}<p class="multi-note" dir="ltr" style="text-align:left">✔✔ Attention : plusieurs réponses peuvent être justes pour une même question.</p>{% endif %}
     <div class="choices"{% if q.is_multi %} data-max="{{ q.correct_letters|length }}"{% endif %}>
       {% for c in q.choices.all %}
       <label class="choice">
