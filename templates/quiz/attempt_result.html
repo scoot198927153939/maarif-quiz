@@ -16,7 +16,7 @@
 {% for d in details %}
 <div class="card question {% if d.correct %}ok{% else %}ko{% endif %}">
   <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }} {% if d.correct %}✅{% elif d.earned %}➗{% else %}❌{% endif %}</span><span class="tag">{% if d.q.is_multi %}{{ d.earned|floatformat:"-2" }} / {% endif %}{{ d.q.points|floatformat:"-2" }} ن</span></div>
-  {% if d.q.is_multi %}<p class="multi-note">عدد الأجوبة الصحيحة في هذا السؤال: {{ d.q.correct_letters|length }}.</p>{% endif %}
+  {% if d.q.is_multi %}<p class="multi-note" dir="ltr" style="text-align:left">Attention : plusieurs réponses peuvent être justes pour une même question.</p>{% endif %}
   <p class="q-text" dir="auto">{{ d.q.text|linebreaksbr }}</p>
   {% if d.q.image %}<img class="q-image" src="{{ d.q.image.url }}" alt="">{% endif %}
   {% if d.q.is_written %}
