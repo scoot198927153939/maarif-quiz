@@ -188,6 +188,16 @@ body.landing { background: linear-gradient(135deg, #1f6f5c 0%, #16362d 100%); mi
 .vec { position: relative; display: inline-block; min-width: .9em; text-align: center; padding-right: .1em; padding-top: .35em; line-height: 1.1; unicode-bidi: isolate; }
 .vec::before { content: ""; position: absolute; top: .12em; left: .05em; right: .15em; border-top: 1.5px solid currentColor; }
 .vec::after { content: ""; position: absolute; top: calc(.12em - 3.5px); right: 0; border-left: 7px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.bigop { display: inline-grid; vertical-align: middle; margin: 0 .2em 0 .1em; line-height: 1; text-align: center; unicode-bidi: isolate; white-space: nowrap; }
+.bigop .op { font-size: 1.6em; line-height: 1; font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif; }
+.bigop.sum .op { font-size: 2.1em; font-family: "Times New Roman", "DejaVu Serif", serif; line-height: .85; }
+.bigop .hi, .bigop .lo { font-size: .72em; }
+.bigop .frac { font-size: 1em; margin: 0; }
+.bigop.sum { grid-template-rows: auto auto auto; }
+.bigop.int { grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: .05em; }
+.bigop.int .op { grid-column: 1; grid-row: 1 / 3; font-size: 1.9em; font-style: italic; }
+.bigop.int .hi { grid-column: 2; grid-row: 1; align-self: start; text-align: left; }
+.bigop.int .lo { grid-column: 2; grid-row: 2; align-self: end; text-align: left; }
 .choice { min-height: 48px; }
 .matrix { display: inline-grid; align-items: center; gap: .1em .7em; vertical-align: middle; padding: .15em .45em; margin: 0 .2em; text-align: center; line-height: 1.25; border: 1.5px solid currentColor; border-top-color: transparent; border-bottom-color: transparent; unicode-bidi: isolate; }
 .matrix.par { border-radius: .6em / 50%; }

@@ -2,6 +2,7 @@
    - الكسور: 3/8 ، 2x/3 ، (x+1)/(x-2) ، 1/√2 ، √2/2 ، \frac{a}{b}  => البسط فوق المقام
    - الجذر: √18 ، 5√2 ، √(x+1)  => خط الجذر يمتد فوق كل ما تحته
    - الأشعة: AB⃗ (حرف + سهم مركّب U+20D7) أو vec(AB)  => سهم فوق الحروف
+   - التكامل والمجموع: ∫_0^1 ، ∫_0^(π/2) ، ∑_(k=1)^n ، Σ_(k=0)^(n-1)  => الحدود فوق الرمز وتحته
    لا يلمس الوحدات (km/h ، m/s) ولا التواريخ (12/05/2026)، وكل رمز آخر يبقى كما هو. */
 (function () {
   var atoms = [];
@@ -13,10 +14,12 @@
 
   var VEC = /(?:vec\(([^()]{1,6})\)|([A-Za-z0-9]{1,3}|[A-Za-z]'?)[⃯⃮⃗⃑])/g;
   var SQRT = new RegExp('√\\s*(\\([^()]{1,40}\\)|\\d+(?:[.,]\\d+)?[a-zA-Z]?|[a-zA-Z]|' + P + ')', 'g');
+  var BOUND = '(\\([^()]{1,20}\\)|[^\\s()_^]{1,6})';
+  var BIGOP = new RegExp('([∫∑Σ])\\s*_' + BOUND + '\\^' + BOUND, 'g');
   var CELL = '-?[\\w.,/√π' + P.slice(1, -1) + ']+';
   var ROW = CELL + '(?:(?:\\s+|\\s*,\\s*)' + CELL + ')+';
   var MAT = new RegExp('(?:(det)\\s*\\(|([(\\[|]))\\s*(' + ROW + '(?:\\s*;\\s*' + ROW + ')+)\\s*([)\\]|])', 'g');
-  var TOKEN = '(?:\\([^()\\n]{1,40}\\)|-?\\d+(?:[.,]\\d+)?(?:π|[a-zA-Z])?' + P + '?|-?(?:π|[a-zA-Z])' + P + '?|' + P + ')';
+  var TOKEN = '(?:\\((?:[^()\\n]|\\([^()\\n]*\\)){1,40}\\)|-?\\d+(?:[.,]\\d+)?(?:π|[a-zA-Z])?' + P + '?|-?(?:π|[a-zA-Z])' + P + '?|' + P + ')';
   var FRAC = new RegExp('\\\\frac\\{([^{}]{1,40})\\}\\{([^{}]{1,40})\\}|(^|[^\\w/.,)])(' + TOKEN + ')\\s*/\\s*(' + TOKEN + ')(?![\\w/(])', 'g');
   var UNITS = /^(m\/s|g\/[lL]|N\/m|J\/s|V\/m|A\/m|W\/m|C\/s|t\/h|[lL]\/h|m\/h)$/;
   var GAP = /^[\s\d+\-−×÷*=.,:<>≤≥]*$/;
@@ -27,12 +30,24 @@
       strip(den) + '</span></span>';
   }
 
+  function bound(b) {
+    b = strip(b).replace(/-/g, '−');
+    var f = /^(−?)([^/]+)\/([^/]+)$/.exec(b);
+    return f ? f[1] + fracHtml(f[2], f[3]) : b;
+  }
+
   function convert(text) {
     atoms = [];
     var s = esc(text), changed = false;
     s = s.replace(VEC, function (m, a, b) {
       changed = true;
       return atom('<span class="vec" dir="ltr">' + (a || b) + '</span>');
+    });
+    s = s.replace(BIGOP, function (m, op, lo, hi) {
+      changed = true;
+      var kind = op === '∫' ? 'int' : 'sum';
+      return atom('<span class="bigop ' + kind + '" dir="ltr"><span class="hi">' + bound(hi) + '</span><span class="op">' +
+        (kind === 'sum' ? 'Σ' : '∫') + '</span><span class="lo">' + bound(lo) + '</span></span>');
     });
     s = s.replace(SQRT, function (m, r) {
       changed = true;
@@ -90,7 +105,7 @@
     return s;
   }
 
-  var SKIP = '.frac, .sqrt, .vec, .math-run, .letter, .q-head, .q-num, .badge, .tag, button, a, script, style, textarea, input, select';
+  var SKIP = '.bigop, .frac, .sqrt, .vec, .math-run, .letter, .q-head, .q-num, .badge, .tag, button, a, script, style, textarea, input, select';
   function render(root) {
     (root || document).querySelectorAll('.q-text, .c-text, .math, .choice, .question').forEach(function (el) {
       var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null), nodes = [], n;
