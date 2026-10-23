@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card narrow">
+  <h1>{% if exam %}تعديل الامتحان{% else %}امتحان جديد{% endif %}</h1>
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <div class="field {% if field.field.widget.input_type == 'checkbox' %}check{% endif %}">
+        {% if field.field.widget.input_type == 'checkbox' %}
+          <label>{{ field }} {{ field.label }}</label>
+        {% else %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        {% endif %}
+        {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <p class="muted">اترك «متاح من / حتى» فارغين ليكون الامتحان متاحاً دائماً بعد النشر.</p>
+    <button class="btn primary">حفظ</button>
+    <a class="btn" href="{% if exam %}{% url 'exam_detail' exam.id %}{% else %}{% url 'teacher_dashboard' %}{% endif %}">إلغاء</a>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // إظهار مواد القسم المختار فقط
+  (function () {
+    var map = {{ subject_map|safe }};
+    var classe = document.getElementById('id_classe'), subject = document.getElementById('id_subject');
+    function filter() {
+      var c = parseInt(classe.value, 10);
+      Array.prototype.forEach.call(subject.options, function (o) {
+        if (!o.value) return;
+        var ok = !c || (map[o.value] || []).indexOf(c) >= 0;
+        o.hidden = !ok; o.disabled = !ok;
+        if (!ok && o.selected) subject.value = '';
+      });
+    }
+    classe.addEventListener('change', filter); filter();
+  })();
+</script>
+{% endblock %}
