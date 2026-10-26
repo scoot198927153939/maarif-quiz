@@ -520,6 +520,7 @@ class Teacher(models.Model):
 
     name = models.CharField("اسم الأستاذ", max_length=150, unique=True)
     subject = models.CharField("المادة", max_length=100, blank=True)
+    phone = models.CharField("رقم الهاتف", max_length=30, blank=True)
     is_active = models.BooleanField("في اللائحة", default=True)
 
     class Meta:
@@ -529,6 +530,10 @@ class Teacher(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def wa_link(self):
+        return wa_link_for(self.phone)
 
 
 class TeacherAttendance(models.Model):

@@ -16,7 +16,7 @@ QUESTION_HEADERS = ["السؤال", "A", "B", "C", "D", "الإجابة الصح
 LEVEL_CODES = {"بسيط": "E", "متوسط": "M", "صعب": "H", "E": "E", "M": "M", "H": "H"}
 STUDENT_HEADERS = ["اسم المستخدم", "الاسم الكامل", "كلمة المرور", "القسم"]
 ROSTER_HEADERS = ["رقم قيد الطالب", "القسم", "اسم الطالب", "رقم هاتف الوكيل", "رقم الواتساب", "رقم هاتف الوكيل2", "Retiré"]
-TEACHER_HEADERS = ["اسم الأستاذ", "المادة"]
+TEACHER_HEADERS = ["اسم الأستاذ", "المادة", "رقم الهاتف"]
 
 HEADER_FILL = PatternFill("solid", fgColor="1F6F5C")
 HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -300,9 +300,9 @@ def teachers_template():
     ws = wb.active
     ws.title = "الأساتذة"
     ws.append(TEACHER_HEADERS)
-    ws.append(["محمد الأمين", "الرياضيات"])
-    ws.append(["Mme Aicha", "الفرنسية"])
-    _style_header(ws, [30, 22])
+    ws.append(["محمد الأمين", "الرياضيات", "22123456"])
+    ws.append(["Mme Aicha", "الفرنسية", "36123456"])
+    _style_header(ws, [30, 22, 18])
     return wb
 
 
@@ -506,18 +506,37 @@ def import_teachers(file):
     rows = list(wb.worksheets[0].iter_rows(values_only=True))
     created = updated = 0
     errors = []
+    # الأعمدة تُعرف من العناوين (اسم الأستاذ، المادة، رقم الهاتف) وإلا فبالترتيب
+    cols = {"name": 0, "subject": 1, "phone": 2}
+    if rows:
+        found = {}
+        for i, h in enumerate(_norm_header(v) for v in rows[0]):
+            if not h:
+                continue
+            if any(k in h for k in ("هاتف", "تلفون", "جوال", "واتساب", "tel", "phone", "whatsapp")):
+                found.setdefault("phone", i)
+            elif any(k in h for k in ("ماده", "مادة", "matiere", "matière", "discipline")):
+                found.setdefault("subject", i)
+            elif any(k in h for k in ("اسم", "استاذ", "nom", "name")):
+                found.setdefault("name", i)
+        if "name" in found:
+            cols.update(found)
     with transaction.atomic():
         for idx, row in enumerate(rows, start=1):
-            row = list(row) + [None, None]
-            name, subject = " ".join(_clean(row[0]).split()), _clean(row[1])
-            if not name or (idx == 1 and "اسم" in name):
+            row = list(row) + [None] * 10
+            name = " ".join(_clean(row[cols["name"]]).split())
+            subject = _clean(row[cols["subject"]]) if "subject" in cols else ""
+            phone = _clean(row[cols["phone"]]) if "phone" in cols else ""
+            if not name or (idx == 1 and ("اسم" in name or "استاذ" in _norm_header(name))):
                 continue
-            t, new = Teacher.objects.get_or_create(name=name[:150], defaults={"subject": subject[:100]})
+            t, new = Teacher.objects.get_or_create(
+                name=name[:150], defaults={"subject": subject[:100], "phone": phone[:30]})
             if new:
                 created += 1
             else:
                 updated += 1
                 t.subject = subject[:100] or t.subject
+                t.phone = phone[:30] or t.phone
                 t.is_active = True
                 t.save()
     if not created and not updated:

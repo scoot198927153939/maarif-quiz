@@ -381,7 +381,8 @@ def teacher_roll(request):
             name = " ".join(request.POST.get("name", "").split())[:150]
             if name:
                 t, created = Teacher.objects.get_or_create(
-                    name=name, defaults={"subject": request.POST.get("subject", "").strip()[:100]},
+                    name=name, defaults={"subject": request.POST.get("subject", "").strip()[:100],
+                                         "phone": request.POST.get("phone", "").strip()[:30]},
                 )
                 if not created and not t.is_active:
                     t.is_active = True
@@ -458,6 +459,7 @@ def teacher_file(request, teacher_id):
     start, end = _month(request.GET.get("month"))
     if request.method == "POST" and request.user.is_admin_role:
         teacher.subject = request.POST.get("subject", "").strip()[:100]
+        teacher.phone = request.POST.get("phone", "").strip()[:30]
         teacher.is_active = bool(request.POST.get("is_active"))
         teacher.save()
         messages.success(request, "تم حفظ بيانات الأستاذ.")
@@ -474,11 +476,13 @@ def teacher_file(request, teacher_id):
 # ---------------------------------------------------------------- الاستيراد من Excel
 
 def _import(request, func, label):
+    # يعود إلى الصفحة التي جاء منها الاستيراد (صفحة حضور الأساتذة أو صفحة الحضور)
+    back = "teacher_roll" if request.POST.get("next") == "teacher_roll" else "attendance_home"
     form = ImportFileForm(request.POST, request.FILES)
     if not form.is_valid():
         for e in form.errors.get("file", []):
             messages.error(request, e)
-        return redirect("attendance_home")
+        return redirect(back)
     created, updated, errors = func(form.cleaned_data["file"])
     if created or updated:
         messages.success(request, f"{label}: أُضيف {created} وحُدِّث {updated}. الغياب والملاحظات السابقة محفوظة.")
@@ -488,7 +492,7 @@ def _import(request, func, label):
         messages.error(request, f"و{len(errors) - 15} أخطاء أخرى. لم يُحفظ شيء من الملف، صحّح الأخطاء ثم أعد الاستيراد.")
     elif errors and not (created or updated):
         messages.error(request, "لم يُحفظ شيء من الملف، صحّح الأخطاء ثم أعد الاستيراد.")
-    return redirect("attendance_home")
+    return redirect(back)
 
 
 @admin_required

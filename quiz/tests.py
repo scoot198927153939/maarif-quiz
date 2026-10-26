@@ -508,6 +508,20 @@ class AttendanceTests(TestCase):
         # المراقب لا يستورد
         self.assertEqual(self.client.post(reverse("teachers_import")).status_code, 403)
 
+    def test_teachers_import_with_phone(self):
+        from .models import Teacher
+        self.client.login(username="boss", password="x")
+        # الأعمدة بترتيب مختلف، والاستيراد من صفحة حضور الأساتذة يعود إليها
+        r = self.client.post(reverse("teachers_import"), {"next": "teacher_roll", "file": self._xlsx([
+            ["رقم الهاتف", "اسم الأستاذ", "المادة"], [22123456, "سيدي", "العربية"]])})
+        self.assertRedirects(r, reverse("teacher_roll"), fetch_redirect_response=False)
+        t = Teacher.objects.get(name="سيدي")
+        self.assertEqual((t.subject, t.phone, t.wa_link), ("العربية", "22123456", "https://wa.me/22222123456"))
+        self.client.post(reverse("teachers_import"), {"file": self._xlsx([["سيدي", "", ""]])})
+        t.refresh_from_db()
+        self.assertEqual(t.phone, "22123456")  # خانة فارغة لا تمسح الرقم
+        self.assertContains(self.client.get(reverse("teacher_roll")), "22123456")
+
     def test_students_list_and_export(self):
         self.st.matricule, self.st.guardian_phone = "1001", "22000001"
         self.st.save()
