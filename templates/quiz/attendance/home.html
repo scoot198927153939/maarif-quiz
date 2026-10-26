@@ -49,7 +49,7 @@
       {% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button class="btn primary">استيراد</button>
     </form>
     <a href="{% url 'teachers_template' %}">⬇️ تحميل نموذج لائحة الأساتذة</a>
-    <small class="muted d-block">الأعمدة: اسم الأستاذ، المادة. الأستاذ الموجود تُحدَّث مادته ويبقى سجل حضوره. ({{ n_teachers }} أستاذ في اللائحة الآن)</small>
+    <small class="muted d-block">الأعمدة: اسم الأستاذ، المادة، رقم الهاتف. الأستاذ الموجود تُحدَّث مادته ورقمه ويبقى سجل حضوره. ({{ n_teachers }} أستاذ في اللائحة الآن)</small>
   </div>
 </div>
 {% endif %}

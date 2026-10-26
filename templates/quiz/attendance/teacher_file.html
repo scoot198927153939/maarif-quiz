@@ -2,7 +2,7 @@
 {% block title %}{{ teacher }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>{{ teacher }}</h1><p class="muted">المادة: <b>{{ teacher.subject|default:"—" }}</b></p></div>
+  <div><h1>{{ teacher }}</h1><p class="muted">المادة: <b>{{ teacher.subject|default:"—" }}</b>{% if teacher.phone %} · الهاتف: <a dir="ltr" href="tel:{{ teacher.phone }}">{{ teacher.phone }}</a>{% if teacher.wa_link %} <a href="{{ teacher.wa_link }}" target="_blank">💬 واتساب</a>{% endif %}{% endif %}</p></div>
   <div class="actions"><a class="btn" href="{% url 'teacher_monthly' %}?month={{ month }}">الحضور الشهري</a></div>
 </div>
 <div class="card filters-form day-nav">
@@ -30,6 +30,7 @@
   <form method="post" class="inline-form">
     {% csrf_token %}
     <input type="text" name="subject" value="{{ teacher.subject }}" placeholder="المادة">
+    <input type="tel" name="phone" value="{{ teacher.phone }}" placeholder="رقم الهاتف" dir="ltr">
     <label class="check"><input type="checkbox" name="is_active" {% if teacher.is_active %}checked{% endif %}> في لائحة الحضور</label>
     <button class="btn">حفظ</button>
   </form>
