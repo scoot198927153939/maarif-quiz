@@ -13,6 +13,7 @@ urlpatterns = [
     path("exam/<int:exam_id>/violation/", views.report_violation, name="report_violation"),
     path("exam/<int:exam_id>/submit/", views.submit_exam, name="submit_exam"),
     path("exam/<int:exam_id>/result/", views.attempt_result, name="attempt_result"),
+    path("exam/<int:exam_id>/retake/", views.attempt_retake, name="attempt_retake"),
     # الأستاذ
     path("teacher/", views.teacher_dashboard, name="teacher_dashboard"),
     path("teacher/exams/new/", views.exam_create, name="exam_create"),

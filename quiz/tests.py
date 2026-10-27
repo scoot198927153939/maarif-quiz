@@ -65,6 +65,39 @@ class QuizFlowTests(TestCase):
         r = self.client.get(reverse("exam_intro", args=[self.exam.id]))
         self.assertRedirects(r, reverse("attempt_result", args=[self.exam.id]))
 
+    def test_max_attempts_keeps_last_result(self):
+        self.exam.max_attempts = 2
+        self.exam.save()
+        q1, q2 = self.exam.questions.all()
+        retake = reverse("attempt_retake", args=[self.exam.id])
+        self.client.login(username="s1", password="x")
+        self.client.post(reverse("exam_intro", args=[self.exam.id]))
+        self.client.post(reverse("submit_exam", args=[self.exam.id]), {f"q_{q1.id}": "B", f"q_{q2.id}": "A"})
+        a = Attempt.objects.get(student=self.s1)
+        self.assertEqual((a.number, a.score), (1, 5))
+        self.assertContains(self.client.get(reverse("attempt_result", args=[self.exam.id])), "المحاولة 2 من 2")
+        self.assertRedirects(self.client.post(retake), reverse("take_exam", args=[self.exam.id]))
+        a.refresh_from_db()
+        self.assertEqual((a.number, a.status, a.answers.count()), (2, Attempt.IN_PROGRESS, 0))
+        self.client.post(reverse("submit_exam", args=[self.exam.id]), {f"q_{q1.id}": "B", f"q_{q2.id}": "C"})
+        a.refresh_from_db()
+        # تُحفظ نتيجة آخر محاولة، حتى لو كانت أقل
+        self.assertEqual((a.status, a.score), (Attempt.SUBMITTED, 2))
+        self.assertEqual(Attempt.objects.filter(student=self.s1).count(), 1)
+        # لا محاولة ثالثة
+        self.assertNotContains(self.client.get(reverse("attempt_result", args=[self.exam.id])), "إعادة الامتحان")
+        self.assertRedirects(self.client.post(retake), reverse("attempt_result", args=[self.exam.id]))
+        a.refresh_from_db()
+        self.assertEqual((a.number, a.status), (2, Attempt.SUBMITTED))
+
+    def test_single_attempt_has_no_retake(self):
+        self.client.login(username="s1", password="x")
+        self.client.post(reverse("exam_intro", args=[self.exam.id]))
+        self.client.post(reverse("submit_exam", args=[self.exam.id]))
+        self.assertNotContains(self.client.get(reverse("attempt_result", args=[self.exam.id])), "إعادة الامتحان")
+        self.client.post(reverse("attempt_retake", args=[self.exam.id]))
+        self.assertEqual(Attempt.objects.get(student=self.s1).status, Attempt.SUBMITTED)
+
     @override_settings(EXAM_MAX_VIOLATIONS=2)
     def test_violations_auto_submit(self):
         self.client.login(username="s1", password="x")

@@ -156,6 +156,21 @@ def exam_intro(request, exam_id):
     })
 
 
+@student_required
+@require_POST
+def attempt_retake(request, exam_id):
+    exam = _student_exam(request, exam_id)
+    attempt = get_object_or_404(Attempt, exam=exam, student=request.user)
+    if not attempt.can_retake():
+        messages.error(request, "لا يمكنك إعادة هذا الامتحان.")
+        return redirect("attempt_result", exam_id=exam.id)
+    if not exam.questions.exists():
+        messages.error(request, "هذا الامتحان لا يحتوي على أسئلة بعد.")
+        return redirect("attempt_result", exam_id=exam.id)
+    attempt.restart()
+    return redirect("take_exam", exam_id=exam.id)
+
+
 def _in_progress_attempt(request, exam_id):
     exam = _student_exam(request, exam_id)
     return get_object_or_404(Attempt, exam=exam, student=request.user, status=Attempt.IN_PROGRESS)

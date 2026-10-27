@@ -46,7 +46,7 @@
       <td>{{ exam.title }}</td>
       <td>{% if exam.show_result %}<strong>{{ exam.attempt.score|floatformat:"-2" }} / {{ exam.attempt.total|floatformat:"-2" }}</strong>{% else %}<span class="muted">لم تُنشر بعد</span>{% endif %}</td>
       <td>{{ exam.attempt.submitted_at|date:"Y-m-d H:i" }}</td>
-      <td><a href="{% url 'attempt_result' exam.id %}">التفاصيل</a></td>
+      <td><a href="{% url 'attempt_result' exam.id %}">التفاصيل</a>{% if exam.attempt.can_retake %} · <a href="{% url 'attempt_result' exam.id %}">🔁 إعادة ({{ exam.attempt.number }}/{{ exam.max_attempts }})</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

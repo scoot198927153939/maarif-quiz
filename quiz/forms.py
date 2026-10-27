@@ -17,7 +17,7 @@ class ExamForm(forms.ModelForm):
         model = Exam
         fields = [
             "title", "classe", "evening_group", "subject", "duration_minutes", "available_from", "available_until",
-            "instructions", "is_published", "show_result", "shuffle_questions",
+            "instructions", "is_published", "show_result", "shuffle_questions", "max_attempts",
         ]
         widgets = {
             "available_from": DateTimeInput(),
