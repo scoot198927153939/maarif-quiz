@@ -15,7 +15,7 @@
   {% for s, a in rows %}
   <tr>
     <td>{{ s }} <small class="muted">{{ s.username }}</small></td>
-    <td>{% if not a %}<span class="badge">لم يبدأ</span>{% elif a.status == 'submitted' %}<span class="badge ok">سلّم{% if a.auto_submitted %} (تلقائي){% endif %}</span>{% else %}<span class="badge warn">جارٍ</span>{% endif %}</td>
+    <td>{% if not a %}<span class="badge">لم يبدأ</span>{% elif a.status == 'submitted' %}<span class="badge ok">سلّم{% if a.auto_submitted %} (تلقائي){% endif %}</span>{% else %}<span class="badge warn">جارٍ</span>{% endif %}{% if a and exam.max_attempts > 1 %} <small class="muted">المحاولة {{ a.number }}/{{ exam.max_attempts }}</small>{% endif %}</td>
     <td>{% if a.status == 'submitted' %}<strong>{{ a.score|floatformat:"-2" }}</strong> / {{ a.total|floatformat:"-2" }}{% endif %}</td>
     <td>{% if a %}{% if a.violations %}<span class="badge warn">{{ a.violations }}</span>{% else %}0{% endif %}{% endif %}</td>
     <td>{{ a.submitted_at|date:"Y-m-d H:i" }}</td>

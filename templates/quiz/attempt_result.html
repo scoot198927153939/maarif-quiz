@@ -9,6 +9,14 @@
   {% else %}
     <p class="muted">سيعلن الأستاذ النتيجة لاحقاً.</p>
   {% endif %}
+  {% if exam.max_attempts > 1 %}<p class="muted">المحاولة {{ attempt.number }} من {{ exam.max_attempts }}. تُحفظ نتيجة آخر محاولة.</p>{% endif %}
+  {% if attempt.can_retake %}
+  <form method="post" action="{% url 'attempt_retake' exam.id %}" id="retake-form"
+        onsubmit="return confirm('ستُحذف نتيجتك الحالية وتُحتسب نتيجة المحاولة الجديدة. هل تريد إعادة الامتحان؟')">
+    {% csrf_token %}
+    <button class="btn primary">🔁 إعادة الامتحان (المحاولة {{ attempt.number|add:1 }} من {{ exam.max_attempts }})</button>
+  </form>
+  {% endif %}
   <a class="btn" href="{% url 'student_dashboard' %}">العودة إلى امتحاناتي</a>
 </div>
 {% if details %}
@@ -38,4 +46,16 @@
 </div>
 {% endfor %}
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  // الإعادة تفتح الامتحان في وضع ملء الشاشة كما في البداية
+  var retake = document.getElementById('retake-form');
+  if (retake) retake.addEventListener('submit', function (e) {
+    if (e.defaultPrevented) return;
+    var el = document.documentElement;
+    try { (el.requestFullscreen || el.webkitRequestFullscreen || function(){}).call(el); } catch (err) {}
+    sessionStorage.setItem('examFullscreen', '1');
+  });
+</script>
 {% endblock %}

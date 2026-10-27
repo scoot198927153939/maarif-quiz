@@ -1,7 +1,9 @@
+import random
 import re
 from decimal import Decimal
 
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Length
@@ -195,6 +197,10 @@ class Exam(models.Model):
     is_published = models.BooleanField("منشور للتلاميذ", default=False)
     show_result = models.BooleanField("إظهار النتيجة للتلميذ بعد التسليم", default=True)
     shuffle_questions = models.BooleanField("خلط ترتيب الأسئلة", default=False)
+    max_attempts = models.PositiveSmallIntegerField(
+        "عدد المحاولات المسموح بها", default=1, validators=[MinValueValidator(1)],
+        help_text="كم مرة يمكن للتلميذ أن يجري الامتحان. تُحفظ دائماً نتيجة آخر محاولة وتقريرها.",
+    )
     # امتحان خاص بمجموعة من الحصص المسائية: لا يراه إلا تلاميذها (ولا يراه تلاميذ المستوى في النهار)
     evening_group = models.ForeignKey(
         "EveningGroup", null=True, blank=True, on_delete=models.SET_NULL, related_name="exams",
@@ -394,6 +400,7 @@ class Attempt(models.Model):
     violations = models.PositiveIntegerField("محاولات الخروج", default=0)
     auto_submitted = models.BooleanField("سُلّم تلقائياً", default=False)
     question_order = models.JSONField(default=list, blank=True)
+    number = models.PositiveSmallIntegerField("رقم المحاولة", default=1)
 
     class Meta:
         unique_together = [("exam", "student")]
@@ -438,6 +445,26 @@ class Attempt(models.Model):
         self.score = score
         self.total = total
         return score
+
+    def can_retake(self):
+        return (self.status == self.SUBMITTED and self.number < self.exam.max_attempts
+                and self.exam.is_open_now())
+
+    def restart(self):
+        """محاولة جديدة تحل محل السابقة: تُمسح الأجوبة القديمة فتبقى النتيجة والتقرير لآخر محاولة."""
+        self.answers.all().delete()
+        order = list(self.exam.questions.values_list("id", flat=True))
+        if self.exam.shuffle_questions:
+            random.shuffle(order)
+        self.question_order = order
+        self.number += 1
+        self.status = self.IN_PROGRESS
+        self.started_at = timezone.now()
+        self.submitted_at = None
+        self.score = self.total = 0
+        self.violations = 0
+        self.auto_submitted = False
+        self.save()
 
     def submit(self, auto=False):
         if self.status == self.SUBMITTED:
