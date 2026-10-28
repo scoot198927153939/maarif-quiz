@@ -306,6 +306,20 @@ def teachers_template():
     return wb
 
 
+def teachers_workbook(teachers):
+    """لائحة الأساتذة الحالية، بأعمدة نموذج الاستيراد نفسها فيمكن تعديلها وإعادة استيرادها."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "الأساتذة"
+    ws.append(["#"] + TEACHER_HEADERS)
+    for n, t in enumerate(teachers, start=1):
+        ws.append([n, t.name, t.subject, t.phone])
+        ws.cell(row=n + 1, column=4).number_format = "@"
+    _style_header(ws, [6, 30, 22, 18])
+    ws.sheet_view.rightToLeft = True
+    return wb
+
+
 def _norm_header(value):
     h = _clean(value).replace(" ", "").replace("_", "").lower()
     for src, dst in (("إ", "ا"), ("أ", "ا"), ("آ", "ا"), ("ـ", "")):

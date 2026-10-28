@@ -512,6 +512,12 @@ def roster_template(request):
     return xlsx_response(excel.roster_template(), "students_list_template.xlsx")
 
 
+@supervisor_required
+def teachers_export(request):
+    teachers = Teacher.objects.filter(is_active=True)
+    return xlsx_response(excel.teachers_workbook(teachers), f"teachers_{timezone.localdate():%Y-%m-%d}.xlsx")
+
+
 @admin_required
 def teachers_template(request):
     return xlsx_response(excel.teachers_template(), "teachers_list_template.xlsx")
