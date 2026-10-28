@@ -555,6 +555,26 @@ class AttendanceTests(TestCase):
         self.assertEqual(t.phone, "22123456")  # خانة فارغة لا تمسح الرقم
         self.assertContains(self.client.get(reverse("teacher_roll")), "22123456")
 
+    def test_teachers_export_roundtrip(self):
+        import io
+        from openpyxl import load_workbook
+        from .models import Teacher
+        Teacher.objects.create(name="سيدي", subject="العربية", phone="22123456")
+        Teacher.objects.create(name="قديم", is_active=False)
+        self.client.login(username="sup", password="x")
+        r = self.client.get(reverse("teachers_export"))
+        self.assertEqual(r.status_code, 200)
+        content = b"".join(r.streaming_content) if r.streaming else r.content
+        rows = list(load_workbook(io.BytesIO(content)).active.iter_rows(values_only=True))
+        self.assertEqual(rows[1], (1, "سيدي", "العربية", "22123456"))
+        self.assertEqual(len(rows), 2)  # الأستاذ المحذوف من اللائحة لا يظهر
+        # الملف المنزَّل يُعاد استيراده كما هو
+        self.client.login(username="boss", password="x")
+        self.client.post(reverse("teachers_import"), {"file": io.BytesIO(content)})
+        self.assertEqual(Teacher.objects.filter(is_active=True).count(), 1)
+        self.client.login(username="1001", password="x")
+        self.assertNotEqual(self.client.get(reverse("teachers_export")).status_code, 200)
+
     def test_students_list_and_export(self):
         self.st.matricule, self.st.guardian_phone = "1001", "22000001"
         self.st.save()

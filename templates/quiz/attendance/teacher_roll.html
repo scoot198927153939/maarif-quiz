@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <h1>حضور الأساتذة اليومي</h1>
-  <div class="actions"><a class="btn" href="{% url 'teacher_monthly' %}?month={{ month }}">📅 الحضور الشهري</a></div>
+  <div class="actions"><a class="btn" href="{% url 'teachers_export' %}">⬇️ تنزيل لائحة الأساتذة (Excel)</a><a class="btn" href="{% url 'teacher_monthly' %}?month={{ month }}">📅 الحضور الشهري</a></div>
 </div>
 <form method="get" class="card filters-form day-nav">
   <a class="btn" href="?date={{ prev_day }}&session={{ session }}">→ اليوم السابق</a>

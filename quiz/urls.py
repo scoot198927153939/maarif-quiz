@@ -88,5 +88,6 @@ urlpatterns = [
     path("attendance/import/students/", attendance.roster_import, name="roster_import"),
     path("attendance/import/teachers/", attendance.teachers_import, name="teachers_import"),
     path("attendance/students-list-template.xlsx", attendance.roster_template, name="roster_template"),
+    path("attendance/teachers-list.xlsx", attendance.teachers_export, name="teachers_export"),
     path("attendance/teachers-list-template.xlsx", attendance.teachers_template, name="teachers_template"),
 ]
