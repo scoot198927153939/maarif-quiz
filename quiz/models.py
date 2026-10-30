@@ -754,6 +754,8 @@ class EveningGroup(models.Model):
     """قسم من أقسام الحصص المسائية (مثل G1_7MA)، مستقل عن فصول النهار."""
 
     code = models.CharField("اسم القسم", max_length=30, unique=True)
+    monthly_fee = models.PositiveIntegerField("الرسوم الشهرية", default=0,
+                                              help_text="مبلغ الشهر الواحد بالأوقية. 0 = غير محدد.")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -855,6 +857,75 @@ class EveningTeacherAttendance(models.Model):
         ordering = ["-date"]
         verbose_name = "حضور أستاذ مسائي"
         verbose_name_plural = "حضور أساتذة الحصص المسائية"
+
+
+# ---------------------------------------------------------------- محاسبة الحصص المسائية
+
+# أشهر السنة الدراسية المسائية: كل «شهر» من منتصف الشهر إلى منتصف الشهر الذي يليه،
+# من منتصف أكتوبر حتى منتصف يوليو (9 أشهر).
+EVENING_PERIODS = ["أكتوبر", "نوفمبر", "ديسمبر", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو"]
+EVENING_PERIOD_DAY = 15
+
+
+def evening_school_year(day=None):
+    """سنة بداية السنة الدراسية: من أغسطس فما بعد تُعتبر سنة جديدة."""
+    day = day or timezone.localdate()
+    return day.year if day.month >= 8 else day.year - 1
+
+
+def evening_period_dates(year, index):
+    """(بداية الشهر، بداية الشهر الذي يليه) للشهر رقم index في السنة الدراسية year."""
+    import datetime
+
+    def at(i):
+        m = 10 + i
+        return datetime.date(year + (m - 1) // 12, (m - 1) % 12 + 1, EVENING_PERIOD_DAY)
+    return at(index), at(index + 1)
+
+
+def split_amount(amount, n):
+    """يقسم المبلغ على n شهر بالتساوي؛ إن بقي باقٍ يوزّع أوقية أوقية على الأشهر الأولى، فالمجموع يساوي المبلغ دائماً."""
+    base, rest = divmod(amount, n)
+    return [base + (1 if i < rest else 0) for i in range(n)]
+
+
+class EveningPayment(models.Model):
+    """دفعة تلميذ مسائي: مبلغ ورقم وصل، مقسّم بالتساوي على الأشهر التي يخصّها."""
+
+    student = models.ForeignKey(EveningStudent, on_delete=models.CASCADE, related_name="payments", verbose_name="التلميذ")
+    year = models.PositiveSmallIntegerField("السنة الدراسية")
+    amount = models.PositiveIntegerField("المبلغ", validators=[MinValueValidator(1)])
+    receipt_no = models.CharField("رقم الوصل", max_length=40)
+    months = models.CharField("الأشهر", max_length=40, help_text="أرقام الأشهر 0..8 مفصولة بفواصل")
+    paid_on = models.DateField("تاريخ الدفع", default=timezone.localdate)
+    note = models.CharField("ملاحظة", max_length=255, blank=True)
+    recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-paid_on", "-id"]
+        verbose_name = "دفعة مسائية"
+        verbose_name_plural = "دفعات الحصص المسائية"
+
+    def __str__(self):
+        return f"{self.receipt_no} · {self.amount}"
+
+    @property
+    def month_list(self):
+        return sorted({int(x) for x in self.months.split(",") if x.strip().isdigit() and int(x) < len(EVENING_PERIODS)})
+
+    @property
+    def shares(self):
+        """{رقم الشهر: نصيبه من المبلغ}."""
+        ms = self.month_list
+        return dict(zip(ms, split_amount(self.amount, len(ms)))) if ms else {}
+
+    @property
+    def months_label(self):
+        ms = self.month_list
+        if len(ms) == len(EVENING_PERIODS):
+            return "جميع الأشهر"
+        return "، ".join(EVENING_PERIODS[i] for i in ms)
 
 
 # ---------------------------------------------------------------- الفيديوهات التعليمية

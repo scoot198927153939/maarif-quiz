@@ -1,0 +1,21 @@
+<div class="table-wrap">
+<table class="table">
+  <thead><tr>{% if show_student %}<th>التلميذ</th>{% endif %}<th>التاريخ</th><th>رقم الوصل</th><th>المبلغ</th><th>الأشهر</th><th>التقسيم</th><th>ملاحظة</th><th class="no-print"></th></tr></thead>
+  <tbody>
+  {% for p in payments %}
+    <tr>
+      {% if show_student %}<td><a href="?year={{ year }}&student={{ p.student_id }}">{{ p.student.full_name }}</a></td>{% endif %}
+      <td dir="ltr">{{ p.paid_on|date:"d/m/Y" }}</td><td dir="ltr"><b>{{ p.receipt_no }}</b></td><td><b>{{ p.amount }}</b></td>
+      <td>{{ p.months_label }}</td>
+      <td><small>{% for i, a in p.shares.items %}{{ a }}{% if not forloop.last %} + {% endif %}{% endfor %}</small></td>
+      <td>{{ p.note }}</td>
+      <td class="no-print" style="white-space:nowrap">
+        <a class="btn small" href="{% url 'evening_receipt' p.id %}" target="_blank">🖨️ الوصل</a>
+        <form method="post" action="{% url 'evening_payment_delete' p.id %}" style="display:inline" onsubmit="return confirm('حذف الوصل {{ p.receipt_no }}؟')">
+          {% csrf_token %}<button class="btn small danger">حذف</button></form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
