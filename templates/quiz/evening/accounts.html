@@ -39,7 +39,7 @@
 
 <div class="grid stats no-print" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px">
   <div class="card"><div class="muted">مجموع المدفوع</div><b style="font-size:1.4rem">{{ grand }}</b> أوقية</div>
-  {% if group.monthly_fee %}
+  {% if has_fees %}
   <div class="card"><div class="muted">المطلوب حتى اليوم</div><b style="font-size:1.4rem">{{ expected }}</b> أوقية</div>
   <div class="card"><div class="muted">متأخرون في الدفع</div><b style="font-size:1.4rem;color:#b42318">{{ n_late }}</b> تلميذ
     · <a href="{% url 'evening_late' group.id %}?year={{ year }}">اللائحة</a></div>
@@ -47,29 +47,29 @@
   <div class="card">
     <form method="post" class="inline-form" style="margin:0;align-items:end">
       {% csrf_token %}<input type="hidden" name="year" value="{{ year }}">
-      <label>الرسوم الشهرية (أوقية)<input type="number" name="monthly_fee" min="0" value="{{ group.monthly_fee }}" style="width:7rem"></label>
+      <label>الرسوم الشهرية العامة للقسم<input type="number" name="monthly_fee" min="0" value="{{ group.monthly_fee }}" style="width:7rem"></label>
       <button class="btn small">حفظ</button>
     </form>
-    {% if not group.monthly_fee %}<small class="muted">حدّدها لتظهر الأشهر غير المسدّدة والمتبقي.</small>{% endif %}
+    <small class="muted">تُطبَّق على كل تلميذ ليست له رسوم خاصة. الرسوم الخاصة بتلميذ تُكتب في صفحة الدفع.</small>
   </div>
 </div>
 
 <div class="acc-print-head">
   <b>مدارس المعارف الحرة</b>
   <h2 style="margin:.2rem 0">محاسبة الحصص المسائية · <span dir="ltr">{{ group.code }}</span></h2>
-  <div>السنة الدراسية <span dir="ltr">{{ year_label }}</span>{% if group.monthly_fee %} · الرسوم الشهرية {{ group.monthly_fee }} أوقية{% endif %}</div>
+  <div>السنة الدراسية <span dir="ltr">{{ year_label }}</span></div>
 </div>
 
 {% if rows %}
 <p class="acc-legend muted no-print">كل شهر من منتصفه إلى منتصف الشهر الذي يليه.
-  {% if group.monthly_fee %}<span class="m-full" style="background:#d9f2e3">مسدّد</span><span style="background:#fff1d6">جزئي</span><span style="background:#fde2df">غير مسدّد</span>{% endif %}
+  {% if has_fees %}<span class="m-full" style="background:#d9f2e3">مسدّد</span><span style="background:#fff1d6">جزئي</span><span style="background:#fde2df">غير مسدّد</span>{% endif %}
   اضغط على اسم التلميذ لتسجيل دفعة له.</p>
 <div class="table-wrap">
 <table class="acc">
   <thead><tr>
     <th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الواتساب</th>
     {% for p in periods %}<th>{{ p.name }}<small dir="ltr">{{ p.range }}</small></th>{% endfor %}
-    <th>المجموع</th>{% if group.monthly_fee %}<th>المتبقي</th>{% endif %}
+    <th>المجموع</th>{% if has_fees %}<th>الرسوم الشهرية</th><th>المتبقي</th>{% endif %}
   </tr></thead>
   <tbody>
   {% for r in rows %}
@@ -80,14 +80,15 @@
       <td dir="ltr">{% if r.student.wa_link %}<a class="wa" href="{{ r.student.wa_link }}" target="_blank" rel="noopener"><span class="wa-ico">💬 </span>{{ r.student.whatsapp }}</a>{% endif %}</td>
       {% for c in r.cells %}<td class="{% if c.state %}m-{{ c.state }}{% endif %}">{% if c.amount %}{{ c.amount }}{% elif c.state == 'late' %}✗{% endif %}</td>{% endfor %}
       <td class="total">{{ r.total }}</td>
-      {% if group.monthly_fee %}<td class="rest">{% if r.remaining %}{{ r.remaining }}{% else %}<span style="color:#16794a">✓</span>{% endif %}</td>{% endif %}
+      {% if has_fees %}<td>{% if r.fee %}{{ r.fee }}{% if r.own_fee %} <small class="muted">خاصة</small>{% endif %}{% else %}—{% endif %}</td>
+      <td class="rest">{% if r.remaining %}{{ r.remaining }}{% else %}<span style="color:#16794a">✓</span>{% endif %}</td>{% endif %}
     </tr>
   {% endfor %}
   </tbody>
   <tfoot><tr>
     <td colspan="5">المجموع</td>
     {% for t in col_totals %}<td>{{ t }}</td>{% endfor %}
-    <td>{{ grand }}</td>{% if group.monthly_fee %}<td></td>{% endif %}
+    <td>{{ grand }}</td>{% if has_fees %}<td></td><td></td>{% endif %}
   </tr></tfoot>
 </table>
 </div>
