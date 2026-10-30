@@ -775,6 +775,8 @@ class EveningStudent(models.Model):
     guardian_phone = models.CharField("هاتف الوكيل", max_length=30, blank=True)
     whatsapp = models.CharField("الواتساب", max_length=30, blank=True)
     is_active = models.BooleanField("مسجّل", default=True)
+    monthly_fee = models.PositiveIntegerField("الرسوم الشهرية", null=True, blank=True,
+                                              help_text="خاصة بهذا التلميذ. فارغ = رسوم القسم.")
     # حساب الدخول لإنجاز امتحانات المجموعة: حساب التلميذ في المدرسة إن وُجد، وإلا حساب جديد برقم القيد
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="evening_records",
                              verbose_name="الحساب")
@@ -791,6 +793,11 @@ class EveningStudent(models.Model):
     @property
     def wa_link(self):
         return wa_link_for(self.whatsapp)
+
+    @property
+    def fee(self):
+        """الرسوم الشهرية المطلوبة منه: رسومه الخاصة إن حُدّدت، وإلا رسوم قسمه."""
+        return self.monthly_fee if self.monthly_fee is not None else self.group.monthly_fee
 
     def ensure_account(self):
         """يربط التلميذ بحساب: حسابه في المدرسة (نفس رقم القيد)، وإلا يُنشأ حساب
@@ -890,13 +897,15 @@ def split_amount(amount, n):
 
 
 class EveningPayment(models.Model):
-    """دفعة تلميذ مسائي: مبلغ ورقم وصل، مقسّم بالتساوي على الأشهر التي يخصّها."""
+    """دفعة تلميذ مسائي: مبلغ ورقم وصل، موزّع على الأشهر التي يخصّها.
+    months: إما «0,1,2» (يُقسم المبلغ بالتساوي) أو «0:500,1:1000» (مبلغ كل شهر كما كتبه المستخدم)."""
 
     student = models.ForeignKey(EveningStudent, on_delete=models.CASCADE, related_name="payments", verbose_name="التلميذ")
     year = models.PositiveSmallIntegerField("السنة الدراسية")
     amount = models.PositiveIntegerField("المبلغ", validators=[MinValueValidator(1)])
     receipt_no = models.CharField("رقم الوصل", max_length=40)
-    months = models.CharField("الأشهر", max_length=40, help_text="أرقام الأشهر 0..8 مفصولة بفواصل")
+    months = models.CharField("الأشهر", max_length=200,
+                              help_text="أرقام الأشهر 0..8 مفصولة بفواصل، أو رقم:مبلغ لكل شهر")
     paid_on = models.DateField("تاريخ الدفع", default=timezone.localdate)
     note = models.CharField("ملاحظة", max_length=255, blank=True)
     recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
@@ -910,14 +919,26 @@ class EveningPayment(models.Model):
     def __str__(self):
         return f"{self.receipt_no} · {self.amount}"
 
+    def _parsed(self):
+        """[(رقم الشهر، مبلغه أو None)]."""
+        out = {}
+        for part in self.months.split(","):
+            idx, _, amt = part.strip().partition(":")
+            if idx.isdigit() and int(idx) < len(EVENING_PERIODS):
+                out[int(idx)] = int(amt) if amt.strip().isdigit() else None
+        return sorted(out.items())
+
     @property
     def month_list(self):
-        return sorted({int(x) for x in self.months.split(",") if x.strip().isdigit() and int(x) < len(EVENING_PERIODS)})
+        return [i for i, _ in self._parsed()]
 
     @property
     def shares(self):
         """{رقم الشهر: نصيبه من المبلغ}."""
-        ms = self.month_list
+        parsed = self._parsed()
+        if parsed and all(a is not None for _, a in parsed):
+            return dict(parsed)
+        ms = [i for i, _ in parsed]
         return dict(zip(ms, split_amount(self.amount, len(ms)))) if ms else {}
 
     @property

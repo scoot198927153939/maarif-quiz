@@ -1432,3 +1432,27 @@ class EveningAccountsTests(TestCase):
         self.client.force_login(sup)
         self.assertEqual(self.client.get(reverse("evening_account", args=[self.g.id])).status_code, 403)
         self.assertEqual(self.client.get(reverse("evening_pay", args=[self.g.id])).status_code, 403)
+
+    def test_manual_month_amounts_and_student_fee(self):
+        from .models import EveningPayment
+        url = reverse("evening_pay", args=[self.g.id])
+        # مبالغ مكتوبة لكل شهر بدون مبلغ إجمالي
+        self.client.post(url, {"year": self.year, "student": self.st.id, "receipt_no": "M1",
+                               "amt_0": "500", "amt_1": "1500", "amt_2": ""})
+        p = EveningPayment.objects.get(receipt_no="M1")
+        self.assertEqual((p.amount, p.shares), (2000, {0: 500, 1: 1500}))
+        # مجموع لا يساوي المبلغ: يُرفض
+        resp = self.client.post(url, {"year": self.year, "student": self.st.id, "receipt_no": "M2",
+                                      "amount": "3000", "amt_3": "1000"})
+        self.assertContains(resp, "لا يساوي")
+        # رسوم خاصة بالتلميذ تغلب رسوم القسم
+        self.g.monthly_fee = 1000
+        self.g.save()
+        self.client.post(url, {"year": self.year, "student": self.st.id, "student_fee": "2500", "set_fee": "1"})
+        self.st.refresh_from_db()
+        self.assertEqual(self.st.fee, 2500)
+        resp = self.client.get(reverse("evening_account", args=[self.g.id]), {"year": self.year - 1})
+        self.assertEqual(resp.context["rows"][0]["fee"], 2500)
+        self.client.post(url, {"year": self.year, "student": self.st.id, "student_fee": "", "set_fee": "1"})
+        self.st.refresh_from_db()
+        self.assertEqual(self.st.fee, 1000)
