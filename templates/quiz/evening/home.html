@@ -6,6 +6,7 @@
   <div class="actions">
     <a class="btn primary" href="{% url 'evening_teachers' %}">👨‍🏫 حضور الأساتذة اليوم</a>
     <a class="btn" href="{% url 'evening_teachers_monthly' %}">📅 الحضور الشهري للأساتذة</a>
+    {% if groups %}<a class="btn" href="{% url 'evening_accounts' %}">💰 المحاسبة</a>{% endif %}
   </div>
 </div>
 <p class="muted">{{ today_label }} · هذه الصفحة يراها المدير فقط.</p>
@@ -39,6 +40,8 @@
       <a class="btn primary" href="{% url 'evening_roll' g.id %}">تسجيل الغياب</a>
       <a class="btn" href="{% url 'evening_absent' g.id %}">الغائبون</a>
       <a class="btn" href="{% url 'evening_students' g.id %}">التلاميذ</a>
+      <a class="btn" href="{% url 'evening_account' g.id %}">💰 المحاسبة</a>
+      <a class="btn" href="{% url 'evening_pay' g.id %}">🧾 الدفع</a>
       {% if not g.n_students %}
       <form method="post" action="{% url 'evening_group_delete' g.id %}" style="display:inline" onsubmit="return confirm('حذف القسم {{ g.code }}؟')">
         {% csrf_token %}<button class="btn danger">🗑️ حذف</button></form>

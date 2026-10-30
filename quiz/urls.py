@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import activity, attendance, evening, lessons, library, timetable, videos, views
+from . import activity, attendance, evening, evening_accounts, lessons, library, timetable, videos, views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -42,6 +42,12 @@ urlpatterns = [
     path("evening/import/", evening.evening_import, name="evening_import"),
     path("evening/teachers/", evening.evening_teachers, name="evening_teachers"),
     path("evening/teachers/monthly/", evening.evening_teachers_monthly, name="evening_teachers_monthly"),
+    path("evening/accounts/", evening_accounts.evening_accounts, name="evening_accounts"),
+    path("evening/<int:group_id>/accounts/", evening_accounts.evening_account, name="evening_account"),
+    path("evening/<int:group_id>/pay/", evening_accounts.evening_pay, name="evening_pay"),
+    path("evening/<int:group_id>/late/", evening_accounts.evening_late, name="evening_late"),
+    path("evening/payment/<int:pk>/delete/", evening_accounts.evening_payment_delete, name="evening_payment_delete"),
+    path("evening/payment/<int:pk>/receipt/", evening_accounts.evening_receipt, name="evening_receipt"),
     path("evening/template/", evening.evening_template, name="evening_template"),
     path("evening/<int:group_id>/", evening.evening_roll, name="evening_roll"),
     path("evening/<int:group_id>/absent/", evening.evening_absent, name="evening_absent"),

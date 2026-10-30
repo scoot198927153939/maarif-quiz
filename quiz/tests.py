@@ -1359,3 +1359,76 @@ class VideoTests(TestCase):
             self.client.force_login(self.teacher)
             self.client.post(reverse("video_delete", args=[f.id]))
             self.assertEqual(Video.objects.count(), 1)
+
+
+class EveningAccountsTests(TestCase):
+    def setUp(self):
+        import datetime
+        from .models import EveningGroup, EveningStudent, evening_school_year
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN)
+        self.g = EveningGroup.objects.get(code="G1_7MA")
+        self.st = EveningStudent.objects.create(group=self.g, matricule="501", full_name="سيدي محمد",
+                                                guardian_phone="22111111", whatsapp="36111111",
+                                                registered_on=datetime.date(2020, 1, 1))
+        self.year = evening_school_year()
+        self.client.force_login(self.admin)
+
+    def pay(self, **kw):
+        data = {"year": self.year, "student": self.st.id, "amount": 1000, "receipt_no": "R1",
+                "paid_on": "2026-10-20", "months": ["0", "1", "2"]}
+        data.update(kw)
+        return self.client.post(reverse("evening_pay", args=[self.g.id]), data)
+
+    def test_split_is_equal_and_sums_to_amount(self):
+        from .models import EveningPayment, split_amount
+        self.assertEqual(split_amount(3000, 3), [1000, 1000, 1000])
+        self.assertEqual(split_amount(1000, 3), [334, 333, 333])
+        self.assertEqual(self.pay().status_code, 302)
+        p = EveningPayment.objects.get()
+        self.assertEqual(p.shares, {0: 334, 1: 333, 2: 333})
+        self.assertEqual(sum(p.shares.values()), 1000)
+
+    def test_duplicate_receipt_and_missing_months_rejected(self):
+        from .models import EveningPayment
+        self.pay()
+        resp = self.pay(months=["3"])
+        self.assertContains(resp, "مسجّل من قبل")
+        resp = self.pay(receipt_no="R2", months=[])
+        self.assertContains(resp, "حدد الشهر")
+        self.assertEqual(EveningPayment.objects.count(), 1)
+
+    def test_display_page_totals_late_and_receipt(self):
+        from .models import EveningPayment
+        self.client.post(reverse("evening_account", args=[self.g.id]), {"year": self.year, "monthly_fee": "1500"})
+        self.g.refresh_from_db()
+        self.assertEqual(self.g.monthly_fee, 1500)
+        self.pay(amount=13500, months=[str(i) for i in range(9)], receipt_no="ALL")
+        resp = self.client.get(reverse("evening_account", args=[self.g.id]), {"year": self.year})
+        self.assertContains(resp, "سيدي محمد")
+        self.assertContains(resp, "36111111")
+        self.assertContains(resp, "13500")
+        self.assertEqual(resp.context["rows"][0]["cells"][8]["amount"], 1500)
+        self.assertEqual(resp.context["n_late"], 0)
+        xlsx = self.client.get(reverse("evening_account", args=[self.g.id]), {"year": self.year, "export": "xlsx"})
+        self.assertEqual(xlsx.status_code, 200)
+        p = EveningPayment.objects.get()
+        self.assertContains(self.client.get(reverse("evening_receipt", args=[p.id])), "ALL")
+        self.client.post(reverse("evening_payment_delete", args=[p.id]))
+        self.assertFalse(EveningPayment.objects.exists())
+
+    def test_late_list_for_past_year(self):
+        # سنة ماضية: كل الأشهر حلّت، ولم يدفع إلا أكتوبر
+        year = self.year - 1
+        self.client.post(reverse("evening_account", args=[self.g.id]), {"year": year, "monthly_fee": "1000"})
+        self.pay(year=year, amount=1000, months=["0"])
+        resp = self.client.get(reverse("evening_late", args=[self.g.id]), {"year": year})
+        row = resp.context["rows"][0]
+        self.assertEqual(row["unpaid"], list(range(1, 9)))
+        self.assertEqual(row["unpaid_amount"], 8000)
+        self.assertContains(resp, "wa.me/22236111111?text=")
+
+    def test_admin_only(self):
+        sup = User.objects.create_user("sup", password="x", role=User.SUPERVISOR)
+        self.client.force_login(sup)
+        self.assertEqual(self.client.get(reverse("evening_account", args=[self.g.id])).status_code, 403)
+        self.assertEqual(self.client.get(reverse("evening_pay", args=[self.g.id])).status_code, 403)

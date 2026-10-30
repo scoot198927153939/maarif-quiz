@@ -1,0 +1,10 @@
+<div class="card filters-form day-nav no-print">
+  <label>القسم
+    <select onchange="location.href=this.value">
+      {% for g in groups %}<option value="{% url url_name g.id %}?year={{ year }}" {% if g.id == group.id %}selected{% endif %}>{{ g.code }}</option>{% endfor %}
+    </select>
+  </label>
+  <a class="btn" href="?year={{ prev_year }}">→ <span dir="ltr">{{ prev_year }}-{{ year }}</span></a>
+  <b>السنة الدراسية <span dir="ltr">{{ year_label }}</span></b>
+  <a class="btn" href="?year={{ next_year }}"><span dir="ltr">{{ next_year }}-{{ next_year|add:1 }}</span> ←</a>
+</div>
