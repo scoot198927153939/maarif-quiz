@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}الدفع · {{ group.code }}{% endblock %}
+{% block head %}
+<style>
+  .months-pick { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin:.4rem 0 .6rem; }
+  .months-pick label { display:block; border:1px solid #cfd8d5; border-radius:10px; padding:.5rem .6rem; cursor:pointer; background:#fff; }
+  .months-pick label:has(input:checked) { background:#e3f4e9; border-color:#16794a; }
+  .months-pick input { width:20px; height:20px; vertical-align:middle; }
+  .months-pick small { display:block; color:#666; }
+  .months-pick .paid { color:#16794a; font-weight:700; }
+  .months-pick .m-amt { width:100%; margin-top:.35rem; font-size:1.05rem; box-sizing:border-box; }
+  .split-preview { background:#f3f8f6; border-radius:10px; padding:.6rem .8rem; margin:.4rem 0; font-weight:600; }
+  .pay-grid { display:flex; flex-wrap:wrap; gap:.6rem 1rem; align-items:end; }
+  .pay-grid label { display:flex; flex-direction:column; gap:.2rem; }
+  .pay-grid input, .pay-grid select { font-size:1.05rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🧾 الدفع · <span dir="ltr">{{ group.code }}</span></h1>
+  <div class="actions"><a class="btn" href="{% url 'evening_account' group.id %}?year={{ year }}">💰 صفحة العرض</a></div>
+</div>
+{% include "quiz/evening/_tabs.html" %}
+{% with url_name="evening_pay" %}{% include "quiz/evening/_money_head.html" %}{% endwith %}
+
+{% if saved %}<div class="card no-print" style="background:#e3f4e9">✅ تم الحفظ. <a class="btn small primary" href="{% url 'evening_receipt' saved %}" target="_blank">🖨️ طباعة الوصل</a></div>{% endif %}
+
+<div class="card">
+  <form method="post" id="pay-form">
+    {% csrf_token %}<input type="hidden" name="year" value="{{ year }}">
+    <div class="pay-grid">
+      <label>التلميذ
+        <select name="student" required onchange="location.href='?year={{ year }}&student='+this.value" style="min-width:16rem">
+          <option value="">— اختر التلميذ —</option>
+          {% for s in students %}<option value="{{ s.id }}" {% if student and s.id == student.id %}selected{% endif %}>{{ s.matricule }} · {{ s.full_name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>المبلغ المدفوع (أوقية) <small class="muted">اختياري إن كتبت مبلغ كل شهر</small><input type="number" name="amount" id="amount" min="1" value="{{ form.amount|default:'' }}" style="width:9rem"></label>
+      <label>رقم الوصل<input type="text" name="receipt_no" required maxlength="40" dir="ltr" value="{{ form.receipt_no|default:'' }}" style="width:9rem"></label>
+      <label>تاريخ الدفع<input type="date" name="paid_on" value="{% if form.paid_on %}{{ form.paid_on }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}"></label>
+      <label>ملاحظة (اختياري)<input type="text" name="note" maxlength="255" value="{{ form.note|default:'' }}" style="width:14rem"></label>
+    </div>
+    <h4 style="margin:.9rem 0 0">الأشهر التي يخصّها الدفع، وكم يخص كل شهر
+      <button type="button" class="btn small" onclick="pickAll(true)">✔ جميع الأشهر</button>
+      <button type="button" class="btn small" onclick="pickAll(false)">✗ إلغاء</button></h4>
+    <small class="muted d-block">علّم الأشهر فيُقسم المبلغ عليها بالتساوي، ثم عدّل مبلغ أي شهر كما تريد. يجب أن يساوي مجموع الأشهر المبلغ المدفوع.</small>
+    <div class="months-pick">
+      {% for p in periods %}
+      <label><input type="checkbox" name="months" value="{{ p.index }}" {% if p.checked %}checked{% endif %}> <b>{{ p.name }}</b>
+        <small dir="ltr">{{ p.range }}</small>
+        {% if student %}<small>{% if p.paid %}<span class="paid">مدفوع: {{ p.paid }}</span>{% else %}لم يُدفع شيء{% endif %}{% if student.fee %} من {{ student.fee }}{% endif %}</small>{% endif %}
+        <input type="number" class="m-amt" name="amt_{{ p.index }}" data-i="{{ p.index }}" min="0" placeholder="المبلغ" value="{{ p.amt }}">
+      </label>
+      {% endfor %}
+    </div>
+    <div class="split-preview" id="split"></div>
+    <button class="btn primary" style="font-size:1.15rem;padding:.6rem 2.2rem">💾 حفظ الدفع</button>
+  </form>
+</div>
+
+{% if student %}
+<div class="card">
+  <h3 style="margin-top:0">دفعات {{ student.full_name }} · <span dir="ltr">{{ year_label }}</span> · المجموع: {{ history_total }} أوقية</h3>
+  <form method="post" class="inline-form" style="align-items:end">
+    {% csrf_token %}<input type="hidden" name="year" value="{{ year }}"><input type="hidden" name="student" value="{{ student.id }}">
+    <label>الرسوم الشهرية لهذا التلميذ (أوقية)
+      <input type="number" name="student_fee" min="0" value="{{ student.monthly_fee|default_if_none:'' }}" placeholder="{{ group.monthly_fee }}" style="width:8rem"></label>
+    <button class="btn small" name="set_fee" value="1">حفظ</button>
+    <small class="muted">{% if student.monthly_fee is not None %}رسوم خاصة بهذا التلميذ.{% else %}فارغ = رسوم القسم ({{ group.monthly_fee }}).{% endif %}</small>
+  </form>
+  <p class="muted" dir="ltr" style="text-align:right">
+    {% if student.guardian_phone %}📞 <a href="tel:{{ student.guardian_phone }}">{{ student.guardian_phone }}</a>{% endif %}
+    {% if student.wa_link %} · <a class="wa" href="{{ student.wa_link }}" target="_blank" rel="noopener">💬 {{ student.whatsapp }}</a>{% endif %}</p>
+  {% if history %}
+  {% include "quiz/evening/_payments_table.html" with payments=history show_student=False %}
+  {% else %}<p class="muted">لا توجد دفعات بعد.</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h3 style="margin-top:0">آخر الدفعات المسجّلة في <span dir="ltr">{{ group.code }}</span></h3>
+  {% if recent %}{% include "quiz/evening/_payments_table.html" with payments=recent show_student=True %}
+  {% else %}<p class="muted">لا توجد دفعات بعد.</p>{% endif %}
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById("pay-form"), out = document.getElementById("split");
+  var total = document.getElementById("amount");
+  var boxes = form.querySelectorAll("input[name=months]");
+  function amtOf(c) { return c.parentNode.querySelector(".m-amt"); }
+  function split() {  // يقسم المبلغ بالتساوي على الأشهر المعلّمة
+    var amount = parseInt(total.value, 10) || 0;
+    if (!amount) { check(); return; }  // لا مبلغ إجمالي: المستخدم يكتب مبلغ كل شهر بنفسه
+    var picked = Array.prototype.filter.call(boxes, function (c) { return c.checked; });
+    var base = picked.length ? Math.floor(amount / picked.length) : 0, rest = picked.length ? amount % picked.length : 0;
+    boxes.forEach(function (c) { amtOf(c).value = ""; });
+    picked.forEach(function (c, i) { amtOf(c).value = base + (i < rest ? 1 : 0); });
+    check();
+  }
+  function check() {
+    var sum = 0;
+    boxes.forEach(function (c) {
+      var v = parseInt(amtOf(c).value, 10) || 0;
+      c.checked = v > 0 || (c.checked && !amtOf(c).value);
+      sum += v;
+    });
+    var amount = parseInt(total.value, 10) || 0;
+    if (!sum) { out.textContent = "اكتب المبلغ وعلّم الأشهر، أو اكتب مبلغ كل شهر."; out.style.color = ""; return; }
+    if (!amount) { out.textContent = "المبلغ المدفوع = مجموع الأشهر: " + sum; out.style.color = "#16794a"; }
+    else if (sum === amount) { out.textContent = "✓ مجموع الأشهر " + sum + " يساوي المبلغ المدفوع."; out.style.color = "#16794a"; }
+    else { out.textContent = "⚠ مجموع الأشهر " + sum + " ≠ المبلغ المدفوع " + amount; out.style.color = "#b42318"; }
+  }
+  window.pickAll = function (on) { boxes.forEach(function (c) { c.checked = on; }); split(); };
+  total.addEventListener("input", split);
+  boxes.forEach(function (c) { c.addEventListener("change", split); });
+  form.querySelectorAll(".m-amt").forEach(function (inp) {
+    inp.addEventListener("input", check);
+  });
+  check();
+})();
+</script>
+{% endblock %}

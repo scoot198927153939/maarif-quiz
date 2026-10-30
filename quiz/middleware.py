@@ -1,0 +1,90 @@
+from django.conf import settings
+from django.shortcuts import redirect
+from django.urls import resolve, Resolver404
+
+from .models import Attempt
+
+# الصفحات المسموح بها للتلميذ أثناء امتحان جارٍ
+EXAM_URL_NAMES = {"take_exam", "save_answer", "submit_exam", "report_violation"}
+
+
+class ExamLockMiddleware:
+    """يمنع التلميذ من فتح أي صفحة أخرى في التطبيق ما دام له امتحان جارٍ."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        path = request.path
+        if (
+            user is not None and user.is_authenticated and user.is_student
+            and not path.startswith((settings.STATIC_URL, settings.MEDIA_URL))
+        ):
+            attempt = (
+                Attempt.objects.select_related("exam")
+                .filter(student=user, status=Attempt.IN_PROGRESS)
+                .first()
+            )
+            if attempt:
+                if attempt.is_expired():
+                    attempt.submit(auto=True)
+                else:
+                    try:
+                        name = resolve(path).url_name
+                    except Resolver404:
+                        name = None
+                    if name not in EXAM_URL_NAMES:
+                        return redirect("take_exam", exam_id=attempt.exam_id)
+        return self.get_response(request)
+
+
+class ActivityMiddleware:
+    """يحدّث «آخر نشاط» لكل مستخدم ويسجّل كل إضافة أو تعديل أو حذف ناجح (طلبات POST)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from . import activity
+
+        user = getattr(request, "user", None)
+        event = None
+        if user is not None and user.is_authenticated and not request.path.startswith(
+            (settings.STATIC_URL, settings.MEDIA_URL)
+        ):
+            activity.touch(user)
+            if request.method == "POST":
+                # يُقرأ قبل تنفيذ الطلب، حتى يبقى اسم الشيء المحذوف معروفاً
+                event = activity.describe(request)
+        response = self.get_response(request)
+        if event and response.status_code < 400:
+            activity.record(request, user, **event)
+        return response
+
+
+# الصفحات المسموح بها للتلميذ قبل أن يغيّر كلمة المرور
+PASSWORD_URL_NAMES = {"password_change", "logout"}
+
+
+class ForcePasswordChangeMiddleware:
+    """يرسل التلميذ إلى صفحة تغيير كلمة المرور ما دام يستعمل كلمة المرور التي وضعتها الإدارة."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        path = request.path
+        if (
+            user is not None and user.is_authenticated and user.is_student
+            and user.must_change_password
+            and not path.startswith((settings.STATIC_URL, settings.MEDIA_URL))
+        ):
+            try:
+                name = resolve(path).url_name
+            except Resolver404:
+                name = None
+            if name not in PASSWORD_URL_NAMES:
+                return redirect("password_change")
+        return self.get_response(request)

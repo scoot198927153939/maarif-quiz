@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ video.display_title }}{% endblock %}
+{% block content %}
+{% include "quiz/videos/_style.html" %}
+<p><a href="{% url 'videos_home' %}?c={{ video.classe.code }}#s{{ video.subject_id }}">→ كل فيديوهات {{ video.classe }}</a></p>
+<h1 dir="auto" style="margin-bottom:.2rem">{{ video.display_title }}</h1>
+<p class="muted" style="margin-top:0">{{ video.subject }} · {{ video.classe }} · الدرس {{ video.lesson_number }}: <span dir="auto">{{ video.lesson }}</span></p>
+<div class="player">
+  {% if video.youtube_id %}
+  <iframe src="https://www.youtube-nocookie.com/embed/{{ video.youtube_id }}?rel=0" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  {% else %}
+  <video controls controlsList="nodownload" preload="metadata" src="{% url 'video_file' video.id %}"></video>
+  {% endif %}
+</div>
+<div class="watch-nav">
+  {% if prev %}<a class="btn" href="{% url 'video_watch' prev.id %}">→ السابق</a>{% else %}<span></span>{% endif %}
+  {% if can_manage %}<a href="{% url 'video_edit' video.id %}">تعديل</a>{% endif %}
+  {% if next %}<a class="btn primary" href="{% url 'video_watch' next.id %}">التالي ←</a>{% endif %}
+</div>
+
+<section class="vsubject">
+  <h2>📘 {{ shelf.subject }} <span class="count">· كل الدروس</span></h2>
+  {% for l in shelf.lessons %}
+  <div class="vlesson">
+    <h3><span class="num">الدرس {{ l.number }}</span> <span dir="auto">{{ l.title }}</span></h3>
+    <div class="vgrid">
+      {% for v in l.videos %}
+      <a class="vcard{% if v.id == video.id %} now{% endif %}" href="{% url 'video_watch' v.id %}">
+        <div class="thumb" {% if v.thumbnail %}style="background-image:url('{{ v.thumbnail }}')"{% endif %}><span>▶</span></div>
+        <div class="t" dir="auto">{{ v.display_title }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

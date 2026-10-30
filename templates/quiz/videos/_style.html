@@ -1,0 +1,24 @@
+<style>
+  .vtabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:.5rem 0 1rem; }
+  .vtabs a { padding:.35rem .9rem; border-radius:999px; background:#fff; border:1px solid var(--border); text-decoration:none; color:inherit; direction:ltr; }
+  .vtabs a.on { background:#1f6f5c; color:#fff; border-color:#1f6f5c; }
+  .vsubject { margin-bottom:1.6rem; }
+  .vsubject > h2 { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; font-size:1.25rem; }
+  .vsubject > h2 .count { font-size:.85rem; font-weight:400; color:#667; }
+  .vlesson { background:#fff; border:1px solid var(--border); border-radius:12px; padding:.8rem 1rem; margin-bottom:.8rem; }
+  .vlesson h3 { margin:0 0 .6rem; font-size:1.05rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .vlesson h3 .num { background:#1f6f5c; color:#fff; border-radius:8px; padding:0 .55rem; font-size:.9rem; }
+  .vlesson h3 .add { margin-inline-start:auto; font-size:.85rem; font-weight:400; }
+  .vgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:.7rem; }
+  .vcard { display:block; text-decoration:none; color:inherit; border-radius:10px; overflow:hidden; background:#f4f7f6; border:1px solid var(--border); }
+  .vcard .thumb { position:relative; aspect-ratio:16/9; background:#1d2b25 center/cover no-repeat; display:flex; align-items:center; justify-content:center; }
+  .vcard .thumb span { width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,.9); color:#1f6f5c; display:flex; align-items:center; justify-content:center; font-size:1.2rem; }
+  .vcard .t { padding:.45rem .6rem; font-size:.92rem; line-height:1.35; }
+  .vcard.now { outline:3px solid #f2c14e; }
+  .vtools { padding:0 .6rem .5rem; font-size:.8rem; display:flex; gap:.6rem; }
+  .vtools form { display:inline; }
+  .vtools button { background:none; border:0; color:#b42318; cursor:pointer; padding:0; font:inherit; }
+  .player { background:#000; border-radius:12px; overflow:hidden; aspect-ratio:16/9; }
+  .player iframe, .player video { width:100%; height:100%; border:0; display:block; }
+  .watch-nav { display:flex; justify-content:space-between; gap:.5rem; margin:.8rem 0 1.2rem; flex-wrap:wrap; }
+</style>

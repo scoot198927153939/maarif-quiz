@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>وصل {{ p.receipt_no }}</title>
+<style>
+  body { font-family: Tahoma, Arial, sans-serif; background:#f4f6f5; margin:0; padding:16px; color:#222; }
+  .receipt { max-width:560px; margin:0 auto; background:#fff; border:2px solid #1f6f5c; border-radius:12px; padding:20px 24px; }
+  .r-head { text-align:center; border-bottom:2px dashed #1f6f5c; padding-bottom:10px; margin-bottom:12px; }
+  .r-head h1 { margin:.2rem 0; font-size:1.3rem; color:#1f6f5c; }
+  .r-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee; }
+  .r-amount { font-size:1.6rem; font-weight:800; text-align:center; margin:14px 0; color:#1f6f5c; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  th, td { border:1px solid #bbb; padding:5px; text-align:center; }
+  th { background:#e9f3f0; }
+  .sign { display:flex; justify-content:space-between; margin-top:36px; }
+  .tools { text-align:center; margin:14px 0; }
+  .tools button { font-size:1.1rem; padding:8px 26px; cursor:pointer; }
+  @media print { body { background:#fff; padding:0; } .tools { display:none; } th { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+</style>
+</head>
+<body>
+<div class="tools"><button onclick="window.print()">🖨️ طباعة الوصل</button></div>
+<div class="receipt">
+  <div class="r-head">
+    <b>{{ school }}</b>
+    <h1>وصل دفع · الحصص المسائية</h1>
+    <div>رقم الوصل: <b dir="ltr">{{ p.receipt_no }}</b></div>
+  </div>
+  <div class="r-row"><span>التلميذ</span><b>{{ p.student.full_name }}</b></div>
+  <div class="r-row"><span>رقم القيد</span><b>{{ p.student.matricule }}</b></div>
+  <div class="r-row"><span>القسم</span><b dir="ltr">{{ p.student.group.code }}</b></div>
+  <div class="r-row"><span>تاريخ الدفع</span><b dir="ltr">{{ p.paid_on|date:"d/m/Y" }}</b></div>
+  <div class="r-row"><span>السنة الدراسية</span><b dir="ltr">{{ year_label }}</b></div>
+  <div class="r-amount">{{ p.amount }} أوقية</div>
+  <table>
+    <thead><tr><th>الشهر</th><th>الفترة</th><th>المبلغ</th></tr></thead>
+    <tbody>{% for l in lines %}<tr><td>{{ l.name }}</td><td dir="ltr">{{ l.range }}</td><td>{{ l.amount }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% if p.note %}<p>ملاحظة: {{ p.note }}</p>{% endif %}
+  <div class="sign"><span>توقيع المستلم: ..................</span><span>الختم</span></div>
+</div>
+</body>
+</html>

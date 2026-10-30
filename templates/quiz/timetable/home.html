@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}الجدول الزمني{% endblock %}
+{% block content %}
+{% include "quiz/timetable/_style.html" %}
+<div class="page-head">
+  <h1>الجدول الزمني</h1>
+  {% if show_all and grids %}<div class="actions no-print"><button class="btn" onclick="window.print()">🖨️ سحب كل الجداول</button></div>{% endif %}
+</div>
+
+{% if user.is_admin_role or user.is_supervisor %}
+<form method="post" action="{% url 'timetable_import' %}" enctype="multipart/form-data" class="card no-print">
+  {% csrf_token %}
+  <h3 style="margin-top:0">استيراد الجدول العام</h3>
+  <p class="muted">ارفع ملف Excel الذي فيه ورقة <b dir="ltr">General</b> (صف رموز الأقسام مثل 1A1، 5C1، 7D1، والأيام والتوقيت في أول عمودين، ودليل الأساتذة على اليمين).
+    سيُقسَّم تلقائياً ويرى كل تلميذ جدول فصله فقط. الاستيراد الجديد يحلّ محلّ الجدول السابق كله.</p>
+  {{ import_form.file }}
+  <button class="btn primary">⬆️ استيراد</button>
+</form>
+{% endif %}
+
+{% if codes %}
+<div class="card no-print">
+  <h3 style="margin-top:0">الفصول ({{ codes|length }})</h3>
+  <div class="tt-sections">
+    {% for c in codes %}<a href="?s={{ c }}" class="{% if c == selected %}on{% endif %}">{{ c }}</a>{% endfor %}
+    <a href="?all=1" class="{% if show_all %}on{% endif %}" style="direction:rtl">كل الفصول</a>
+  </div>
+  {% if can_edit and selected and not show_all %}
+    <p style="margin:.75rem 0 0"><a class="btn primary" href="{% url 'timetable_edit' selected %}">✏️ تعديل جدول {{ selected }}</a></p>
+  {% endif %}
+  {% if user.is_admin_role and missing %}
+    <p class="msg error" style="margin:.75rem 0 0">فصول في الجدول غير موجودة في التطبيق (لن يراها أي تلميذ حتى تُضاف): <span dir="ltr">{{ missing|join:", " }}</span></p>
+  {% endif %}
+  {% if can_edit and no_timetable %}
+    <p class="muted" style="margin:.5rem 0 0">فصول في التطبيق ليس لها جدول (اضغط لإنشاء جدولها):
+      {% for c in no_timetable %}<a href="{% url 'timetable_edit' c %}" dir="ltr">{{ c }}</a> {% endfor %}</p>
+  {% endif %}
+</div>
+{% for grid in grids %}{% include "quiz/timetable/_grid.html" %}{% empty %}
+  <p class="muted no-print">اختر فصلاً لعرض جدوله.</p>
+{% endfor %}
+{% else %}
+  <p class="card muted">لم يُستورد أي جدول بعد.{% if can_edit and no_timetable %} يمكنك استيراد الجدول العام أعلاه، أو إنشاء جدول فصل:
+    {% for c in no_timetable %}<a href="{% url 'timetable_edit' c %}" dir="ltr">{{ c }}</a> {% endfor %}{% endif %}</p>
+{% endif %}
+{% endblock %}

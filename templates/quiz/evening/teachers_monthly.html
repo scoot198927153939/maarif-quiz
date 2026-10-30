@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}الحضور الشهري لأساتذة الحصص المسائية{% endblock %}
+{% block head %}
+<style>
+  .ev-sheet-head { text-align:center; margin-bottom:.8rem; }
+  .ev-sheet-head h2 { margin:.2rem 0; }
+  table.ev-month { width:100%; border-collapse:collapse; background:#fff; }
+  table.ev-month th { background:#1f6f5c; color:#fff; padding:.5rem; }
+  table.ev-month td { padding:.5rem; border-bottom:1px solid #dfe5e3; text-align:center; }
+  table.ev-month td.name { text-align:start; font-weight:700; }
+  table.ev-month td.a { color:#b42318; font-weight:700; }
+  table.ev-month td.p { color:#16794a; font-weight:700; }
+  .ev-sign { display:none; margin-top:2.5rem; }
+  @media print {
+    @page { size: A4 portrait; margin: 1.2cm; }
+    table.ev-month th, table.ev-month td { border:1px solid #888; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .ev-sign { display:flex; justify-content:space-between; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head no-print">
+  <h1>📅 الحضور الشهري لأساتذة الحصص المسائية</h1>
+  <div class="actions">
+    <button class="btn primary" type="button" onclick="window.print()">🖨️ سحب الورقة</button>
+    <a class="btn" href="?month={{ month }}&export=xlsx">⬇️ Excel</a>
+    <a class="btn" href="{% url 'evening_teachers' %}">👨‍🏫 حضور اليوم</a>
+  </div>
+</div>
+<div class="card filters-form day-nav no-print">
+  <a class="btn" href="?month={{ prev_month }}">→ الشهر السابق</a>
+  <b>{{ month_label }}</b>
+  <a class="btn" href="?month={{ next_month }}">الشهر التالي ←</a>
+</div>
+<div class="ev-sheet-head">
+  <b>مدارس المعارف الحرة</b>
+  <h2>حضور وغياب أساتذة الحصص المسائية</h2>
+  <div>شهر {{ month_label }} · {{ n_days }} يوم مسجّل</div>
+</div>
+<div class="table-wrap">
+<table class="ev-month">
+  <thead><tr><th>#</th><th>الأستاذ</th><th>المجموعة</th><th>حاضر</th><th>متأخر</th><th>غائب</th><th>مجموع الساعات</th><th>أيام الغياب</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ forloop.counter }}</td>
+      <td class="name">{{ r.teacher }}</td>
+      <td dir="ltr">{{ r.groups|join:", "|default:"—" }}</td>
+      <td class="p">{{ r.present }}</td>
+      <td>{{ r.late }}</td>
+      <td class="{% if r.absent %}a{% endif %}">{{ r.absent }}</td>
+      <td><b>{{ r.hours }}</b></td>
+      <td dir="ltr" style="font-size:.85rem">{% for d in r.absent_days %}{{ d|date:"d/m" }}{% if not forloop.last %}، {% endif %}{% empty %}—{% endfor %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8">لا يوجد أساتذة.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="ev-sign"><span>توقيع المدير: ..............................</span><span>التاريخ: ....../....../..........</span></div>
+{% endblock %}
