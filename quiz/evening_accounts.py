@@ -15,7 +15,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from .attendance import _date
 from .excel import HEADER_FILL, HEADER_FONT, _clean
 from .models import (
-    EVENING_PERIODS, EveningGroup, EveningPayment, EveningStudent, evening_period_dates, evening_school_year,
+    EVENING_PERIODS, EveningGroup, EveningMonthFee, EveningPayment, EveningStudent, evening_period_dates, evening_school_year,
 )
 from .views import admin_required, xlsx_response
 
@@ -48,6 +48,19 @@ def _due_periods(student, periods, today):
     return [p["index"] for p in periods if p["start"] <= today and (reg is None or reg < p["end"])]
 
 
+def _month_fees(students, year):
+    """{رقم التلميذ: {رقم الشهر: المطلوب}} للأشهر التي غُيّر مطلوبها أو أُلغيت."""
+    out = {}
+    for mf in EveningMonthFee.objects.filter(student__in=students, year=year):
+        out.setdefault(mf.student_id, {})[mf.month] = mf.amount
+    return out
+
+
+def _month_due(fee, overrides, n):
+    """المطلوب في كل شهر: رسوم الشهر الخاصة إن وُجدت، وإلا الرسوم المعتادة."""
+    return [overrides.get(i, fee) for i in range(n)]
+
+
 def _account_rows(group, year):
     """لكل تلميذ: المدفوع في كل شهر، المجموع، المطلوب حتى اليوم، المتبقي، والأشهر غير المسدّدة."""
     periods = _periods(year)
@@ -55,6 +68,7 @@ def _account_rows(group, year):
     payments = list(EveningPayment.objects.filter(student__group=group, year=year))
     paid_ids = {p.student_id for p in payments}
     students = list(group.students.filter(Q(is_active=True) | Q(id__in=paid_ids)))
+    overrides = _month_fees(students, year)
     by_student = {}
     for p in payments:
         cells = by_student.setdefault(p.student_id, [0] * len(periods))
@@ -65,16 +79,27 @@ def _account_rows(group, year):
         st.group = group
         fee = st.fee
         cells = by_student.get(st.id, [0] * len(periods))
-        due = _due_periods(st, periods, today)
-        unpaid = [i for i in due if fee and cells[i] < fee]
-        expected = fee * len(due)
+        over = overrides.get(st.id, {})
+        month_due = _month_due(fee, over, len(periods))
+        due = [i for i in _due_periods(st, periods, today) if month_due[i]]
+        unpaid = [i for i in due if cells[i] < month_due[i]]
+        expected = sum(month_due[i] for i in due)
         total = sum(cells)
+        has_fee = bool(fee) or bool(over)
+
+        def state(i, a):
+            if i in over and not over[i]:
+                return "off"
+            if month_due[i] and a >= month_due[i]:
+                return "full"
+            if a:
+                return "part"
+            return "late" if i in due else ""
         rows.append({
             "student": st, "fee": fee, "own_fee": st.monthly_fee is not None, "total": total, "expected": expected,
-            "remaining": max(0, expected - total) if fee else None, "unpaid": unpaid,
-            "unpaid_amount": sum(fee - cells[i] for i in unpaid),
-            "cells": [{"amount": a, "state": ("full" if fee and a >= fee else "part" if a else
-                                              "late" if (fee and i in due) else "")}
+            "remaining": max(0, expected - total) if has_fee else None, "unpaid": unpaid,
+            "unpaid_amount": sum(month_due[i] - cells[i] for i in unpaid),
+            "cells": [{"amount": a, "state": state(i, a), "special": i in over, "due": month_due[i]}
                       for i, a in enumerate(cells)],
         })
     col_totals = [sum(r["cells"][i]["amount"] for r in rows) for i in range(len(periods))]
@@ -113,7 +138,7 @@ def evening_account(request, group_id):
     return render(request, "quiz/evening/accounts.html", {
         "group": group, "groups": EveningGroup.objects.all(), "tab": "accounts", "periods": periods, "rows": rows,
         "col_totals": col_totals, "grand": grand, "n_late": sum(1 for r in rows if r["unpaid"]),
-        "has_fees": any(r["fee"] for r in rows),
+        "has_fees": any(r["remaining"] is not None for r in rows),
         "expected": sum(r["expected"] for r in rows), **_year_ctx(year),
     })
 
@@ -125,17 +150,17 @@ def _account_workbook(group, year, periods, rows, col_totals):
     ws.sheet_view.rightToLeft = True
     ws.append([f"{SCHOOL} · محاسبة الحصص المسائية · {group.code} · {year}-{year + 1}"])
     head = ["#", "رقم القيد", "اسم التلميذ", "هاتف الوكيل", "الواتساب"]
-    has_fees = any(r["fee"] for r in rows)
+    has_fees = any(r["remaining"] is not None for r in rows)
     head += [f"{p['name']} ({p['range']})" for p in periods] + ["المجموع"]
     if has_fees:
         head += ["الرسوم الشهرية", "المطلوب حتى اليوم", "المتبقي"]
     ws.append(head)
     fills = {"full": PatternFill("solid", fgColor="D9F2E3"), "part": PatternFill("solid", fgColor="FFF1D6"),
-             "late": PatternFill("solid", fgColor="FDE2DF")}
+             "late": PatternFill("solid", fgColor="FDE2DF"), "off": PatternFill("solid", fgColor="E0E0E0")}
     for n, r in enumerate(rows, start=1):
         st = r["student"]
         line = [n, st.matricule, st.full_name, st.guardian_phone, st.whatsapp]
-        line += [c["amount"] or None for c in r["cells"]] + [r["total"]]
+        line += [c["amount"] or ("ملغى" if c["state"] == "off" else None) for c in r["cells"]] + [r["total"]]
         if has_fees:
             line += [r["fee"] or None, r["expected"], r["remaining"]]
         ws.append(line)
@@ -171,7 +196,7 @@ def evening_late(request, group_id):
             r["wa_message"] = f"{st.wa_link}?text={quote(text)}"
     return render(request, "quiz/evening/late.html", {
         "group": group, "groups": EveningGroup.objects.all(), "tab": "late", "rows": late,
-        "has_fees": any(r["fee"] for r in rows),
+        "has_fees": any(r["remaining"] is not None for r in rows),
         "total_late": sum(r["unpaid_amount"] for r in late), **_year_ctx(year),
     })
 
@@ -196,6 +221,23 @@ def evening_pay(request, group_id):
                 st.group = group
                 messages.success(request, f"الرسوم الشهرية لـ {st.full_name}: {st.fee} أوقية"
                                           + ("" if raw else " (رسوم القسم)") + ".")
+            return redirect(f"{here}&student={st.id}")
+        if "set_months" in request.POST and st:
+            changed = []
+            for i, name in enumerate(EVENING_PERIODS):
+                raw = _clean(request.POST.get(f"due_{i}")).replace(" ", "")
+                if raw and not raw.isdigit():
+                    messages.error(request, f"المطلوب في شهر {name} يجب أن يكون رقماً.")
+                    return redirect(f"{here}&student={st.id}")
+                cancel = request.POST.get(f"off_{i}") == "1"
+                if cancel or raw:
+                    EveningMonthFee.objects.update_or_create(
+                        student=st, year=year, month=i, defaults={"amount": 0 if cancel else int(raw)})
+                    changed.append(name)
+                else:
+                    EveningMonthFee.objects.filter(student=st, year=year, month=i).delete()
+            messages.success(request, f"تم حفظ الأشهر الخاصة لـ {st.full_name}"
+                                      + (f": {'، '.join(changed)}." if changed else " (كل الأشهر بالرسوم المعتادة)."))
             return redirect(f"{here}&student={st.id}")
         receipt = _clean(request.POST.get("receipt_no"))[:40]
         months = sorted({int(m) for m in request.POST.getlist("months")
@@ -259,8 +301,14 @@ def _pay_ctx(group, year, students, student, data, saved=None):
         for p in history:
             for i, a in p.shares.items():
                 paid[i] += a
+        over = _month_fees([student], year).get(student.id, {})
         for per in periods:
-            per["paid"] = paid[per["index"]]
+            i = per["index"]
+            per["paid"] = paid[i]
+            per["special"] = i in over
+            per["off"] = i in over and not over[i]
+            per["custom"] = over[i] if i in over and over[i] else ""
+            per["due"] = over.get(i, student.fee)
     recent = (EveningPayment.objects.filter(student__group=group, year=year)
               .select_related("student").order_by("-created_at")[:20])
     picked = set(data.getlist("months")) if data else set()
@@ -270,7 +318,7 @@ def _pay_ctx(group, year, students, student, data, saved=None):
     return {
         "group": group, "groups": EveningGroup.objects.all(), "tab": "pay", "students": students,
         "student": student, "periods": periods, "history": history, "recent": recent,
-        "form": data or {}, "today": timezone.localdate(), "saved": saved,
+        "form": data or {}, "months_open": bool(student and any(p.get("special") for p in periods)), "today": timezone.localdate(), "saved": saved,
         "history_total": sum(p.amount for p in history), **_year_ctx(year),
     }
 

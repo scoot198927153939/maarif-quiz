@@ -949,6 +949,22 @@ class EveningPayment(models.Model):
         return "، ".join(EVENING_PERIODS[i] for i in ms)
 
 
+class EveningMonthFee(models.Model):
+    """ما هو مطلوب من تلميذ في شهر بعينه إذا خالف رسومه المعتادة: مبلغ آخر، أو 0 = الشهر ملغى عنه."""
+
+    student = models.ForeignKey(EveningStudent, on_delete=models.CASCADE, related_name="month_fees",
+                                verbose_name="التلميذ")
+    year = models.PositiveSmallIntegerField("السنة الدراسية")
+    month = models.PositiveSmallIntegerField("الشهر")
+    amount = models.PositiveIntegerField("المطلوب في هذا الشهر", help_text="0 = الشهر ملغى عن التلميذ")
+    note = models.CharField("ملاحظة", max_length=255, blank=True)
+
+    class Meta:
+        unique_together = [("student", "year", "month")]
+        verbose_name = "رسوم شهر خاصة"
+        verbose_name_plural = "رسوم أشهر خاصة"
+
+
 # ---------------------------------------------------------------- الفيديوهات التعليمية
 
 YOUTUBE_ID = re.compile(r"(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/))([\w-]{11})")
