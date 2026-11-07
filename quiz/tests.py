@@ -1456,3 +1456,25 @@ class EveningAccountsTests(TestCase):
         self.client.post(url, {"year": self.year, "student": self.st.id, "student_fee": "", "set_fee": "1"})
         self.st.refresh_from_db()
         self.assertEqual(self.st.fee, 1000)
+
+    def test_cancel_month_and_special_month_fee(self):
+        from .models import EveningMonthFee
+        year = self.year - 1  # سنة ماضية: كل الأشهر حلّت
+        self.g.monthly_fee = 1000
+        self.g.save()
+        url = reverse("evening_pay", args=[self.g.id])
+        # أكتوبر ملغى، نوفمبر بـ 600 بدل 1000
+        self.client.post(url, {"year": year, "student": self.st.id, "set_months": "1",
+                               "off_0": "1", "due_1": "600", "due_2": ""})
+        self.assertEqual(EveningMonthFee.objects.count(), 2)
+        self.pay(year=year, amount=600, months=["1"], receipt_no="S1")
+        resp = self.client.get(reverse("evening_account", args=[self.g.id]), {"year": year})
+        row = resp.context["rows"][0]
+        self.assertEqual(row["cells"][0]["state"], "off")
+        self.assertEqual(row["cells"][1]["state"], "full")
+        self.assertEqual(row["expected"], 600 + 7 * 1000)
+        self.assertEqual(row["unpaid"], list(range(2, 9)))
+        self.assertContains(resp, "ملغى")
+        # إلغاء الأشهر الخاصة يعيد الرسوم المعتادة
+        self.client.post(url, {"year": year, "student": self.st.id, "set_months": "1"})
+        self.assertFalse(EveningMonthFee.objects.exists())
