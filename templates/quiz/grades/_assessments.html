@@ -1,0 +1,5 @@
+<nav class="section-nav no-print">
+  {% for a in assessments %}
+  <a class="{% if a.id == assessment.id %}active{% endif %}" href="?a={{ a.id }}">📝 {{ a.name }}</a>
+  {% endfor %}
+</nav>

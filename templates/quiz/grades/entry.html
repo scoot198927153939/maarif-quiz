@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ subject_name }} · {{ assessment.name }} · {{ section.code }}{% endblock %}
+{% block head %}
+<style>
+  .gr-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.6rem; }
+  .gr-title { margin:0; }
+  .gr-title small { display:block; font-size:1rem; color:#555; font-weight:400; }
+  table.gr { width:100%; max-width:900px; margin:0 auto; border-collapse:separate; border-spacing:0; background:#fff;
+             border:1px solid #cfd8d5; border-radius:14px; overflow:hidden; font-size:1.05rem; }
+  .gr th { background:#1f6f5c; color:#fff; padding:.7rem .6rem; text-align:center; }
+  .gr td { padding:.45rem .6rem; border-bottom:1px solid #e3e9e6; }
+  .gr tbody tr:nth-child(even) td { background:#f5f9f7; }
+  .gr tbody tr:last-child td { border-bottom:0; }
+  .gr td.num, .gr td.mat { text-align:center; width:1%; white-space:nowrap; color:#444; }
+  .gr td.mat { font-weight:700; }
+  .gr td.name { font-weight:600; }
+  .gr td.sc { width:130px; text-align:center; }
+  .gr input.score { width:90px; font-size:1.15rem; font-weight:700; text-align:center; padding:.35rem; border:1px solid #b9c7c2; border-radius:8px; }
+  .gr input.note { width:100%; box-sizing:border-box; padding:.4rem; border:1px solid #cfd8d5; border-radius:8px; }
+  .gr input:disabled { background:transparent; border-color:transparent; color:#1b1b1b; }
+  .gr tr.saved td.name::after { content:" ✓"; color:#16794a; }
+  .gr tr.err td { background:#fde2df !important; }
+  .gr tr.err .msg { color:#b42318; font-size:.85rem; display:block; }
+  .gr tr.low input.score { color:#b42318; }
+  .gr td.act { width:1%; white-space:nowrap; }
+  .gr-save { position:sticky; bottom:0; background:#f4f6f5; border-top:1px solid #cfd8d5; padding:.8rem 0; margin-top:.8rem; text-align:center; z-index:3; }
+  .gr-save .btn { font-size:1.2rem; padding:.7rem 2.5rem; }
+  .gr-subjects { display:flex; flex-wrap:wrap; gap:6px; margin:.4rem 0 1rem; }
+  .gr-subjects a { padding:4px 12px; border-radius:20px; border:1px solid #cfd8d5; background:#fff; font-size:.9rem; color:inherit; }
+  .gr-subjects a.on { background:#1f6f5c; color:#fff; border-color:#1f6f5c; }
+  @media print { .gr-save, .gr-subjects, .act, .no-print { display:none !important; } .gr input { border:0 !important; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="gr-head">
+  <h1 class="gr-title">{{ subject_name }}<small>{{ assessment.name }} · <span dir="ltr">{{ section.code }}</span>{% if average %} · المعدل {{ average }} / {{ max }}{% endif %}</small></h1>
+  <div class="actions no-print">
+    <a class="btn" href="{% url 'grades_section' section.id %}?a={{ assessment.id }}">→ مواد {{ section.code }}</a>
+    <button class="btn" type="button" onclick="window.print()">🖨️ طباعة</button>
+  </div>
+</div>
+<div class="gr-subjects">
+  {% for c, n in subjects %}<a class="{% if c == subject %}on{% endif %}" href="{% url 'grades_entry' section.id assessment.id c %}">{{ n }}</a>{% endfor %}
+</div>
+{% if rows %}
+<form method="post" id="gr-form">
+  {% csrf_token %}
+  <table class="gr">
+    <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>النتيجة / {{ max }}</th><th>الملاحظة</th><th class="act no-print"></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="{% if r.grade %}saved{% endif %}{% if r.error %} err{% endif %}" data-id="{{ r.student.id }}">
+        <td class="num">{{ forloop.counter }}</td>
+        <td class="mat">{{ r.student.matricule|default:"—" }}</td>
+        <td class="name">{{ r.student.full_name|default:r.student.username }}</td>
+        <td class="sc">
+          <input class="score" type="text" inputmode="decimal" name="s_{{ r.student.id }}" value="{{ r.score }}" autocomplete="off" {% if r.locked %}disabled{% endif %}>
+          {% if r.error %}<span class="msg">{{ r.error }}</span>{% endif %}
+        </td>
+        <td><input class="note" type="text" name="n_{{ r.student.id }}" value="{{ r.note }}" maxlength="255" {% if r.locked %}disabled{% endif %}></td>
+        <td class="act no-print">{% if r.locked %}<button type="button" class="btn small" onclick="unlock(this)">✏️ تعديل</button>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="gr-save">
+    <button class="btn primary">💾 حفظ النتائج</button>
+    {% if n_saved %}<button type="button" class="btn" onclick="document.querySelectorAll('.act .btn').forEach(function(b){unlock(b)})">✏️ تعديل الكل</button>{% endif %}
+  </div>
+</form>
+<p class="muted" style="text-align:center">النتيجة من 0 إلى {{ max }} (مثل 12.5)، ويمكن ترك تلميذ بلا نتيجة. بعد الحفظ تُقفل النتيجة، ولتغييرها اضغط «تعديل» أمام التلميذ ثم «حفظ».</p>
+{% else %}<p class="card muted">لا يوجد تلاميذ في هذا القسم.</p>{% endif %}
+<script>
+function unlock(btn) {
+  var tr = btn.closest("tr");
+  tr.querySelectorAll("input").forEach(function (i) { i.disabled = false; });
+  btn.remove();
+  tr.querySelector("input.score").focus();
+}
+(function () {
+  var max = {{ max }};
+  function check(inp) {
+    var v = inp.value.trim().replace(",", ".").replace("،", ".");
+    var tr = inp.closest("tr");
+    var bad = v !== "" && (isNaN(+v) || +v < 0 || +v > max);
+    tr.classList.toggle("err", bad);
+    tr.classList.toggle("low", !bad && v !== "" && +v < max / 2);
+  }
+  document.querySelectorAll("input.score").forEach(function (inp) {
+    check(inp);
+    inp.addEventListener("input", function () { check(inp); });
+    inp.addEventListener("keydown", function (e) {  // Enter ينزل إلى التلميذ التالي
+      if (e.key === "Enter") {
+        e.preventDefault();
+        var all = Array.prototype.filter.call(document.querySelectorAll("input.score"), function (x) { return !x.disabled; });
+        var next = all[all.indexOf(inp) + 1];
+        if (next) next.focus(); else document.querySelector(".gr-save .btn.primary").focus();
+      }
+    });
+  });
+  document.getElementById("gr-form") && document.getElementById("gr-form").addEventListener("submit", function (e) {
+    if (document.querySelector("tr.err")) { e.preventDefault(); alert("صحّح النتائج الملوّنة بالأحمر: يجب أن تكون بين 0 و " + max); }
+  });
+})();
+</script>
+{% endblock %}
