@@ -1478,3 +1478,69 @@ class EveningAccountsTests(TestCase):
         # إلغاء الأشهر الخاصة يعيد الرسوم المعتادة
         self.client.post(url, {"year": year, "student": self.st.id, "set_months": "1"})
         self.assertFalse(EveningMonthFee.objects.exists())
+
+
+class GradesTests(TestCase):
+    def setUp(self):
+        from .models import Section
+        self.admin = User.objects.create_user("boss", password="x", role=User.ADMIN)
+        self.sec = Section.objects.get(code="7MA1")
+        self.other = Section.objects.get(code="1AS1")
+        self.a = User.objects.create_user("701", password="x", role=User.STUDENT, matricule="701",
+                                          full_name="أحمد", section=self.sec)
+        self.b = User.objects.create_user("702", password="x", role=User.STUDENT, matricule="702",
+                                          full_name="مريم", section=self.sec)
+
+    def url(self, subject="MATH"):
+        from .models import GradeAssessment
+        return reverse("grades_entry", args=[self.sec.id, GradeAssessment.objects.get(name="اختبار 1").id, subject])
+
+    def test_subjects_per_level(self):
+        from .models import grade_subjects
+        self.assertEqual(len(grade_subjects("1AS")), 9)
+        self.assertEqual(len(grade_subjects("2AS")), 10)
+        self.assertEqual(len(grade_subjects("4AS")), 9)
+        self.assertEqual(len(grade_subjects("5MA")), 9)
+        self.assertEqual(len(grade_subjects("7SN")), 7)
+        self.assertIn(("PHILO", "الفلسفة"), grade_subjects("6SN"))
+
+    def test_enter_edit_and_validate(self):
+        from .models import Grade
+        self.client.force_login(self.admin)
+        resp = self.client.get(self.url())
+        self.assertContains(resp, "أحمد")
+        self.assertContains(resp, "701")
+        # أكثر من 20: لا يُحفظ شيء
+        resp = self.client.post(self.url(), {f"s_{self.a.id}": "21", f"n_{self.a.id}": "",
+                                             f"s_{self.b.id}": "12", f"n_{self.b.id}": ""})
+        self.assertContains(resp, "لم يُحفظ شيء")
+        self.assertFalse(Grade.objects.exists())
+        # تلميذ بلا نتيجة، وآخر بنتيجة وملاحظة
+        self.client.post(self.url(), {f"s_{self.a.id}": "", f"n_{self.a.id}": "",
+                                      f"s_{self.b.id}": "12,5", f"n_{self.b.id}": "ممتاز"})
+        g = Grade.objects.get()
+        self.assertEqual((g.student, str(g.score), g.note, g.section), (self.b, "12.50", "ممتاز", self.sec))
+        # تعديل سطر واحد: السطر المقفل (غير المرسل) لا يتغيّر
+        self.client.post(self.url(), {f"s_{self.a.id}": "15", f"n_{self.a.id}": ""})
+        self.assertEqual(Grade.objects.count(), 2)
+        self.assertEqual(str(Grade.objects.get(student=self.b).score), "12.50")
+        # المادة تظهر مُدخلة في صفحة القسم
+        resp = self.client.get(reverse("grades_section", args=[self.sec.id]))
+        self.assertContains(resp, "✓ أُدخلت (2 / 2)")
+        self.assertEqual(resp.context["n_done"], 1)
+
+    def test_access(self):
+        from .models import Classe
+        sup = User.objects.create_user("sup", password="x", role=User.SUPERVISOR)
+        sup.supervised_sections.add(self.other)
+        self.client.force_login(sup)
+        self.assertEqual(self.client.get(self.url()).status_code, 403)
+        self.assertEqual(self.client.get(reverse("grades_section", args=[self.other.id])).status_code, 200)
+        prof = User.objects.create_user("prof", password="x", role=User.TEACHER)
+        prof.teaching_classes.add(Classe.objects.get(code="7MA"))
+        self.client.force_login(prof)
+        self.assertEqual(self.client.get(self.url()).status_code, 200)
+        self.assertEqual(self.client.get(self.url("HG")).status_code, 403)  # لا تاريخ في 7MA
+        st = User.objects.get(username="701")
+        self.client.force_login(st)
+        self.assertNotEqual(self.client.get(reverse("grades_home")).status_code, 200)

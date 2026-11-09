@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ assessment.name }} · {{ section.code }}{% endblock %}
+{% block head %}
+<style>
+  .subj-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .subj { display:flex; flex-direction:column; gap:.35rem; background:#fff; border:2px solid #d5dfdb; border-radius:14px;
+          padding:16px; color:inherit; text-decoration:none; transition:transform .1s, box-shadow .1s; }
+  .subj:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.08); }
+  .subj b { font-size:1.15rem; }
+  .subj.done { background:#e3f4e9; border-color:#16794a; }
+  .subj.done b { color:#16794a; }
+  .subj .st { font-size:.9rem; color:#666; }
+  .subj.done .st { color:#16794a; font-weight:700; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📝 {{ assessment.name }} · <span dir="ltr">{{ section.code }}</span></h1>
+  <div class="actions"><a class="btn" href="{% url 'grades_home' %}?a={{ assessment.id }}">→ كل الأقسام</a></div>
+</div>
+{% include "quiz/grades/_assessments.html" %}
+<p class="muted">{{ n_students }} تلميذ · أُدخلت نتائج {{ n_done }} من {{ subjects|length }} مادة. اختر المادة لإدخال نتائجها. المادة الخضراء أُدخلت نتائجها.</p>
+<div class="subj-grid">
+{% for s in subjects %}
+  <a class="subj{% if s.n %} done{% endif %}" href="{% url 'grades_entry' section.id assessment.id s.code %}">
+    <b>{{ s.name }}</b>
+    <span class="st">{% if s.n %}✓ أُدخلت ({{ s.n }} / {{ n_students }}){% else %}لم تُدخل بعد{% endif %}</span>
+  </a>
+{% endfor %}
+</div>
+{% endblock %}

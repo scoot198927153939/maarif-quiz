@@ -156,6 +156,12 @@ class User(AbstractUser):
             digits = "222" + digits
         return f"https://wa.me/{digits}"
 
+    def grade_sections(self):
+        """الأقسام التي يُدخل نقاطها: المشرف كلها، المراقب أقسامه، الأستاذ أقسام مستوياته."""
+        if self.is_teacher:
+            return Section.objects.filter(classe__in=self.teaching_classes.all())
+        return self.allowed_sections()
+
     def allowed_sections(self):
         if self.is_admin_role:
             return Section.objects.all()
@@ -963,6 +969,69 @@ class EveningMonthFee(models.Model):
         unique_together = [("student", "year", "month")]
         verbose_name = "رسوم شهر خاصة"
         verbose_name_plural = "رسوم أشهر خاصة"
+
+
+# ---------------------------------------------------------------- نقاط الاختبارات والامتحانات
+
+GRADE_SUBJECT_NAMES = {
+    "AR": "اللغة العربية", "FR": "اللغة الفرنسية", "EN": "اللغة الإنجليزية", "IS": "التربية الإسلامية",
+    "CIV": "التربية المدنية", "TI": "التكنولوجيا والمعلوماتية", "MATH": "الرياضيات", "SN": "العلوم الطبيعية",
+    "HG": "التاريخ والجغرافيا", "PC": "الفيزياء والكيمياء", "PHILO": "الفلسفة",
+}
+_BASE = ["AR", "FR", "EN", "IS"]
+_SEC = _BASE + ["MATH", "SN", "HG", "PC", "PHILO"]
+# المواد في كل مستوى كما حدّدها المدير
+GRADE_SUBJECTS = {
+    "1AS": _BASE + ["CIV", "TI", "MATH", "SN", "HG"],
+    "2AS": _BASE + ["CIV", "TI", "MATH", "SN", "HG", "PC"],
+    "3AS": _BASE + ["CIV", "TI", "MATH", "SN", "HG", "PC"],
+    "4AS": _BASE + ["CIV", "MATH", "SN", "HG", "PC"],
+    "5MA": _SEC, "5SN": _SEC, "6MA": _SEC, "6SN": _SEC,
+    "7MA": _BASE + ["MATH", "SN", "PC"], "7SN": _BASE + ["MATH", "SN", "PC"],
+}
+GRADE_MAX = 20
+
+
+def grade_subjects(level_code):
+    """[(الرمز، الاسم)] لمواد المستوى؛ المستوى غير المذكور (مثل 6AF) يأخذ مواد السادسة."""
+    codes = GRADE_SUBJECTS.get(level_code) or (_SEC if level_code.startswith(("5", "6")) else [])
+    return [(c, GRADE_SUBJECT_NAMES[c]) for c in codes]
+
+
+class GradeAssessment(models.Model):
+    """اختبار أو امتحان تُدخل نقاطه (اختبار 1، اختبار 2، الامتحان…)."""
+
+    name = models.CharField("الاسم", max_length=60, unique=True)
+    order = models.PositiveSmallIntegerField("الترتيب", default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "اختبار / امتحان"
+        verbose_name_plural = "الاختبارات والامتحانات"
+
+    def __str__(self):
+        return self.name
+
+
+class Grade(models.Model):
+    """نقطة تلميذ في مادة لاختبار: من 0 إلى 20، ويمكن أن تبقى فارغة مع ملاحظة."""
+
+    assessment = models.ForeignKey(GradeAssessment, on_delete=models.CASCADE, related_name="grades",
+                                   verbose_name="الاختبار")
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="grades", verbose_name="التلميذ")
+    section = models.ForeignKey(Section, null=True, on_delete=models.SET_NULL, related_name="grades",
+                                verbose_name="القسم")
+    subject = models.CharField("المادة", max_length=10)
+    score = models.DecimalField("النقطة", max_digits=4, decimal_places=2, null=True, blank=True,
+                                validators=[MinValueValidator(0)])
+    note = models.CharField("ملاحظة", max_length=255, blank=True)
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("assessment", "student", "subject")]
+        verbose_name = "نقطة"
+        verbose_name_plural = "النقاط"
 
 
 # ---------------------------------------------------------------- الفيديوهات التعليمية
