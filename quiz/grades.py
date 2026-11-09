@@ -8,11 +8,14 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from .models import (
     GRADE_MAX, GRADE_SUBJECT_NAMES, STUDENT_ORDER, Grade, GradeAssessment, Section, User, grade_subjects,
 )
-from .views import admin_required, role_required
+from .excel import HEADER_FILL, HEADER_FONT
+from .views import admin_required, role_required, xlsx_response
 
 grades_required = role_required("admin", "supervisor", "teacher")
 
@@ -162,6 +165,94 @@ def _fmt(value):
     return format(value.normalize(), "f")
 
 
+@grades_required
+def grades_export(request, section_id):
+    """ملف Excel لنتائج القسم في اختبار: ورقة «كل المواد» (تلميذ × مادة + المعدل والترتيب)،
+    ثم ورقة لكل مادة فيها النتيجة والملاحظة."""
+    section = _section(request.user, section_id)
+    assessment = _assessment(request)
+    students = _students(section)
+    subjects = grade_subjects(section.classe.code)
+    grades = {(g.student_id, g.subject): g for g in Grade.objects.filter(assessment=assessment, student__in=students)}
+
+    thin = Side(style="thin", color="B9C7C2")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    low_font = Font(color="B42318", bold=True)
+    zebra = PatternFill("solid", fgColor="F2F7F5")
+
+    def title(ws, text, ncols):
+        ws.sheet_view.rightToLeft = True
+        ws.append([text])
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
+        ws["A1"].font = Font(bold=True, size=14, color="1F6F5C")
+        ws["A1"].alignment = Alignment(horizontal="center")
+        ws.row_dimensions[1].height = 24
+
+    def style_table(ws, ncols, score_cols):
+        for cell in ws[2]:
+            cell.fill, cell.font, cell.alignment, cell.border = HEADER_FILL, HEADER_FONT, center, border
+        ws.row_dimensions[2].height = 34
+        for r in range(3, ws.max_row + 1):
+            for c in range(1, ncols + 1):
+                cell = ws.cell(row=r, column=c)
+                cell.border = border
+                if c != 3:
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                if r % 2 == 0:
+                    cell.fill = zebra
+                if c in score_cols and isinstance(cell.value, (int, float)) and cell.value < GRADE_MAX / 2:
+                    cell.font = low_font
+        ws.freeze_panes = "D3"
+
+    def num(value):
+        return float(value) if value is not None else None
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "كل المواد"
+    head = ["#", "رقم القيد", "اسم التلميذ"] + [n for _, n in subjects] + ["المعدل", "الترتيب"]
+    title(ws, f"نتائج {assessment} · القسم {section.code}", len(head))
+    ws.append(head)
+    rows = []
+    for st in students:
+        scores = [num(grades[(st.id, c)].score) if (st.id, c) in grades else None for c, _ in subjects]
+        got = [x for x in scores if x is not None]
+        rows.append((st, scores, round(sum(got) / len(got), 2) if got else None))
+    ranked = sorted((r[2] for r in rows if r[2] is not None), reverse=True)
+    for i, (st, scores, avg) in enumerate(rows, start=1):
+        ws.append([i, st.matricule, st.full_name or st.username] + scores
+                  + [avg, ranked.index(avg) + 1 if avg is not None else None])
+    # سطر معدل كل مادة
+    avgs = []
+    for k in range(len(subjects)):
+        col = [r[1][k] for r in rows if r[1][k] is not None]
+        avgs.append(round(sum(col) / len(col), 2) if col else None)
+    ws.append(["", "", "معدل القسم"] + avgs)
+    n = len(head)
+    style_table(ws, n, set(range(4, 4 + len(subjects) + 1)))
+    for cell in ws[ws.max_row]:
+        cell.font = Font(bold=True)
+    for c in range(1, n + 1):
+        letter = ws.cell(row=2, column=c).column_letter
+        ws.column_dimensions[letter].width = [5, 12, 30][c - 1] if c <= 3 else 13
+    ws.cell(row=ws.max_row + 2, column=1, value="المعدل = متوسط المواد التي لها نتيجة، بدون معاملات.").font = Font(
+        italic=True, color="666666")
+
+    for code, name in subjects:
+        sh = wb.create_sheet(name[:31])
+        title(sh, f"{name} · {assessment} · {section.code}", 5)
+        sh.append(["#", "رقم القيد", "اسم التلميذ", f"النتيجة / {GRADE_MAX}", "الملاحظة"])
+        for i, st in enumerate(students, start=1):
+            g = grades.get((st.id, code))
+            sh.append([i, st.matricule, st.full_name or st.username, num(g.score) if g else None, g.note if g else ""])
+        style_table(sh, 5, {4})
+        for letter, w in zip("ABCDE", [5, 12, 30, 12, 40]):
+            sh.column_dimensions[letter].width = w
+
+    return xlsx_response(wb, f"notes_{section.code}_{assessment.id}.xlsx")
+
+
 @admin_required
 @require_POST
 def grades_assessment_delete(request, pk):
@@ -174,4 +265,4 @@ def grades_assessment_delete(request, pk):
     return redirect(reverse("grades_home"))
 
 
-__all__ = ["grades_home", "grades_section", "grades_entry", "grades_assessment_delete", "GRADE_SUBJECT_NAMES"]
+__all__ = ["grades_home", "grades_section", "grades_entry", "grades_export", "grades_assessment_delete", "GRADE_SUBJECT_NAMES"]

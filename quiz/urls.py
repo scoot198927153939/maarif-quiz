@@ -44,6 +44,7 @@ urlpatterns = [
     path("evening/teachers/monthly/", evening.evening_teachers_monthly, name="evening_teachers_monthly"),
     path("grades/", grades.grades_home, name="grades_home"),
     path("grades/section/<int:section_id>/", grades.grades_section, name="grades_section"),
+    path("grades/section/<int:section_id>/export/", grades.grades_export, name="grades_export"),
     path("grades/section/<int:section_id>/<int:assessment_id>/<str:subject>/", grades.grades_entry, name="grades_entry"),
     path("grades/assessment/<int:pk>/delete/", grades.grades_assessment_delete, name="grades_assessment_delete"),
     path("evening/accounts/", evening_accounts.evening_accounts, name="evening_accounts"),

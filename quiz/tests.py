@@ -1544,3 +1544,23 @@ class GradesTests(TestCase):
         st = User.objects.get(username="701")
         self.client.force_login(st)
         self.assertNotEqual(self.client.get(reverse("grades_home")).status_code, 200)
+
+    def test_excel_export(self):
+        from openpyxl import load_workbook
+        from .models import Grade, GradeAssessment
+        a = GradeAssessment.objects.get(name="اختبار 1")
+        Grade.objects.create(assessment=a, student=self.a, section=self.sec, subject="MATH", score=14)
+        Grade.objects.create(assessment=a, student=self.a, section=self.sec, subject="AR", score=10, note="حسن")
+        Grade.objects.create(assessment=a, student=self.b, section=self.sec, subject="MATH", score=16)
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("grades_export", args=[self.sec.id]), {"a": a.id})
+        wb = load_workbook(io.BytesIO(resp.content))
+        self.assertEqual(len(wb.sheetnames), 1 + 7)
+        ws = wb["كل المواد"]
+        head = [c.value for c in ws[2]]
+        self.assertEqual(head[:4], ["#", "رقم القيد", "اسم التلميذ", "اللغة العربية"])
+        first = {h: c.value for h, c in zip(head, ws[3])}
+        self.assertEqual((first["الرياضيات"], first["المعدل"], first["الترتيب"]), (14, 12, 2))
+        second = {h: c.value for h, c in zip(head, ws[4])}
+        self.assertEqual((second["المعدل"], second["الترتيب"]), (16, 1))
+        self.assertEqual(wb["اللغة العربية"]["E3"].value, "حسن")

@@ -16,7 +16,10 @@
 {% block content %}
 <div class="page-head">
   <h1>📝 {{ assessment.name }} · <span dir="ltr">{{ section.code }}</span></h1>
-  <div class="actions"><a class="btn" href="{% url 'grades_home' %}?a={{ assessment.id }}">→ كل الأقسام</a></div>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'grades_export' section.id %}?a={{ assessment.id }}">⬇️ تصدير النتائج Excel</a>
+    <a class="btn" href="{% url 'grades_home' %}?a={{ assessment.id }}">→ كل الأقسام</a>
+  </div>
 </div>
 {% include "quiz/grades/_assessments.html" %}
 <p class="muted">{{ n_students }} تلميذ · أُدخلت نتائج {{ n_done }} من {{ subjects|length }} مادة. اختر المادة لإدخال نتائجها. المادة الخضراء أُدخلت نتائجها.</p>
