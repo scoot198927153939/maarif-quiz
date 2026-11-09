@@ -165,6 +165,47 @@ def _fmt(value):
     return format(value.normalize(), "f")
 
 
+SENDER = "مدارس المعارف الحرة\nمسؤول الشؤون الطلابية: محمد اسحاق"
+
+
+def results_message(student, section, assessment, lines):
+    """نص رسالة واتساب للوكيل: نتائج التلميذ في كل المواد التي لها نتيجة."""
+    body = "\n".join(lines)
+    return (f"السلام عليكم ورحمة الله وبركاته\n"
+            f"نود اطلاعكم على نتائج {assessment.name} للتلميذ(ة): {student.full_name or student.username}\n"
+            f"القسم: {section.code}    رقم القيد: {student.matricule or ''}\n\n"
+            f"المادة: النتيجة\n{body}\n\n{SENDER}")
+
+
+@grades_required
+def grades_whatsapp(request, section_id):
+    """إرسال النتائج للوكلاء عبر واتساب: رسالة جاهزة لكل تلميذ، تُفتح واحدة بعد الأخرى."""
+    from urllib.parse import quote
+    from .models import wa_link_for
+    section = _section(request.user, section_id)
+    assessment = _assessment(request)
+    students = _students(section)
+    subjects = grade_subjects(section.classe.code)
+    grades = {(g.student_id, g.subject): g for g in _filled(Grade.objects.filter(assessment=assessment,
+                                                                                  student__in=students))}
+    rows = []
+    for st in students:
+        lines = []
+        for code, name in subjects:
+            g = grades.get((st.id, code))
+            if g:
+                score = f"{_fmt(g.score)} / {GRADE_MAX}" if g.score is not None else "—"
+                lines.append(f"• {name}: {score}" + (f" ({g.note})" if g.note else ""))
+        link = st.wa_link or wa_link_for(st.guardian_phone)
+        text = results_message(st, section, assessment, lines) if lines else ""
+        rows.append({"student": st, "n": len(lines), "link": f"{link}?text={quote(text)}" if link and text else "",
+                     "phone": st.wa_number or st.guardian_phone, "text": text})
+    return render(request, "quiz/grades/whatsapp.html", {
+        "section": section, "assessment": assessment, "rows": rows,
+        "n_ready": sum(1 for r in rows if r["link"]), "n_subjects": len(subjects),
+    })
+
+
 @grades_required
 def grades_sheet(request, section_id):
     """ورقة فارغة للطباعة يكتب فيها الأستاذ النتائج بيده: لمادة واحدة (?subject=MATH) أو لكل المواد (صفحة لكل مادة)."""
@@ -282,4 +323,4 @@ def grades_assessment_delete(request, pk):
     return redirect(reverse("grades_home"))
 
 
-__all__ = ["grades_sheet", "grades_home", "grades_section", "grades_entry", "grades_export", "grades_assessment_delete", "GRADE_SUBJECT_NAMES"]
+__all__ = ["grades_whatsapp", "results_message", "grades_sheet", "grades_home", "grades_section", "grades_entry", "grades_export", "grades_assessment_delete", "GRADE_SUBJECT_NAMES"]

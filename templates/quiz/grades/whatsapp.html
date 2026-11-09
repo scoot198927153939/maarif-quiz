@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}إرسال النتائج · {{ section.code }}{% endblock %}
+{% block head %}
+<style>
+  .wa-top { display:flex; flex-wrap:wrap; gap:.8rem; align-items:center; justify-content:space-between;
+            background:#fff; border:1px solid #cfd8d5; border-radius:14px; padding:14px 16px; margin-bottom:12px; }
+  .wa-next { background:#25d366; color:#fff; border:0; border-radius:12px; font-size:1.25rem; padding:.75rem 2rem; cursor:pointer; font-weight:700; }
+  .wa-next:disabled { background:#9bd8b2; cursor:default; }
+  .wa-progress { font-size:1.1rem; }
+  table.wa { width:100%; border-collapse:collapse; background:#fff; border:1px solid #cfd8d5; }
+  .wa th { background:#1f6f5c; color:#fff; padding:.55rem; }
+  .wa td { padding:.45rem .55rem; border-bottom:1px solid #e3e9e6; vertical-align:middle; }
+  .wa td.c { text-align:center; width:1%; white-space:nowrap; }
+  .wa tr.sent td { background:#e3f4e9; }
+  .wa tr.sent .st-label::after { content:"✓ أُرسلت"; color:#16794a; font-weight:700; }
+  .wa tr.skip td { color:#999; }
+  .wa .send { background:#25d366; color:#fff; border-radius:8px; padding:.3rem .9rem; text-decoration:none; white-space:nowrap; }
+  .wa pre { white-space:pre-wrap; font-family:inherit; margin:.4rem 0 0; background:#f5f9f7; padding:.5rem; border-radius:8px; font-size:.9rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>💬 إرسال نتائج {{ assessment.name }} · <span dir="ltr">{{ section.code }}</span></h1>
+  <div class="actions"><a class="btn" href="{% url 'grades_section' section.id %}?a={{ assessment.id }}">→ مواد {{ section.code }}</a></div>
+</div>
+<div class="wa-top">
+  <div>
+    <button class="wa-next" id="wa-next" type="button">▶ إرسال للتالي</button>
+    <button class="btn small" id="wa-reset" type="button">↺ إعادة البداية</button>
+  </div>
+  <div class="wa-progress">أُرسلت <b id="wa-done">0</b> من <b>{{ n_ready }}</b> رسالة</div>
+</div>
+<p class="muted">اضغط «▶ إرسال للتالي» فيفتح واتساب برسالة التلميذ التالي جاهزة. اضغط «إرسال» في واتساب، ثم ارجع إلى هذه الصفحة واضغط الزر مرة أخرى للتلميذ الذي بعده.
+  الرسالة فيها كل المواد التي أُدخلت نتائجها. التلميذ الذي ليس له رقم واتساب أو ليست له نتائج يُتجاوز.</p>
+<div class="table-wrap">
+<table class="wa">
+  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>واتساب الوكيل</th><th>المواد</th><th></th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr id="row-{{ r.student.id }}" class="{% if not r.link %}skip{% endif %}" data-id="{{ r.student.id }}" data-link="{{ r.link }}">
+      <td class="c">{{ forloop.counter }}</td>
+      <td class="c"><b>{{ r.student.matricule|default:"—" }}</b></td>
+      <td>{{ r.student.full_name|default:r.student.username }}
+        {% if r.text %}<details><summary class="muted" style="font-size:.85rem">عرض الرسالة</summary><pre>{{ r.text }}</pre></details>{% endif %}</td>
+      <td class="c" dir="ltr">{{ r.phone|default:"—" }}</td>
+      <td class="c">{{ r.n }} / {{ n_subjects }}</td>
+      <td class="c">{% if r.link %}<a class="send" href="{{ r.link }}" target="_blank" rel="noopener" onclick="markSent({{ r.student.id }})">💬 إرسال</a>
+        {% elif not r.phone %}<small>لا رقم</small>{% else %}<small>لا نتائج</small>{% endif %}</td>
+      <td class="c st-label"></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<script>
+(function () {
+  var key = "wa-sent-{{ section.id }}-{{ assessment.id }}";
+  var sent = {};
+  try { sent = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) {}
+  function save() { try { localStorage.setItem(key, JSON.stringify(sent)); } catch (e) {} }
+  var rows = Array.prototype.slice.call(document.querySelectorAll("tr[data-link]")).filter(function (r) { return r.dataset.link; });
+  var btn = document.getElementById("wa-next");
+  function refresh() {
+    var done = 0;
+    rows.forEach(function (r) { var s = !!sent[r.dataset.id]; r.classList.toggle("sent", s); if (s) done++; });
+    document.getElementById("wa-done").textContent = done;
+    var next = rows.find(function (r) { return !sent[r.dataset.id]; });
+    btn.disabled = !next;
+    btn.textContent = next ? "▶ إرسال للتالي: " + next.children[2].firstChild.textContent.trim() : "✓ أُرسلت كل الرسائل";
+  }
+  window.markSent = function (id) { sent[id] = 1; save(); refresh(); };
+  btn.addEventListener("click", function () {
+    var next = rows.find(function (r) { return !sent[r.dataset.id]; });
+    if (!next) return;
+    window.open(next.dataset.link, "_blank", "noopener");
+    markSent(next.dataset.id);
+    next.scrollIntoView({ block: "center" });
+  });
+  document.getElementById("wa-reset").addEventListener("click", function () {
+    if (confirm("إعادة البداية؟ ستُعتبر كل الرسائل غير مرسلة.")) { sent = {}; save(); refresh(); }
+  });
+  refresh();
+})();
+</script>
+{% endblock %}

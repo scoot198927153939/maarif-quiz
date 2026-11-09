@@ -1576,3 +1576,24 @@ class GradesTests(TestCase):
         self.assertContains(one, 'class="page"', count=1)
         self.assertContains(self.client.get(url, {"a": a.id}), 'class="page"', count=7)
         self.assertEqual(self.client.get(url, {"a": a.id, "subject": "HG"}).status_code, 403)
+
+    def test_whatsapp_messages(self):
+        from urllib.parse import unquote
+        from .models import Grade, GradeAssessment
+        a = GradeAssessment.objects.get(name="اختبار 1")
+        self.a.guardian_phone2 = "36123456"
+        self.a.save()
+        Grade.objects.create(assessment=a, student=self.a, section=self.sec, subject="MATH", score=14.5)
+        Grade.objects.create(assessment=a, student=self.b, section=self.sec, subject="MATH", score=9)
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("grades_whatsapp", args=[self.sec.id]), {"a": a.id})
+        rows = resp.context["rows"]
+        first = rows[0]
+        self.assertTrue(first["link"].startswith("https://wa.me/22236123456?text="))
+        text = unquote(first["link"].split("text=")[1])
+        self.assertIn("نتائج اختبار 1 للتلميذ(ة): أحمد", text)
+        self.assertIn("القسم: 7MA1", text)
+        self.assertIn("الرياضيات: 14.5 / 20", text)
+        self.assertIn("مسؤول الشؤون الطلابية: محمد اسحاق", text)
+        self.assertEqual(rows[1]["link"], "")  # مريم بلا رقم
+        self.assertEqual(resp.context["n_ready"], 1)
