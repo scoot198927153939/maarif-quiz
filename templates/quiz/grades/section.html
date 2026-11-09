@@ -11,6 +11,8 @@
   .subj.done b { color:#16794a; }
   .subj .st { font-size:.9rem; color:#666; }
   .subj.done .st { color:#16794a; font-weight:700; }
+  .subj .st.d-block { display:block; margin-top:.3rem; }
+  .subj .sheet-link { font-size:.85rem; margin-top:.4rem; align-self:flex-start; }
 </style>
 {% endblock %}
 {% block content %}
@@ -18,6 +20,7 @@
   <h1>📝 {{ assessment.name }} · <span dir="ltr">{{ section.code }}</span></h1>
   <div class="actions">
     <a class="btn primary" href="{% url 'grades_export' section.id %}?a={{ assessment.id }}">⬇️ تصدير النتائج Excel</a>
+    <a class="btn" href="{% url 'grades_sheet' section.id %}?a={{ assessment.id }}" target="_blank">🖨️ سحب أوراق كل المواد</a>
     <a class="btn" href="{% url 'grades_home' %}?a={{ assessment.id }}">→ كل الأقسام</a>
   </div>
 </div>
@@ -25,10 +28,13 @@
 <p class="muted">{{ n_students }} تلميذ · أُدخلت نتائج {{ n_done }} من {{ subjects|length }} مادة. اختر المادة لإدخال نتائجها. المادة الخضراء أُدخلت نتائجها.</p>
 <div class="subj-grid">
 {% for s in subjects %}
-  <a class="subj{% if s.n %} done{% endif %}" href="{% url 'grades_entry' section.id assessment.id s.code %}">
-    <b>{{ s.name }}</b>
-    <span class="st">{% if s.n %}✓ أُدخلت ({{ s.n }} / {{ n_students }}){% else %}لم تُدخل بعد{% endif %}</span>
-  </a>
+  <div class="subj{% if s.n %} done{% endif %}">
+    <a href="{% url 'grades_entry' section.id assessment.id s.code %}" style="color:inherit;text-decoration:none">
+      <b>{{ s.name }}</b>
+      <span class="st d-block">{% if s.n %}✓ أُدخلت ({{ s.n }} / {{ n_students }}){% else %}لم تُدخل بعد{% endif %}</span>
+    </a>
+    <a class="sheet-link" href="{% url 'grades_sheet' section.id %}?a={{ assessment.id }}&subject={{ s.code }}" target="_blank">🖨️ سحب ورقة الأستاذ</a>
+  </div>
 {% endfor %}
 </div>
 {% endblock %}
