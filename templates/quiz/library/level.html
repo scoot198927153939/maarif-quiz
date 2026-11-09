@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}كتب {{ classe.code }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📚 عدد الكتب الموجودة للمستوى {{ classe.code }}</h1>
+  <div class="actions"><a class="btn" href="{% url 'library_home' %}">كل المستويات</a></div>
+</div>
+<p class="muted">هذا العدد مشترك بين كل فصول {{ classe.code }}.</p>
+<form method="post" class="card">
+  {% csrf_token %}
+  <div class="table-wrap">
+  <table class="table books-table">
+    <thead><tr><th>المادة</th><th>النسخة</th><th>الموجود</th><th>المسلَّم</th><th>الباقي</th></tr></thead>
+    <tbody>
+    {% for row in summary %}{% for p in row.parts %}
+      <tr>
+        {% if forloop.first %}<td rowspan="2"><b>{{ row.label }}</b></td>{% endif %}
+        <td>{{ p.part_label }}</td>
+        <td><input type="number" min="0" name="{{ p.field }}" value="{{ p.stock }}" class="num-input"></td>
+        <td>{{ p.given }}</td>
+        <td class="{% if p.left < 0 %}bad{% endif %}"><b>{{ p.left }}</b></td>
+      </tr>
+    {% endfor %}{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <button class="btn primary">حفظ</button>
+</form>
+{% endblock %}

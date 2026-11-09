@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}توزيع الكتب{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📚 توزيع الكتب</h1>
+</div>
+<p class="muted">فصول المستوى الواحد تشترك في نفس الكتب. أدخل عدد الكتب الموجودة لكل مستوى، ثم افتح الفصل لتعليم التلاميذ الذين استلموا.</p>
+
+<div class="grid level-grid">
+{% for c in levels %}
+  <div class="card level-card{% if c.short %} short{% endif %}">
+    <div class="section-head">
+      <h2>{{ c.code }}</h2>
+      <a class="btn" href="{% url 'library_level' c.id %}">✏️ عدد الكتب</a>
+    </div>
+    {% if c.has_stock %}
+    <table class="table stock-mini">
+      <thead><tr><th></th><th>النسخة 1</th><th>النسخة 2</th></tr></thead>
+      <tbody>
+      {% for row in c.summary %}
+        <tr><th>{{ row.label }}</th>
+          {% for p in row.parts %}<td class="{% if p.left < 0 %}bad{% elif p.stock and p.left == 0 %}done{% endif %}">
+            {% if p.stock or p.given %}<b>{{ p.left }}</b> <small class="muted">باقٍ من {{ p.stock }}</small>{% else %}<span class="muted">—</span>{% endif %}
+          </td>{% endfor %}</tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="msg warning">لم يُدخل بعد عدد الكتب الموجودة لهذا المستوى.</p>
+    {% endif %}
+    <div class="section-chips">
+      {% for s in c.sections_list %}<a class="chip" href="{% url 'library_section' s.id %}">{{ s.code }} <small>({{ s.n_students }})</small></a>{% endfor %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

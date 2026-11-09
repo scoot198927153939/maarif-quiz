@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}تصوير درس{% endblock %}
+{% block content %}
+<style>
+  .cam-wrap { max-width:560px; margin:0 auto; }
+  .cam-head { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+  .cam-head .code { background:#1f6f54; color:#fff; border-radius:8px; padding:.1rem .7rem; direction:ltr; font-weight:700; }
+  .cam-field { margin:.75rem 0; }
+  .cam-field label { display:block; font-weight:600; margin-bottom:.3rem; }
+  .cam-field input[type=date], .cam-field input[type=text] { width:100%; font-size:1.05rem; padding:.6rem; border-radius:10px; border:1px solid #cfd8d3; box-sizing:border-box; }
+  .cam-pages { display:grid; grid-template-columns:repeat(3, 1fr); gap:.5rem; margin:.75rem 0; }
+  .cam-page { position:relative; border-radius:10px; overflow:hidden; border:1px solid #dfe6e2; background:#fafbfb; aspect-ratio:3/4; }
+  .cam-page img { width:100%; height:100%; object-fit:cover; display:block; }
+  .cam-page .n { position:absolute; top:.3rem; right:.3rem; background:#1f6f54; color:#fff; border-radius:999px; padding:0 .5rem; font-size:.8rem; }
+  .cam-page button { position:absolute; bottom:.3rem; left:.3rem; background:#9a1f1f; color:#fff; border:0; border-radius:999px; width:2rem; height:2rem; font-size:1rem; }
+  .cam-shoot { display:block; width:100%; font-size:1.2rem; padding:1rem; border-radius:14px; border:2px dashed #1f6f54; background:#eef6f2; color:#1f6f54; font-weight:700; text-align:center; cursor:pointer; }
+  .cam-gallery { display:block; text-align:center; margin:.5rem 0 1rem; color:#5c6b65; text-decoration:underline; cursor:pointer; }
+  .cam-save { display:block; width:100%; font-size:1.15rem; padding:.9rem; border-radius:14px; border:0; background:#1f6f54; color:#fff; font-weight:700; }
+  .cam-save:disabled { opacity:.5; }
+  .cam-hidden { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+</style>
+<div class="cam-wrap">
+  <div class="cam-head"><span class="code">{{ scope.section }}</span><h1 style="margin:0">{{ scope.get_subject_display }}</h1></div>
+  {% if last %}<p class="muted">آخر درس مسجّل: {{ last.date|date:"d/m/Y" }}{% if last.title %} · {{ last.title }}{% endif %}</p>{% endif %}
+
+  <form method="post" enctype="multipart/form-data" id="lesson-form">
+    {% csrf_token %}
+    <div class="cam-field">
+      <label for="id_date">تاريخ الدرس</label>
+      <input type="date" name="date" id="id_date" value="{{ today }}" max="{{ today }}" required>
+    </div>
+    <div class="cam-field">
+      <label for="id_title">عنوان الدرس (اختياري)</label>
+      <input type="text" name="title" id="id_title" maxlength="200" placeholder="مثلاً: المعادلات من الدرجة الأولى">
+    </div>
+
+    <div class="cam-pages" id="pages"></div>
+    <label class="cam-shoot" for="cam" id="shoot-label">📷 صوّر الصفحة 1</label>
+    <input class="cam-hidden" type="file" accept="image/*" capture="environment" id="cam">
+    <label class="cam-gallery" for="gallery">أو اختر صوراً من الهاتف</label>
+    <input class="cam-hidden" type="file" accept="image/*" multiple id="gallery">
+    <input class="cam-hidden" type="file" name="pages" multiple id="pages-input">
+
+    <button class="cam-save" id="save" disabled>💾 حفظ الدرس</button>
+    <p class="muted" id="status" style="text-align:center"></p>
+  </form>
+  <p style="text-align:center"><a href="{% url 'lessons_home' %}">رجوع</a></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var MAX = {{ max_pages }}, SIDE = 1600, files = [];
+  var pagesEl = document.getElementById('pages'), save = document.getElementById('save');
+  var label = document.getElementById('shoot-label'), status = document.getElementById('status');
+
+  // تصغير الصورة في الهاتف قبل الإرسال: أسرع على الشبكة الضعيفة
+  function shrink(file) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var s = Math.min(1, SIDE / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) {
+          resolve(b ? new File([b], 'page.jpg', {type: 'image/jpeg'}) : file);
+        }, 'image/jpeg', 0.75);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
+  function render() {
+    pagesEl.innerHTML = '';
+    files.forEach(function (f, i) {
+      var d = document.createElement('div'); d.className = 'cam-page';
+      var im = document.createElement('img'); im.src = URL.createObjectURL(f);
+      var n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1;
+      var x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.title = 'حذف';
+      x.onclick = function () { files.splice(i, 1); render(); };
+      d.appendChild(im); d.appendChild(n); d.appendChild(x); pagesEl.appendChild(d);
+    });
+    label.textContent = files.length ? '📷 صوّر الصفحة ' + (files.length + 1) : '📷 صوّر الصفحة 1';
+    label.style.display = files.length >= MAX ? 'none' : '';
+    save.disabled = !files.length;
+    save.textContent = files.length ? '💾 حفظ الدرس (' + files.length + ' صفحة)' : '💾 حفظ الدرس';
+  }
+
+  function add(input) {
+    var picked = Array.prototype.slice.call(input.files, 0, MAX - files.length);
+    input.value = '';
+    status.textContent = 'جارٍ تجهيز الصورة…';
+    Promise.all(picked.map(shrink)).then(function (out) {
+      files = files.concat(out); status.textContent = ''; render();
+    });
+  }
+  document.getElementById('cam').addEventListener('change', function () { add(this); });
+  document.getElementById('gallery').addEventListener('change', function () { add(this); });
+
+  document.getElementById('lesson-form').addEventListener('submit', function (e) {
+    if (!files.length) { e.preventDefault(); return; }
+    try {
+      var dt = new DataTransfer();
+      files.forEach(function (f, i) { dt.items.add(new File([f], 'page' + (i + 1) + '.jpg', {type: f.type || 'image/jpeg'})); });
+      document.getElementById('pages-input').files = dt.files;
+    } catch (err) {
+      // متصفح قديم: نرسل بالطريقة الأخرى
+      e.preventDefault();
+      var fd = new FormData(this);
+      fd.delete('pages');
+      files.forEach(function (f, i) { fd.append('pages', f, 'page' + (i + 1) + '.jpg'); });
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', location.href);
+      xhr.onload = function () { location.href = xhr.responseURL || '{% url "lessons_home" %}'; };
+      xhr.send(fd);
+    }
+    save.disabled = true; save.textContent = 'جارٍ الحفظ…';
+  });
+  render();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}الاختبارات والامتحانات{% endblock %}
+{% block head %}
+<style>
+  .gr-level { margin: 1.2rem 0 .4rem; color:#1f6f5c; }
+  .gr-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; }
+  .gr-sec { display:block; background:#fff; border:1px solid #d5dfdb; border-radius:14px; padding:14px; text-align:center;
+            color:inherit; text-decoration:none; transition:transform .1s, box-shadow .1s; }
+  .gr-sec:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.08); }
+  .gr-sec h3 { margin:0 0 .3rem; font-size:1.4rem; }
+  .gr-bar { height:8px; background:#e6ece9; border-radius:8px; overflow:hidden; margin:.5rem 0 .2rem; }
+  .gr-bar span { display:block; height:100%; background:#1f6f5c; }
+  .gr-sec.complete { border-color:#16794a; background:#eef8f2; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head"><h1>📝 الاختبارات والامتحانات</h1></div>
+{% include "quiz/grades/_assessments.html" %}
+{% if not assessment %}<p class="card">لا يوجد اختبار بعد.</p>{% endif %}
+<p class="muted">اختر القسم لإدخال نقاط <b>{{ assessment.name }}</b>. الشريط يبيّن عدد المواد التي أُدخلت نتائجها.</p>
+{% for level, sections in levels %}
+  <h2 class="gr-level" dir="ltr" style="text-align:right">{{ level.code }}</h2>
+  <div class="gr-grid">
+  {% for s in sections %}
+    <a class="gr-sec{% if s.n_subjects and s.n_done == s.n_subjects %} complete{% endif %}" href="{% url 'grades_section' s.id %}?a={{ assessment.id }}">
+      <h3 dir="ltr">{{ s.code }}</h3>
+      <div class="muted">{{ s.n_students }} تلميذ</div>
+      <div class="gr-bar"><span style="width:{% widthratio s.n_done s.n_subjects|default:1 100 %}%"></span></div>
+      <small>{{ s.n_done }} / {{ s.n_subjects }} مادة{% if s.n_subjects and s.n_done == s.n_subjects %} ✓{% endif %}</small>
+    </a>
+  {% endfor %}
+  </div>
+{% empty %}
+  <div class="card empty"><p>لم يُحدَّد لك أي قسم بعد. اطلب من المشرف إضافة أقسامك.</p></div>
+{% endfor %}
+
+{% if user.is_admin_role %}
+<div class="card" style="margin-top:1.5rem">
+  <h3 style="margin-top:0">➕ إضافة اختبار أو امتحان</h3>
+  <form method="post" class="inline-form">
+    {% csrf_token %}<input type="text" name="name" placeholder="اختبار 2" required maxlength="60"><button class="btn primary">إضافة</button>
+  </form>
+  <div class="actions">
+  {% for a in assessments %}
+    <form method="post" action="{% url 'grades_assessment_delete' a.id %}" style="display:inline" onsubmit="return confirm('حذف «{{ a.name }}»؟')">
+      {% csrf_token %}<button class="btn small">🗑️ {{ a.name }}</button></form>
+  {% endfor %}
+  </div>
+  <small class="muted">لا يُحذف اختبار فيه نقاط مسجّلة.</small>
+</div>
+{% endif %}
+{% endblock %}

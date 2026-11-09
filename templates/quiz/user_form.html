@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card narrow">
+  <h1>{% if obj %}تعديل الحساب{% else %}حساب جديد{% endif %}</h1>
+  <form method="post" class="form" id="user-form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <div class="field field-{{ field.name }}">
+        {% if field.name == 'is_active' %}
+          <label class="check">{{ field }} {{ field.label }}</label>
+        {% else %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        {% endif %}
+        {% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <button class="btn primary">حفظ</button>
+    <a class="btn" href="{% url 'user_list' %}">إلغاء</a>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    var role = document.getElementById('id_role');
+    function sync() {
+      var r = role.value;
+      ['section', 'classe', 'matricule', 'guardian_phone', 'whatsapp', 'guardian_phone2'].forEach(function (f) {
+        document.querySelector('.field-' + f).style.display = r === 'student' ? '' : 'none';
+      });
+      document.querySelector('.field-supervised_sections').style.display = r === 'supervisor' ? '' : 'none';
+      document.querySelector('.field-teaching_classes').style.display = r === 'teacher' ? '' : 'none';
+      document.querySelector('.field-teaching_subjects').style.display = r === 'teacher' ? '' : 'none';
+    }
+    role.addEventListener('change', sync); sync();
+  })();
+</script>
+{% endblock %}

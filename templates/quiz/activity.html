@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}سجل النشاط{% endblock %}
+{% block content %}
+<style>
+  .act-tabs { display:flex; gap:.5rem; margin:.5rem 0 1rem; }
+  .act-tabs a { padding:.45rem 1.1rem; border-radius:999px; border:1px solid #cfd8d3; text-decoration:none; color:inherit; background:#fff; }
+  .act-tabs a.on { background:#1f6f54; color:#fff; border-color:#1f6f54; }
+  .dot-on { display:inline-block; width:.6rem; height:.6rem; border-radius:50%; background:#22a55a; margin-inline-end:.35rem; }
+  .k { display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.85em; background:#eef1f0; white-space:nowrap; }
+  .k-add { background:#dff3e6; color:#17663a; }
+  .k-edit { background:#e3ecfb; color:#1f4f9a; }
+  .k-delete { background:#fbe3e3; color:#9a1f1f; }
+  .k-import { background:#efe4fb; color:#5b2a9a; }
+  .k-exam { background:#fdf0d8; color:#8a5a00; }
+  .k-login, .k-logout { background:#eef1f0; color:#44524c; }
+  .k-failed { background:#9a1f1f; color:#fff; }
+  .act-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem; align-items:start; }
+  .kind-row { display:flex; flex-wrap:wrap; gap:.5rem; margin:.5rem 0 1rem; }
+</style>
+
+<div class="page-head">
+  <h1>سجل النشاط</h1>
+  <div class="actions no-print">
+    <a class="btn primary" href="?{{ query }}&export=1">⬇️ تحميل Excel</a>
+    <button class="btn" onclick="window.print()">🖨️ طباعة</button>
+  </div>
+</div>
+
+<h2><span class="dot-on"></span>المتصلون الآن ({{ online|length }})</h2>
+<p class="muted">كل من استعمل التطبيق خلال آخر {{ online_minutes }} دقائق.
+  {% for r, n in online_by_role.items %}<span class="tag">{{ r }}: {{ n }}</span> {% endfor %}</p>
+{% if online %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>المستخدم</th><th>الدور</th><th>القسم</th><th>آخر نشاط</th></tr></thead>
+  <tbody>
+  {% for u in online %}
+    <tr>
+      <td><span class="dot-on"></span>{{ u }}</td>
+      <td>{{ u.effective_role_label }}</td>
+      <td>{{ u.section|default:u.classe|default:"—" }}</td>
+      <td>منذ {{ u.last_seen|timesince }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="card muted">لا أحد متصل الآن غيرك.</p>
+{% endif %}
+
+<h2>التقرير</h2>
+<div class="act-tabs no-print">
+  <a href="?mode=day&day={{ info.day|default:'' }}" class="{% if info.mode == 'day' %}on{% endif %}">تقرير يومي</a>
+  <a href="?mode=month&month={{ info.month }}" class="{% if info.mode == 'month' %}on{% endif %}">تقرير شهري</a>
+</div>
+
+<form method="get" class="card filters-form day-nav no-print">
+  <input type="hidden" name="mode" value="{{ info.mode }}">
+  {% if info.mode == "day" %}
+    <a class="btn" href="?mode=day&day={{ info.prev_day }}">→ اليوم السابق</a>
+    <input type="date" name="day" value="{{ info.day }}" onchange="this.form.submit()">
+    <a class="btn" href="?mode=day&day={{ info.next_day }}">اليوم التالي ←</a>
+  {% else %}
+    <a class="btn" href="?mode=month&month={{ info.prev_month }}">→ الشهر السابق</a>
+    <input type="month" name="month" value="{{ info.month }}" onchange="this.form.submit()">
+    <a class="btn" href="?mode=month&month={{ info.next_month }}">الشهر التالي ←</a>
+  {% endif %}
+  <select name="role" onchange="this.form.submit()">
+    <option value="">كل الأدوار</option>
+    {% for v, l in role_choices %}<option value="{{ v }}" {% if role == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  <select name="kind" onchange="this.form.submit()">
+    <option value="">كل الأحداث</option>
+    {% for v, l in kind_choices %}<option value="{{ v }}" {% if kind == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ q }}" placeholder="بحث باسم المستخدم أو العملية">
+  <button class="btn">عرض</button>
+</form>
+
+<h3>{{ info.label }} · عدد الأحداث: {{ total }}</h3>
+<div class="kind-row">
+  {% for k in kinds %}<span class="k k-{{ k.kind }}">{{ k.label }}: <b>{{ k.n }}</b></span>{% empty %}<span class="muted">لا توجد أحداث في هذه الفترة.</span>{% endfor %}
+</div>
+
+<div class="act-grid">
+  <div>
+    <h3>حسب المستخدم</h3>
+    <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>المستخدم</th><th>الدور</th><th>الأحداث</th><th>أول نشاط</th><th>آخر نشاط</th></tr></thead>
+      <tbody>
+      {% for r in per_user %}
+        <tr>
+          <td><a href="?mode={{ info.mode }}&day={{ info.day|default:'' }}&month={{ info.month }}&q={{ r.username|urlencode }}">{{ r.username }}</a></td>
+          <td>{{ r.role_label|default:"—" }}</td>
+          <td><b>{{ r.n }}</b></td>
+          <td dir="ltr">{{ r.first|date:"d/m H:i" }}</td>
+          <td dir="ltr">{{ r.last|date:"d/m H:i" }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="5" class="muted center">—</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% if per_day %}
+  <div>
+    <h3>حسب اليوم</h3>
+    <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>اليوم</th><th>الأحداث</th><th>المستخدمون</th></tr></thead>
+      <tbody>
+      {% for r in per_day %}
+        <tr><td><a href="?mode=day&day={{ r.iso }}">{{ r.label }}</a></td><td>{{ r.n }}</td><td>{{ r.users }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<h3>كل الأحداث</h3>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>الوقت</th><th>المستخدم</th><th>الدور</th><th>النوع</th><th>العملية</th><th>على</th></tr></thead>
+  <tbody>
+  {% for e in page %}
+    <tr>
+      <td dir="ltr">{% if info.mode == "month" %}{{ e.created_at|date:"d/m " }}{% endif %}{{ e.created_at|date:"H:i" }}</td>
+      <td>{{ e.username }}</td>
+      <td>{{ e.role_label|default:"—" }}</td>
+      <td><span class="k k-{{ e.kind }}">{{ e.get_kind_display }}</span></td>
+      <td>{{ e.action }}</td>
+      <td>{{ e.target|default:"" }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="6" class="muted center">لا توجد أحداث.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<div class="actions no-print" style="margin-top:1rem">
+  {% if page.has_previous %}<a class="btn" href="?{{ query }}&page={{ page.previous_page_number }}">→ السابق</a>{% endif %}
+  <span class="muted">صفحة {{ page.number }} من {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn" href="?{{ query }}&page={{ page.next_page_number }}">التالي ←</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

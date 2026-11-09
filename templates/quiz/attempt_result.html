@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card narrow center">
+  <span class="tag">{{ exam.subject }}</span>
+  <h1>{{ exam.title }}</h1>
+  <p>تم تسليم امتحانك{% if attempt.auto_submitted %} (تسليم تلقائي){% endif %} بتاريخ {{ attempt.submitted_at|date:"Y-m-d H:i" }}.</p>
+  {% if exam.show_result %}
+    <div class="score" dir="ltr">{{ attempt.score|floatformat:"-2" }} <small>/ {{ attempt.total|floatformat:"-2" }}</small></div>
+  {% else %}
+    <p class="muted">سيعلن الأستاذ النتيجة لاحقاً.</p>
+  {% endif %}
+  {% if exam.max_attempts > 1 %}<p class="muted">المحاولة {{ attempt.number }} من {{ exam.max_attempts }}. تُحفظ نتيجة آخر محاولة.</p>{% endif %}
+  {% if attempt.can_retake %}
+  <form method="post" action="{% url 'attempt_retake' exam.id %}" id="retake-form"
+        onsubmit="return confirm('ستُحذف نتيجتك الحالية وتُحتسب نتيجة المحاولة الجديدة. هل تريد إعادة الامتحان؟')">
+    {% csrf_token %}
+    <button class="btn primary">🔁 إعادة الامتحان (المحاولة {{ attempt.number|add:1 }} من {{ exam.max_attempts }})</button>
+  </form>
+  {% endif %}
+  <a class="btn" href="{% url 'student_dashboard' %}">العودة إلى امتحاناتي</a>
+</div>
+{% if details %}
+<h2>التصحيح</h2>
+{% for d in details %}
+<div class="card question {% if d.correct %}ok{% else %}ko{% endif %}">
+  <div class="q-head"><span class="q-num">السؤال {{ forloop.counter }} {% if d.correct %}✅{% elif d.earned %}➗{% else %}❌{% endif %}</span><span class="tag">{% if d.q.is_multi %}{{ d.earned|floatformat:"-2" }} / {% endif %}{{ d.q.points|floatformat:"-2" }} ن</span></div>
+  {% if d.q.is_multi %}<p class="multi-note" dir="ltr" style="text-align:left">Attention : plusieurs réponses peuvent être justes pour une même question.</p>{% endif %}
+  <p class="q-text" dir="auto">{{ d.q.text|linebreaksbr }}</p>
+  {% if d.q.image %}<img class="q-image" src="{{ d.q.image.url }}" alt="">{% endif %}
+  {% if d.q.is_written %}
+  <div class="choices">
+    {% if d.text %}<div class="choice static {% if d.correct %}right{% else %}wrong{% endif %}"><span class="c-text" dir="auto">{{ d.text }}</span><em class="muted"> (إجابتك)</em></div>{% endif %}
+    {% if not d.correct %}<div class="choice static right"><span class="c-text" dir="auto">{{ d.q.written_display }}</span><em class="muted"> (الجواب الصحيح)</em></div>{% endif %}
+  </div>
+  {% else %}
+  <div class="choices">
+  {% for c in d.q.choices.all %}
+    <div class="choice static {% if c.letter in d.q.correct_answer %}right{% elif c.letter in d.selected %}wrong{% endif %}">
+      <span class="letter">{{ c.letter }}</span><span class="c-text" dir="auto">{{ c.text }}</span>
+      {% if c.letter in d.selected %}<em class="muted"> (إجابتك)</em>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  {% endif %}
+  {% if not d.selected and not d.text %}<p class="muted">لم تُجب على هذا السؤال.</p>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  // الإعادة تفتح الامتحان في وضع ملء الشاشة كما في البداية
+  var retake = document.getElementById('retake-form');
+  if (retake) retake.addEventListener('submit', function (e) {
+    if (e.defaultPrevented) return;
+    var el = document.documentElement;
+    try { (el.requestFullscreen || el.webkitRequestFullscreen || function(){}).call(el); } catch (err) {}
+    sessionStorage.setItem('examFullscreen', '1');
+  });
+</script>
+{% endblock %}

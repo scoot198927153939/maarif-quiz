@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}الفيديوهات التعليمية{% endblock %}
+{% block content %}
+{% include "quiz/videos/_style.html" %}
+<div class="page-head">
+  <h1>🎬 الفيديوهات التعليمية</h1>
+  {% if can_add and current %}<div class="actions"><a class="btn primary" href="{% url 'video_new' %}?c={{ current.code }}">➕ إضافة فيديو</a></div>{% endif %}
+</div>
+{% if classes|length > 1 %}
+<div class="vtabs">{% for c in classes %}<a href="?c={{ c.code }}" class="{% if c == current %}on{% endif %}">{{ c.code }}</a>{% endfor %}</div>
+{% endif %}
+
+{% for sh in shelves %}
+<section class="vsubject" id="s{{ sh.subject.id }}">
+  <h2>📘 {{ sh.subject }} <span class="count">· {{ sh.lessons|length }} درس · {{ sh.count }} فيديو</span></h2>
+  {% for l in sh.lessons %}
+  <div class="vlesson">
+    <h3><span class="num">الدرس {{ l.number }}</span> <span dir="auto">{{ l.title }}</span>
+      {% if can_add %}<a class="add" href="{% url 'video_new' %}?c={{ current.code }}&s={{ sh.subject.id }}&n={{ l.number }}">➕ فيديو لهذا الدرس</a>{% endif %}</h3>
+    <div class="vgrid">
+      {% for v in l.videos %}
+      <div class="vcard">
+        <a href="{% url 'video_watch' v.id %}" style="text-decoration:none;color:inherit">
+          <div class="thumb" {% if v.thumbnail %}style="background-image:url('{{ v.thumbnail }}')"{% endif %}><span>▶</span></div>
+          <div class="t" dir="auto">{{ v.display_title }}</div>
+        </a>
+        {% if v.can_manage %}
+        <div class="vtools"><a href="{% url 'video_edit' v.id %}">تعديل</a>
+          <form method="post" action="{% url 'video_delete' v.id %}" onsubmit="return confirm('حذف هذا الفيديو؟')">{% csrf_token %}<button>حذف</button></form></div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% empty %}
+<p class="muted">{% if current %}لا توجد فيديوهات لقسم {{ current }} بعد.{% else %}لا توجد أقسام.{% endif %}</p>
+{% endfor %}
+{% endblock %}

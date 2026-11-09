@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}حضور أساتذة الحصص المسائية{% endblock %}
+{% block head %}
+<style>
+  .ev-sheet-head { display:none; text-align:center; margin-bottom:.6rem; }
+  .ev-sheet-head h2 { margin:.2rem 0; }
+  .ev-sign { display:none; }
+  @media print {
+    @page { size: A4 portrait; margin: 1.2cm; }
+    .ev-sheet-head, .ev-sign { display:block; }
+    .table.roll select, .table.roll input[type=number], .table.roll input[type=text] { border:0; background:none; -webkit-appearance:none; appearance:none; }
+    .status-pick .st input:not(:checked) + span { display:none; }
+    .status-pick { border:0; }
+    .table.roll td, .table.roll th { border:1px solid #888 !important; padding:6px; }
+    .table.roll th.sign-col, .table.roll td.sign-col { display:table-cell !important; width:22%; }
+  }
+  .sign-col { display:none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head no-print">
+  <h1>👨‍🏫 حضور أساتذة الحصص المسائية</h1>
+  <div class="actions">
+    <button class="btn" type="button" onclick="window.print()">🖨️ سحب ورقة اليوم</button>
+    <a class="btn" href="{% url 'evening_teachers_monthly' %}?month={{ month }}">📅 الحضور الشهري</a>
+    <a class="btn" href="{% url 'evening_home' %}">→ الحصص المسائية</a>
+  </div>
+</div>
+<div class="ev-sheet-head">
+  <b>مدارس المعارف الحرة</b>
+  <h2>ورقة حضور أساتذة الحصص المسائية</h2>
+  <div>{{ day_label }}</div>
+</div>
+<form method="get" class="card filters-form day-nav no-print">
+  <a class="btn" href="?date={{ prev_day }}">→ اليوم السابق</a>
+  <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()">
+  <a class="btn" href="?date={{ next_day }}">اليوم التالي ←</a>
+  <b>{{ day_label }}</b> {% if taken %}<span class="badge ok">مسجّل</span>{% else %}<span class="badge warn">لم يُسجَّل بعد</span>{% endif %}
+</form>
+{% if rows %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+  <p class="muted no-print">لكل أستاذ مجموعة واحدة وأربع ساعات متتالية. الأستاذ الذي ليست له حصة اليوم اتركه على «لا حصة».</p>
+  <div class="table-wrap">
+  <table class="table roll">
+    <thead><tr><th>#</th><th>الأستاذ</th><th>المجموعة</th><th>الحالة</th><th>الساعات</th><th class="no-print">ملاحظة</th><th class="sign-col">التوقيع</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="st-{{ r.status|default:'N' }}">
+        <td>{{ forloop.counter }}</td>
+        <td><b>{{ r.teacher }}</b></td>
+        <td><select name="g_{{ r.teacher.id }}"><option value="">—</option>{% for g in groups %}<option value="{{ g.id }}" {% if g.id == r.group %}selected{% endif %}>{{ g.code }}</option>{% endfor %}</select></td>
+        <td><div class="status-pick">
+          <label class="st st-N"><input type="radio" name="s_{{ r.teacher.id }}" value="" {% if not r.status %}checked{% endif %}><span>لا حصة</span></label>
+          {% for v, l in choices %}
+            <label class="st st-{{ v }}"><input type="radio" name="s_{{ r.teacher.id }}" value="{{ v }}" {% if r.status == v %}checked{% endif %}><span>{{ l }}</span></label>
+          {% endfor %}
+        </div></td>
+        <td><input type="number" name="h_{{ r.teacher.id }}" value="{{ r.hours }}" min="0" max="12" style="width:4.5rem"></td>
+        <td class="no-print"><input type="text" name="n_{{ r.teacher.id }}" value="{{ r.note }}" placeholder="اختياري"></td>
+        <td class="sign-col"></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="ev-sign" style="margin-top:2rem">توقيع المدير: ..............................</p>
+  {% if is_future %}<p class="msg error no-print">هذا اليوم لم يأتِ بعد.</p>{% else %}
+  <div class="actions spaced no-print"><button class="btn primary big">💾 حفظ الحضور</button></div>{% endif %}
+</form>
+{% for r in rows %}
+<form method="post" id="rm{{ r.teacher.id }}" class="no-print" style="display:none">{% csrf_token %}<input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}"><input type="hidden" name="remove_teacher" value="{{ r.teacher.id }}"></form>
+{% endfor %}
+{% endif %}
+<div class="card no-print">
+  <h3>+ إضافة أستاذ</h3>
+  <form method="post" class="inline-form">
+    {% csrf_token %}<input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+    <input type="text" name="name" placeholder="اسم الأستاذ" required>
+    <select name="group"><option value="">— المجموعة —</option>{% for g in groups %}<option value="{{ g.id }}">{{ g.code }}</option>{% endfor %}</select>
+    <button class="btn" name="add_teacher" value="1">إضافة</button>
+  </form>
+  {% if rows %}<p class="muted" style="margin:.6rem 0 0">حذف أستاذ من اللائحة:
+    {% for r in rows %}<button class="btn small" form="rm{{ r.teacher.id }}" onclick="return confirm('حذف {{ r.teacher }} من اللائحة؟')">✕ {{ r.teacher }}</button> {% endfor %}</p>{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.status-pick input').forEach(function (i) {
+  i.addEventListener('change', function () {
+    var tr = i.closest('tr'), h = tr.querySelector('input[type=number]');
+    tr.className = 'st-' + (i.value || 'N');
+    if (i.value === 'A') h.value = 0; else if (h.value === '0') h.value = 4;
+  });
+});
+</script>
+{% endblock %}

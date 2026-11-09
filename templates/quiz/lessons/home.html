@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}دروسي{% endblock %}
+{% block content %}
+{% include "quiz/lessons/_style.html" %}
+<h1>تصوير الدروس</h1>
+{% if scopes %}
+<p class="muted">اختر المادة والقسم، ثم صوّر صفحات الدرس بالكاميرا.</p>
+<div class="ls-cards">
+  {% for sc in scopes %}
+  <a class="ls-card" href="{% url 'lesson_new' sc.id %}">
+    <span class="code">{{ sc.section }}</span>
+    <h3>{{ sc.get_subject_display }}</h3>
+    <span class="muted">{{ sc.n }} درس{% if sc.last %} · آخرها {{ sc.last|date:"d/m/Y" }}{% endif %}</span>
+    <span class="cta">📷 تصوير درس جديد</span>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="card muted">لم يحدّد لك المشرف أي مادة بعد. تواصل مع الإدارة.</p>
+{% endif %}
+
+{% if recent %}
+<h2>آخر ما سجّلته</h2>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>التاريخ</th><th>القسم</th><th>المادة</th><th>الصفحات</th><th></th></tr></thead>
+  <tbody>
+  {% for l in recent %}
+    <tr>
+      <td>{{ l.date|date:"d/m/Y" }}</td><td>{{ l.section }}</td><td>{{ l.get_subject_display }}{% if l.title %}<br><small class="muted">{{ l.title }}</small>{% endif %}</td>
+      <td>{{ l.n_pages }}</td>
+      <td>
+        <a class="btn" href="{% url 'lesson_board' l.section_id l.subject %}">عرض</a>
+        <form method="post" action="{% url 'lesson_delete' l.id %}" style="display:inline" onsubmit="return confirm('حذف هذا الدرس؟')">{% csrf_token %}<button class="btn">حذف</button></form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

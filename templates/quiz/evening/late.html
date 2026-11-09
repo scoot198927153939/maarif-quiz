@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}المتأخرون في الدفع · {{ group.code }}{% endblock %}
+{% block content %}
+<div class="page-head no-print">
+  <h1>⏰ المتأخرون في الدفع · <span dir="ltr">{{ group.code }}</span></h1>
+  <div class="actions"><button class="btn" type="button" onclick="window.print()">🖨️ سحب</button></div>
+</div>
+{% include "quiz/evening/_tabs.html" %}
+{% with url_name="evening_late" %}{% include "quiz/evening/_money_head.html" %}{% endwith %}
+{% if not has_fees %}
+<p class="card">حدّد أولاً الرسوم الشهرية (للقسم أو لكل تلميذ) في <a href="{% url 'evening_account' group.id %}?year={{ year }}">صفحة المحاسبة</a>، حتى أعرف من لم يسدّد.</p>
+{% elif rows %}
+<p class="muted">الأشهر التي بدأت (منذ منتصف الشهر) ولم يُدفع مبلغها كاملاً حسب رسوم كل تلميذ. المجموع المتأخر: <b>{{ total_late }}</b> أوقية.
+  زر «تذكير» يفتح واتساب برسالة جاهزة للوكيل.</p>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>هاتف الوكيل</th><th>الرسوم الشهرية</th><th>الأشهر غير المسدّدة</th><th>المتبقي</th><th class="no-print"></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ forloop.counter }}</td><td>{{ r.student.matricule }}</td>
+      <td><a href="{% url 'evening_pay' group.id %}?year={{ year }}&student={{ r.student.id }}">{{ r.student.full_name }}</a></td>
+      <td dir="ltr">{% if r.student.guardian_phone %}<a href="tel:{{ r.student.guardian_phone }}">{{ r.student.guardian_phone }}</a>{% endif %}</td>
+      <td>{{ r.fee }}</td>
+      <td>{{ r.unpaid_names }}</td>
+      <td style="color:#b42318;font-weight:700">{{ r.unpaid_amount }}</td>
+      <td class="no-print">{% if r.wa_message %}<a class="btn small" href="{{ r.wa_message }}" target="_blank" rel="noopener">💬 تذكير</a>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="card">✅ لا يوجد متأخرون في الدفع.</p>{% endif %}
+{% endblock %}

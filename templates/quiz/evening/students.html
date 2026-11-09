@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}تلاميذ {{ group.code }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🌙 <span dir="ltr">{{ group.code }}</span> · التلاميذ ({{ students|length }})</h1>
+</div>
+{% include "quiz/evening/_tabs.html" %}
+<div class="card no-print">
+  <h3 style="margin-top:0">➕ إضافة تلميذ (بدون Excel)</h3>
+  <form method="post" action="{% url 'evening_student_add' group.id %}" class="inline-form" style="flex-wrap:wrap;gap:.5rem">
+    {% csrf_token %}
+    <label>رقم القيد <input type="text" name="matricule" required dir="ltr" style="width:8rem"></label>
+    <label>اسم التلميذ <input type="text" name="full_name" style="width:14rem"></label>
+    <label>تاريخ التسجيل <input type="date" name="registered_on" value="{% now 'Y-m-d' %}"></label>
+    <label>هاتف الوكيل <input type="text" name="guardian_phone" dir="ltr" style="width:8rem"></label>
+    <label>الواتساب <input type="text" name="whatsapp" dir="ltr" style="width:8rem"></label>
+    <button class="btn primary">إضافة</button>
+  </form>
+  <small class="muted d-block">إن كان التلميذ من تلاميذ المدرسة يكفي رقم القيد: يؤخذ اسمه وأرقام وكيله من لائحة المدرسة.</small>
+</div>
+<div class="card no-print">
+  <h3 style="margin-top:0">📥 إضافة تلاميذ من Excel</h3>
+  <form method="post" enctype="multipart/form-data" class="inline-form">
+    {% csrf_token %}<input type="file" name="file" accept=".xlsx" required><button class="btn primary">استيراد</button>
+  </form>
+  <a href="{% url 'evening_template' %}">⬇️ تحميل نموذج الملف</a>
+  <small class="muted d-block">الأعمدة: رقم القيد، اسم التلميذ، تاريخ التسجيل، هاتف الوكيل، الواتساب، والقسم (اختياري).
+    يُضاف التلاميذ إلى القسم <b dir="ltr">{{ group.code }}</b> إلا إذا كُتب قسم مسائي آخر في عمود القسم.
+    التلميذ الموجود (نفس رقم القيد) تُحدَّث بياناته ولا يُحذف أحد. إن لم يُكتب تاريخ التسجيل يُعتبر اليوم.
+    إن كان رقم الوكيل فارغاً يؤخذ من لائحة تلاميذ المدرسة. التلميذ لا يظهر في الغياب قبل تاريخ تسجيله.<br>
+    <b>الحساب:</b> كل تلميذ له حساب لإنجاز امتحانات مجموعته. إن كان من تلاميذ المدرسة يدخل بحسابه المعتاد، وإلا فاسم المستخدم وكلمة المرور هما رقم القيد.</small>
+</div>
+{% if students %}
+<div class="table-wrap">
+<table class="table students-list">
+  <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>تاريخ التسجيل</th><th>هاتف الوكيل</th><th>الواتساب</th><th>الحساب</th><th>الغيابات</th><th class="no-print"></th></tr></thead>
+  <tbody>
+  {% for s in students %}
+    <tr>
+      <td>{{ forloop.counter }}</td><td>{{ s.matricule }}</td><td>{{ s.full_name }}</td>
+      <td dir="ltr">{{ s.registered_on|date:"Y-m-d"|default:"—" }}</td>
+      <td dir="ltr">{% if s.guardian_phone %}<a href="tel:{{ s.guardian_phone }}">{{ s.guardian_phone }}</a>{% endif %}</td>
+      <td dir="ltr">{% if s.wa_link %}<a class="wa" href="{{ s.wa_link }}" target="_blank" rel="noopener">💬 {{ s.whatsapp }}</a>{% endif %}</td>
+      <td dir="ltr">{{ s.user.username|default:"—" }}</td>
+      <td>{{ s.n_absent }}</td>
+      <td class="no-print"><form method="post" action="{% url 'evening_student_remove' s.id %}" onsubmit="return confirm('حذف {{ s.full_name }} من القسم؟')">
+        {% csrf_token %}<button class="btn small danger">حذف</button></form></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p class="card muted">لا يوجد تلاميذ بعد. استورد ملف Excel أعلاه.</p>{% endif %}
+{% endblock %}

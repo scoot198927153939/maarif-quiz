@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}تعديل جدول {{ code }}{% endblock %}
+{% block content %}
+<style>
+  table.tt-edit { width:100%; border-collapse:separate; border-spacing:4px; table-layout:fixed; }
+  table.tt-edit th { background:#f2f5f4; color:#44524c; padding:.45rem .3rem; border-radius:8px; font-size:.9rem; }
+  table.tt-edit th.day { width:5.5rem; }
+  table.tt-edit select { width:100%; padding:.5rem .3rem; border-radius:8px; border:1px solid #cfd8d3; font-size:.9rem; background:#fff; }
+  table.tt-edit select.set { background:#eef6f2; border-color:#1f6f54; font-weight:600; }
+  @media (max-width:560px) { table.tt-edit th.day { width:3.6rem; } table.tt-edit select { font-size:.75rem; padding:.4rem .1rem; } }
+</style>
+<div class="page-head">
+  <h1>تعديل جدول <span dir="ltr">{{ code }}</span></h1>
+</div>
+<p class="muted">اختر المادة في كل خانة، أو «—» لخانة فارغة، ثم اضغط حفظ. التعديل يخص هذا الفصل وحده.
+  إذا استوردت الجدول العام من جديد فسيحلّ محلّ هذا التعديل.</p>
+<form method="post">
+  {% csrf_token %}
+  <div class="table-wrap">
+  <table class="tt-edit">
+    <thead><tr><th class="day">اليوم</th>{% for s in slots %}<th dir="ltr">{{ s }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <th class="day">{{ row.day }}</th>
+        {% for c in row.cells %}
+          <td>
+            <select name="{{ c.name }}" class="{% if c.value %}set{% endif %}" onchange="this.className=this.value?'set':''">
+              <option value="">—</option>
+              {% for k, label in subjects %}<option value="{{ k }}" {% if c.value == k %}selected{% endif %}>{{ label }}</option>{% endfor %}
+              {% if c.entry and c.value|slice:":4" == "raw:" %}<option value="{{ c.value }}" selected>{{ c.entry.subject }}</option>{% endif %}
+            </select>
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p style="margin-top:1rem"><button class="btn primary">💾 حفظ الجدول</button>
+    <a class="btn" href="{% url 'timetable_home' %}?s={{ code }}">إلغاء</a></p>
+</form>
+{% endblock %}

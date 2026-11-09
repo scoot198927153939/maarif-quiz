@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{% if video %}تعديل فيديو{% else %}فيديو جديد{% endif %}{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>{% if video %}تعديل الفيديو{% else %}🎬 فيديو جديد{% endif %}</h1>
+  <form method="post" enctype="multipart/form-data" class="form" id="video-form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="grid two">
+      <div class="field"><label>{{ form.classe.label }}</label>{{ form.classe }}{{ form.classe.errors }}</div>
+      <div class="field"><label>{{ form.subject.label }}</label>{{ form.subject }}{{ form.subject.errors }}</div>
+      <div class="field"><label>{{ form.lesson_number.label }}</label>{{ form.lesson_number }}{{ form.lesson_number.errors }}</div>
+      <div class="field"><label>{{ form.lesson.label }}</label>{{ form.lesson }}{{ form.lesson.errors }}</div>
+      <div class="field"><label>{{ form.title.label }} <small class="muted">(اختياري)</small></label>{{ form.title }}{{ form.title.errors }}</div>
+      <div class="field"><label>{{ form.order.label }}</label>{{ form.order }}{{ form.order.errors }}</div>
+    </div>
+    <datalist id="lesson-names">{% for n in lesson_names %}<option value="{{ n }}">{% endfor %}</datalist>
+    <div class="field">
+      <label>{{ form.youtube_url.label }}</label>{{ form.youtube_url }}{{ form.youtube_url.errors }}
+      <small class="muted">الأفضل: ضع الفيديو على يوتيوب (غير مُدرج) وألصق رابطه هنا.</small>
+    </div>
+    <div class="field">
+      <label>أو {{ form.file.label }} <small class="muted">(MP4، حتى {{ max_mb }} ميغا)</small></label>
+      {% if video.file %}<p class="muted">الملف الحالي موجود. اختر ملفاً جديداً فقط إذا أردت استبداله.</p>{% endif %}
+      <input type="file" name="file" accept="video/*">{{ form.file.errors }}
+    </div>
+    <p id="upload-msg" class="msg warning" style="display:none">⏳ جارٍ رفع الفيديو… لا تغلق الصفحة.</p>
+    <button class="btn primary">حفظ</button>
+    <a class="btn" href="{% url 'videos_home' %}">إلغاء</a>
+  </form>
+</div>
+<script>
+document.getElementById('video-form').addEventListener('submit', function () {
+  var f = this.querySelector('input[type=file]');
+  if (f.files.length) document.getElementById('upload-msg').style.display = 'block';
+});
+</script>
+{% endblock %}

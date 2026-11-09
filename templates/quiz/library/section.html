@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}كتب {{ section }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📚 تسليم الكتب: {{ section }}</h1>
+  <div class="actions">
+    <a class="btn" href="?export=xlsx">⬇️ تحميل اللائحة Excel</a>
+    <a class="btn" href="{% url 'library_home' %}">كل المستويات</a>
+  </div>
+</div>
+<div class="section-chips">
+  {% for s in siblings %}<a class="chip{% if s.id == section.id %} active{% endif %}" href="{% url 'library_section' s.id %}">{{ s.code }}</a>{% endfor %}
+</div>
+
+<div class="card">
+  <div class="section-head">
+    <h3>الباقي من كتب المستوى {{ section.classe.code }} (لكل فصوله)</h3>
+    <a class="btn" href="{% url 'library_level' section.classe.id %}">✏️ عدد الكتب</a>
+  </div>
+  {% if has_stock %}
+  <div class="stock-pills">
+    {% for row in summary %}<div class="pill-group"><b>{{ row.label }}</b>
+      {% for p in row.parts %}<span class="pill{% if p.left < 0 %} bad{% endif %}">ن{{ p.part }}: <b>{{ p.left }}</b> من {{ p.stock }}</span>{% endfor %}
+    </div>{% endfor %}
+  </div>
+  {% else %}<p class="msg warning">لم يُدخل بعد عدد الكتب الموجودة للمستوى {{ section.classe.code }}.</p>{% endif %}
+</div>
+
+<form method="post" class="card">
+  {% csrf_token %}
+  <p class="muted">ضع علامة أمام التلميذ عند تسليمه الكتاب. التلميذ المتأخر يمكن أن يستلم النسختين معاً. اضغط على «ن1» أو «ن2» لتعليم العمود كله.</p>
+  <div class="table-wrap">
+  <table class="table books-table">
+    <thead>
+      <tr><th rowspan="2">#</th><th rowspan="2">التلميذ ({{ students|length }})</th>
+        {% for row in summary %}<th colspan="2" class="subj">{{ row.label }}</th>{% endfor %}<th rowspan="2">استلم</th></tr>
+      <tr>{% for row in summary %}{% for p in row.parts %}<th class="{% if forloop.first %}subj{% endif %}"><button type="button" class="link col-toggle" data-col="{{ row.subject }}-{{ p.part }}">ن{{ p.part }}</button></th>{% endfor %}{% endfor %}</tr>
+    </thead>
+    <tbody>
+    {% for st in students %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td class="name">{{ st.full_name|default:st.username }} <small class="muted">{{ st.matricule|default:"" }}</small></td>
+        {% for c in st.cells %}<td class="{% if c.first %}subj{% endif %}"><input type="checkbox" name="{{ c.name }}" value="1" data-col="{{ c.col }}" {% if c.date %}checked title="سُلِّم {{ c.date|date:'Y-m-d' }}"{% endif %}></td>{% endfor %}
+        <td>{{ st.n_books }}</td>
+      </tr>
+    {% empty %}<tr><td colspan="11" class="muted center">لا يوجد تلاميذ في هذا الفصل. استورد لائحة التلاميذ أولاً.</td></tr>{% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td></td><td class="name"><b>سُلِّم في {{ section.code }}</b></td>{% for row in summary %}{% for p in row.parts %}<td class="{% if forloop.first %}subj{% endif %}">{{ p.in_section }}</td>{% endfor %}{% endfor %}<td></td></tr>
+    </tfoot>
+  </table>
+  </div>
+  {% if students %}<button class="btn primary">حفظ التسليم</button>{% endif %}
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.col-toggle').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var boxes = document.querySelectorAll('input[type=checkbox][data-col="' + btn.dataset.col + '"]');
+    var all = Array.prototype.every.call(boxes, function (b) { return b.checked; });
+    boxes.forEach(function (b) { b.checked = !all; });
+  });
+});
+</script>
+{% endblock %}

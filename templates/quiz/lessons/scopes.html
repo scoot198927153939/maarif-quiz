@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}مواد مسجّل الدروس{% endblock %}
+{% block content %}
+<h1>ما يصوّره {{ recorder }}</h1>
+<p class="muted">ضع علامة على كل مادة في كل قسم يُسمح له بتصوير دروسها.</p>
+<form method="post">
+  {% csrf_token %}
+  <div class="table-wrap">
+  <table class="table" style="text-align:center">
+    <thead><tr><th>القسم</th>{% for c, l in subjects %}<th style="font-size:.8rem">{{ l }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <th dir="ltr">{{ r.section }}</th>
+        {% for c in r.cells %}<td><input type="checkbox" name="scope" value="{{ c.value }}" {% if c.on %}checked{% endif %} style="width:1.3rem;height:1.3rem"></td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p><button class="btn primary">حفظ</button> <a class="btn" href="{% url 'lessons_overview' %}">إلغاء</a></p>
+</form>
+{% endblock %}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ورقة النتائج · {{ section.code }} · {{ assessment.name }}</title>
+<style>
+  body { font-family: Tahoma, Arial, sans-serif; background:#eef2f0; margin:0; padding:16px; color:#111; }
+  .tools { text-align:center; margin:0 0 14px; }
+  .tools button { font-size:1.1rem; padding:8px 28px; cursor:pointer; }
+  .page { background:#fff; max-width:800px; margin:0 auto 20px; padding:22px 26px; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1f6f5c; padding-bottom:8px; margin-bottom:10px; }
+  .head .school { font-weight:700; }
+  .head h1 { margin:0; font-size:1.35rem; color:#1f6f5c; text-align:center; }
+  .meta { display:flex; flex-wrap:wrap; gap:6px 24px; margin:8px 0 12px; font-size:1rem; }
+  .meta b { font-size:1.1rem; }
+  .fill { display:inline-block; min-width:170px; border-bottom:1px dotted #555; }
+  table { width:100%; border-collapse:collapse; font-size:.98rem; }
+  th { background:#1f6f5c; color:#fff; padding:7px 5px; border:1px solid #1f6f5c; }
+  td { border:1px solid #888; padding:0 6px; height:27px; }
+  td.c { text-align:center; width:1%; white-space:nowrap; }
+  td.sc { width:90px; }
+  td.nt { width:34%; }
+  tbody tr:nth-child(even) td { background:#f3f7f5; }
+  .foot { display:flex; justify-content:space-between; margin-top:26px; font-size:1rem; }
+  @media print {
+    @page { size: A4 portrait; margin: 1cm; }
+    body { background:#fff; padding:0; }
+    .tools { display:none; }
+    td { height:23px; } th { padding:5px; } .foot { margin-top:16px; } .head { margin-bottom:6px; } .meta { margin:4px 0 8px; }
+    .page { box-shadow:none; margin:0; padding:0; max-width:none; page-break-after:always; }
+    .page:last-child { page-break-after:auto; }
+    th, tbody tr:nth-child(even) td { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+</style>
+</head>
+<body>
+<div class="tools"><button onclick="window.print()">🖨️ سحب {% if subjects|length > 1 %}{{ subjects|length }} أوراق{% else %}الورقة{% endif %}</button></div>
+{% for code, name in subjects %}
+<div class="page">
+  <div class="head">
+    <div class="school">مدارس المعارف الحرة</div>
+    <h1>ورقة نتائج {{ assessment.name }}</h1>
+    <div dir="ltr">{{ section.code }}</div>
+  </div>
+  <div class="meta">
+    <span>القسم: <b dir="ltr">{{ section.code }}</b></span>
+    <span>المادة: <b>{{ name }}</b></span>
+    <span>عدد التلاميذ: <b>{{ students|length }}</b></span>
+  </div>
+  <div class="meta">
+    <span>اسم الأستاذ: <span class="fill"></span></span>
+    <span>التاريخ: <span class="fill" style="min-width:110px"></span></span>
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>رقم القيد</th><th>اسم التلميذ</th><th>النتيجة / {{ max }}</th><th>الملاحظة</th></tr></thead>
+    <tbody>
+    {% for st in students %}
+      <tr><td class="c">{{ forloop.counter }}</td><td class="c"><b>{{ st.matricule|default:"" }}</b></td><td>{{ st.full_name|default:st.username }}</td><td class="sc"></td><td class="nt"></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="foot"><span>توقيع الأستاذ: ..........................</span><span>توقيع الإدارة: ..........................</span></div>
+</div>
+{% endfor %}
+</body>
+</html>

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}دفاتر الدروس{% endblock %}
+{% block content %}
+<style>
+  .shelf { margin-bottom:1.5rem; }
+  .shelf-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.6rem; }
+  .shelf-head h2 { margin:0; font-size:1.2rem; }
+  .shelf-head .code { display:inline-block; background:#1f6f54; color:#fff; border-radius:8px; padding:.05rem .7rem; direction:ltr; }
+  .books { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:.9rem; }
+  .book { position:relative; display:flex; flex-direction:column; justify-content:space-between; min-height:200px; padding:1rem .9rem .9rem 1.3rem;
+          border-radius:6px 14px 14px 6px; color:#fff; text-decoration:none; box-shadow:0 3px 8px rgba(0,0,0,.15), inset 8px 0 0 rgba(0,0,0,.18); transition:transform .12s; }
+  .book:hover { transform:translateY(-3px); }
+  .book::after { content:""; position:absolute; top:10px; bottom:10px; left:4px; border-left:2px dotted rgba(255,255,255,.55); }
+  .book .label { background:#fff; color:#1d2b25; border-radius:6px; padding:.45rem .5rem; text-align:center; font-weight:700; font-size:.95rem; line-height:1.3; }
+  .book .label small { display:block; font-weight:400; color:#5c6b65; direction:ltr; }
+  .book .meta { font-size:.8rem; line-height:1.5; opacity:.95; }
+  .book .meta b { font-size:1.4rem; display:block; }
+  .book.empty { opacity:.55; }
+  .b-AR { background:#2f8a52; } .b-FR { background:#2d63b8; } .b-AN { background:#7442b5; } .b-M { background:#c0472f; }
+  .b-PC { background:#1f8585; } .b-SN { background:#6b8a1f; } .b-HG { background:#9a6327; } .b-IR { background:#14705a; }
+  .b-IC { background:#4a6075; } .b-PH { background:#a8336f; } .b-TI { background:#1d77ad; }
+</style>
+
+<div class="page-head">
+  <h1>دفاتر الدروس</h1>
+  {% if any_lessons %}<div class="actions"><a class="btn primary" href="{% url 'lessons_zip' %}">⬇️ تحميل كل الدفاتر</a></div>{% endif %}
+</div>
+<p class="muted">لكل قسم دفتر لكل مادة. افتح الدفتر لتقرأ كل دروسه بالترتيب، أو حمّله ملف PDF.</p>
+
+{% for sh in shelves %}
+<section class="shelf">
+  <div class="shelf-head">
+    <h2>القسم <span class="code">{{ sh.section }}</span></h2>
+    {% if sh.has_lessons %}<a class="btn" href="{% url 'lessons_zip' %}?section={{ sh.section.id }}">⬇️ تحميل دفاتر {{ sh.section }}</a>{% endif %}
+  </div>
+  <div class="books">
+    {% for b in sh.books %}
+      <a class="book b-{{ b.subject }}{% if not b.n %} empty{% endif %}" href="{% url 'lesson_board' sh.section.id b.subject %}">
+        <div class="label">{{ b.label }}<small>{{ sh.section }}</small></div>
+        <div class="meta">
+          {% if b.n %}
+            <b>{{ b.n }} درس</b>{{ b.pages }} صفحة<br>آخر درس {{ b.last.date|date:"d/m/Y" }}
+            {% if b.last.title %}<br>{{ b.last.title|truncatechars:30 }}{% endif %}
+          {% else %}لم يُسجَّل أي درس بعد{% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% empty %}
+<p class="card muted">لا توجد دفاتر بعد.{% if user.is_admin_role %} أنشئ حساب «مسجّل الدروس» وحدّد له المواد والأقسام.{% endif %}</p>
+{% endfor %}
+
+{% if user.is_admin_role %}
+<h2>مسجّلو الدروس</h2>
+<p><a class="btn primary" href="{% url 'user_create' %}?role=recorder">+ مسجّل دروس جديد</a></p>
+{% if recorders %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>الاسم</th><th>المواد والأقسام</th><th></th></tr></thead>
+  <tbody>
+  {% for u in recorders %}
+    <tr>
+      <td>{{ u }}<br><small class="muted" dir="ltr">{{ u.username }}</small></td>
+      <td>{% for sc in u.lesson_scopes.all %}<span class="tag">{{ sc.section }} · {{ sc.get_subject_display }}</span> {% empty %}<span class="muted">لم تُحدَّد بعد</span>{% endfor %}</td>
+      <td><a class="btn" href="{% url 'lesson_scopes' u.id %}">تحديد المواد والأقسام</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

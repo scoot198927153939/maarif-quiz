@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}غياب {{ section }}{% endblock %}
+{% block head %}
+<style>
+  /* داخل الصفحة نفسها حتى يظهر الشكل دائماً */
+  .roll-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 4; background: #f4f6f5; padding: .6rem 0; margin-bottom: 0; }
+  .roll-title { text-align: center; flex: 1; }
+  .roll-title h1 { margin: 0; font-size: 1.7rem; }
+  .roll-when { font-size: 1.1rem; color: #555; }
+  table.roll-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 1.15rem; border: 1px solid #cfd8d5; }
+  .roll-table th { white-space: nowrap; background: #1f6f5c; color: #fff; padding: .6rem .5rem; font-size: 1.05rem; position: sticky; top: var(--head-h, 0px); z-index: 3; }
+  .roll-table td { padding: .55rem .5rem; border-bottom: 1px solid #dfe5e3; }
+  .roll-table tbody tr:nth-child(odd) td { background: #ffffff; }
+  .roll-table tbody tr:nth-child(even) td { background: #e9f3f0; }
+  .roll-table td.num, .roll-table td.mat { text-align: center; width: 1%; white-space: nowrap; color: #333; }
+  .roll-table td.mat { font-weight: 700; }
+  .roll-table td.name { font-weight: 600; }
+  .roll-table td.pick, .roll-table th.pick { text-align: center; width: 90px; }
+  .roll-table td.pick label { display: block; cursor: pointer; padding: .25rem 0; }
+  .roll-table td.pick input { width: 24px; height: 24px; cursor: pointer; vertical-align: middle; }
+  .roll-table th.p-A { background: #b42318; } .roll-table th.p-L { background: #b26b00; }
+  .roll-table tbody tr.st-A td { background: #fde2df !important; }
+  .roll-table tbody tr.st-L td { background: #fff1d6 !important; }
+  .roll-table tbody tr.st-A td.name { color: #b42318; }
+  .roll-save { position: sticky; bottom: 0; background: #f4f6f5; border-top: 1px solid #cfd8d5; padding: .8rem 0; margin-top: .8rem; text-align: center; z-index: 3; }
+  .roll-save .btn { font-size: 1.2rem; padding: .7rem 2.5rem; }
+  .roll-count { text-align: center; margin: .6rem 0 0; font-size: 1.05rem; }
+  @media (max-width: 560px) {
+    .roll-title { order: -1; flex-basis: 100%; }
+    .roll-table { font-size: 1rem; }
+    .roll-table td.pick, .roll-table th.pick { width: 56px; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="roll-head">
+  <a class="btn" href="{% url 'attendance_home' %}">→ الأقسام</a>
+  <div class="roll-title">
+    <h1>القسم {{ section }}</h1>
+    <div class="roll-when">{{ session_label }} <span dir="ltr">({{ start }}–{{ end }})</span> · {{ day_label }}
+      {% if taken %}<span class="badge ok">مسجّلة</span>{% endif %}</div>
+  </div>
+  <a class="btn" href="{% url 'section_tools' section.id %}?date={{ day|date:'Y-m-d' }}&session={{ session }}">⚙️ خيارات أخرى</a>
+</div>
+
+{% if rows %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+  <input type="hidden" name="session" value="{{ session }}">
+  <table class="roll-table">
+    <thead><tr><th>#</th><th>رقم القيد</th><th>الاسم</th>
+      {% for v, l in choices %}<th class="pick p-{{ v }}">{{ l }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="st-{{ r.status }}">
+        <td class="num">{{ forloop.counter }}</td>
+        <td class="mat">{{ r.student.matricule|default:"—" }}</td>
+        <td class="name">{{ r.student.full_name|default:r.student.username }}</td>
+        {% for v, l in choices %}<td class="pick"><label title="{{ l }}"><input type="radio" name="s_{{ r.student.id }}" value="{{ v }}" {% if r.status == v %}checked{% endif %}></label></td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="roll-count">غائب: <b id="n-A">0</b> · متأخر: <b id="n-L">0</b> · حاضر: <b id="n-P">0</b></p>
+  {% if is_future %}<p class="msg error">هذا اليوم لم يأتِ بعد.</p>{% else %}
+  <div class="roll-save"><button class="btn primary big">💾 حفظ الغياب</button></div>{% endif %}
+</form>
+{% else %}
+<div class="card empty"><p>لا يوجد تلاميذ في هذا القسم. يضيفهم المشرف باستيراد لائحة التلاميذ.</p></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+// رأس الصفحة (القسم والحصة) ثابت، ورأس الجدول يثبت تحته مباشرة
+function rollHead() {
+  var h = document.querySelector('.roll-head');
+  if (h) document.documentElement.style.setProperty('--head-h', h.offsetHeight + 'px');
+}
+rollHead();
+window.addEventListener('resize', rollHead);
+function rollCount() {
+  ['P', 'A', 'L'].forEach(function (v) {
+    var el = document.getElementById('n-' + v);
+    if (el) el.textContent = document.querySelectorAll('.roll-table input[value=' + v + ']:checked').length;
+  });
+}
+document.querySelectorAll('.roll-table input[type=radio]').forEach(function (i) {
+  i.addEventListener('change', function () { i.closest('tr').className = 'st-' + i.value; rollCount(); });
+});
+rollCount();
+</script>
+{% endblock %}
