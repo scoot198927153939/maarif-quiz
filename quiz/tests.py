@@ -1564,3 +1564,15 @@ class GradesTests(TestCase):
         second = {h: c.value for h, c in zip(head, ws[4])}
         self.assertEqual((second["المعدل"], second["الترتيب"]), (16, 1))
         self.assertEqual(wb["اللغة العربية"]["E3"].value, "حسن")
+
+    def test_print_sheet(self):
+        from .models import GradeAssessment
+        a = GradeAssessment.objects.get(name="اختبار 1")
+        self.client.force_login(self.admin)
+        url = reverse("grades_sheet", args=[self.sec.id])
+        one = self.client.get(url, {"a": a.id, "subject": "MATH"})
+        self.assertContains(one, "الرياضيات")
+        self.assertContains(one, "702")
+        self.assertContains(one, 'class="page"', count=1)
+        self.assertContains(self.client.get(url, {"a": a.id}), 'class="page"', count=7)
+        self.assertEqual(self.client.get(url, {"a": a.id, "subject": "HG"}).status_code, 403)

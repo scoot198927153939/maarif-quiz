@@ -38,6 +38,7 @@
     <a class="btn" href="{% url 'grades_section' section.id %}?a={{ assessment.id }}">→ مواد {{ section.code }}</a>
     <button class="btn" type="button" onclick="window.print()">🖨️ طباعة</button>
     <a class="btn" href="{% url 'grades_export' section.id %}?a={{ assessment.id }}">⬇️ Excel القسم</a>
+    <a class="btn" href="{% url 'grades_sheet' section.id %}?a={{ assessment.id }}&subject={{ subject }}" target="_blank">🖨️ ورقة الأستاذ</a>
   </div>
 </div>
 <div class="gr-subjects">

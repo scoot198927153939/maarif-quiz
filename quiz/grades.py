@@ -166,6 +166,23 @@ def _fmt(value):
 
 
 @grades_required
+def grades_sheet(request, section_id):
+    """ورقة فارغة للطباعة يكتب فيها الأستاذ النتائج بيده: لمادة واحدة (?subject=MATH) أو لكل المواد (صفحة لكل مادة)."""
+    section = _section(request.user, section_id)
+    assessment = _assessment(request)
+    subjects = grade_subjects(section.classe.code)
+    code = request.GET.get("subject")
+    if code:
+        subjects = [(c, n) for c, n in subjects if c == code]
+        if not subjects:
+            raise PermissionDenied
+    return render(request, "quiz/grades/sheet.html", {
+        "section": section, "assessment": assessment, "subjects": subjects, "students": _students(section),
+        "max": GRADE_MAX,
+    })
+
+
+@grades_required
 def grades_export(request, section_id):
     """ملف Excel لنتائج القسم في اختبار: ورقة «كل المواد» (تلميذ × مادة + المعدل والترتيب)،
     ثم ورقة لكل مادة فيها النتيجة والملاحظة."""
@@ -265,4 +282,4 @@ def grades_assessment_delete(request, pk):
     return redirect(reverse("grades_home"))
 
 
-__all__ = ["grades_home", "grades_section", "grades_entry", "grades_export", "grades_assessment_delete", "GRADE_SUBJECT_NAMES"]
+__all__ = ["grades_sheet", "grades_home", "grades_section", "grades_entry", "grades_export", "grades_assessment_delete", "GRADE_SUBJECT_NAMES"]
